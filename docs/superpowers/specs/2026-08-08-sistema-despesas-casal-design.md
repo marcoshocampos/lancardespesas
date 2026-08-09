@@ -1,8 +1,9 @@
 # Sistema de lançamento de despesas do casal — documento de design
 
 **Data:** 2026-08-08
-**Status:** desenho aprovado; uma decisão de UI em aberto (ver seção 11)
-**Proposta visual:** https://claude.ai/code/artifact/542e24e6-fa0e-4d68-9f86-2d1c84db0c16
+**Revisado:** 2026-08-09, após a revisão do casal
+**Status:** desenho aprovado, sem questões em aberto
+**Proposta visual (desatualizada em parte, ver seção 12):** https://claude.ai/code/artifact/542e24e6-fa0e-4d68-9f86-2d1c84db0c16
 
 ---
 
@@ -10,8 +11,7 @@
 
 Nardy e Nick controlam as despesas do casal numa planilha do Google Sheets, com uma aba por
 mês. Cada aba tem três blocos de lançamento — Nardy, Nick e Conjunto — com as colunas
-`Descrição | Valor | Parcela | Categoria`, mais um bloco `OUTROS` com as transferências que
-um deve ao outro.
+`Descrição | Valor | Parcela | Categoria`, mais um bloco `OUTROS`.
 
 A fatura de referência é o cartão **C6**, que **fecha dia 04 e vence dia 10**. A competência
 é o mês do vencimento: compras de 05/07 a 04/08 fecham em 04/08, vencem em 10/08 e caem na
@@ -33,8 +33,9 @@ A planilha calcula certo. O que ela não faz:
    antes de assumir mais um parcelado.
 3. **Sem visão do passado.** Cada mês vive numa aba isolada; nenhuma pergunta que atravesse
    meses tem resposta sem abrir aba por aba.
-4. **Saldo entre as pessoas calculado de cabeça**, somando o bloco `OUTROS` manualmente.
-5. **Conferência da fatura manual**, sem apontamento de diferença.
+4. **Conferência da fatura manual**, sem apontamento de diferença.
+5. **Despesas fora do cartão sem lugar próprio** — boletos e pagamentos em pix ou débito não
+   têm onde ser registrados de forma consistente.
 
 ## 3. Objetivos e não-objetivos
 
@@ -43,6 +44,7 @@ A planilha calcula certo. O que ela não faz:
 - Substituir integralmente a planilha, sem perder nenhum uso atual.
 - Eliminar a redigitação de parcelas.
 - Responder perguntas que atravessam meses.
+- Registrar num mesmo lugar as despesas de cartão e as pagas fora dele.
 - Tornar o fechamento mensal um fluxo guiado e verificável.
 - Não perder nem corromper dado, nunca.
 
@@ -50,91 +52,92 @@ A planilha calcula certo. O que ela não faz:
 
 - Não é um gerenciador financeiro completo: sem receitas, saldo de conta ou investimentos.
 - Não é ferramenta de orçamento: registra e mostra, não impõe metas.
-- Não é multiusuário além do casal.
+- **Não controla dívidas entre Nardy e Nick.** Tudo sai de dinheiro comum; o rateio existe
+  para consciência de gasto, não para cobrança.
+- Não tem convite de colaborador nem papéis de acesso: são duas pessoas fixas.
 
 ## 4. Decisões de produto
 
 | Tema | Decisão |
 |---|---|
-| Escopo | Cartões de crédito + despesas avulsas (pix, débito, dinheiro, boleto) |
-| Cartões | Cadastráveis, cada um com dia de fechamento e vencimento próprios |
+| Contas | Cadastráveis, em dois tipos: cartão (com fatura) e externa (sem fatura) |
+| Cartões | Dia de fechamento e vencimento próprios; geram fatura conferível |
+| Contas externas | Boleto, pix, débito, dinheiro; competência é o mês do pagamento |
 | Parcelas | Geradas automaticamente na compra; cada parcela é editável ou cancelável |
+| Escopo do gasto | Nardy, Nick ou Conjunto |
 | Conjunto | Rateio 50/50 por padrão, ajustável por lançamento |
-| Terceiros | Reembolso externo com status pendente/recebido; não conta como gasto do casal |
-| Pagamento da fatura | Sai de conta conjunta; **não** gera dívida entre as pessoas |
-| Saldo entre pessoas | Fecha por mês, com o acumulado dos meses não quitados visível |
+| Terceiros | Reembolso de pessoa de fora, com status pendente/recebido |
 | Categorias | Começa com as 8 da planilha; criáveis, renomeáveis e arquiváveis na tela |
-| Etiquetas | Rótulos livres que cruzam categorias (ex.: "viagem", "reforma") |
 | Recorrentes | Despesas fixas geradas automaticamente a cada competência |
 | Entrada de dados | Grade com digitação por teclado, autocomplete com memória, copiar do mês anterior |
 | Estornos | Lançamento de valor negativo (devolução, cashback, desconto) |
 | Conferência | Valor real da fatura digitado e comparado com a soma dos lançamentos |
-| Fechamento | Fluxo guiado de 4 passos, terminando com a fatura travada |
+| Fechamento | Fluxo guiado de 3 passos, terminando com a fatura travada |
 | Robustez | Lixeira, histórico de alterações, proteção contra edição simultânea |
 | Exportação | CSV/Excel a qualquer momento; PDF do relatório mensal com gráficos |
 | Backup | Dump mensal automático, cifrado, fora do provedor do banco |
 | Relatórios | Gasto por categoria no mês; evolução mês a mês; projeção de parcelas futuras |
-| Alerta | Aviso quando um mês futuro ultrapassa um limite definido pelo casal |
+| Alerta | Aviso quando um mês futuro ultrapassa **R$ 2.000** |
+| Layout do mês | Dois layouts, A e B, alternáveis por preferência de cada pessoa |
 | Migração | Mês corrente + todas as parcelas em aberto; histórico antigo fica na planilha |
 | Plataforma | Web, desktop-first |
-| Acesso | Login com Google, restrito a uma lista de e-mails autorizados |
+| Acesso | Login com Google, restrito a uma lista fixa de dois e-mails |
 
 ## 5. Modelo de domínio
 
 ### 5.1 O conceito central
 
-A planilha tem três mecanismos que parecem distintos — os blocos por pessoa, as linhas
-vermelhas de `Terceiros` e o bloco `OUTROS` — mas os três respondem às mesmas duas perguntas:
-**de quem é o gasto** e **quem bancou**. Modelando esses dois eixos separadamente, os quatro
-casos reais se resolvem com um único tipo de lançamento:
+Um lançamento responde a duas perguntas independentes:
 
-| Caso real (agosto) | De quem é | Quem bancou | Consequência |
+- **De quem é o gasto** — `Nardy`, `Nick` ou `Conjunto`. Determina os totais e o rateio.
+- **Por onde foi pago** — uma conta de cartão (entra numa fatura, pode ser parcelado) ou uma
+  conta externa (entra direto na competência do pagamento).
+
+Um terceiro atributo, opcional, cobre o caso das linhas vermelhas da planilha: o lançamento
+pode ser **reembolsável por alguém de fora**.
+
+Com isso, os quatro casos reais de agosto ficam assim:
+
+| Caso real | De quem é | Conta | Consequência |
 |---|---|---|---|
-| `loja online R$ 25,00` | Nardy | Conta conjunta | Rateio apenas; nenhuma dívida |
-| `fone + suporte R$ 101,01` | Conjunto | Conta conjunta | Divide 50/50; alimenta `METADE` |
-| `aparelho R$ 100,00` | Pessoa externa | Conta conjunta | Vira "a receber" com status |
-| `manutenção da moto R$ 80,00` | Nick | Nardy, do bolso | Dívida Nick → Nardy, em 4 parcelas |
-
-**Regra que fecha o raciocínio:** o que sai da conta conjunta não gera dívida entre as pessoas
-— ali o rateio serve para consciência de gasto. Dívida só nasce quando uma pessoa banca algo
-da outra com dinheiro próprio.
+| `loja online R$ 25,00` | Nardy | C6 | Soma no total de Nardy |
+| `fone + suporte R$ 101,01` | Conjunto | C6 | Divide 50/50; alimenta `METADE` |
+| `aparelho R$ 100,00` | Nardy | C6 | Entra na fatura e vira "a receber" de terceiro |
+| `manutenção da moto R$ 80,00` | Nick | Externa (pix) | Despesa de Nick fora do cartão |
 
 ### 5.2 Entidades
 
-**Membro** — nome, e-mail Google, cor, ativo. Genérico para N membros; hoje são dois.
+**Membro** — nome, e-mail Google, cor, ativo. Dois registros fixos.
 
-**Cartão** — nome, dia de fechamento, dia de vencimento, cor, ativo.
-Instância inicial: C6, fechamento 04, vencimento 10.
+**Conta** — nome, `tipo` (`CARTAO` ou `EXTERNA`), cor, ativa.
+Para `CARTAO`: `diaFechamento`, `diaVencimento`.
+Instâncias iniciais: C6 (cartão, fechamento 04, vencimento 10), Nu (cartão), Externa
+(boleto, pix, débito).
 
 **Categoria** — nome, cor, ícone, arquivada. Nasce com as 8 da planilha.
 
-**Etiqueta** — nome, cor. Relação N:N com lançamento.
-
 **Lançamento** — o núcleo:
-- `descrição`, `valorCentavos`, `dataCompra`, `categoriaId`
+- `descrição`, `valorCentavos`, `dataCompra`, `categoriaId`, `contaId`
 - `escopo`: `PESSOAL` (com `membroId`) ou `CONJUNTO`
-- `formaPagamento`: `CARTAO` (com `cartaoId`) ou `PIX` / `DEBITO` / `DINHEIRO` / `BOLETO`
-  (com `pagadorMembroId`)
+- `meioPagamento` para contas externas: `PIX` / `DEBITO` / `BOLETO` / `DINHEIRO`
 - `numeroParcelas`, e a origem do valor digitado (`POR_PARCELA` ou `TOTAL`)
-- `reembolso` opcional: `tipo` (`MEMBRO` ou `EXTERNO`), `devedorMembroId` ou `devedorNome`,
-  `status` (`PENDENTE` / `RECEBIDO`)
+- `reembolso` opcional: `devedorNome`, `status` (`PENDENTE` / `RECEBIDO`)
 - `versao` (lock otimista), `deletadoEm` (lixeira)
 
 **Parcela** — filha do lançamento: `numero`, `valorCentavos`, `competencia` (`AAAA-MM`),
-`cancelada`. É o que aparece na grade do mês.
+`cancelada`. É o que aparece na grade do mês. Lançamento à vista tem uma parcela.
 
 **Rateio** — para lançamentos de escopo `CONJUNTO`: `membroId`, `percentual`. Sempre gravado
 explicitamente, mesmo quando é o 50/50 padrão.
 
-**Fatura** — `cartaoId`, `competencia`, `dataFechamento`, `dataVencimento`,
-`valorRealCentavos` (digitado pelo casal para conferência), `status`
+**Fatura** — apenas para contas do tipo `CARTAO`: `contaId`, `competencia`, `dataFechamento`,
+`dataVencimento`, `valorRealCentavos` (digitado para conferência), `status`
 (`ABERTA` / `CONFERIDA` / `TRAVADA`), `travadaEm`.
 
-**Recorrente** — descrição, valor, categoria, escopo, forma de pagamento, dia do mês,
-`dataInicio`, `dataFim`, ativa.
+**Recorrente** — descrição, valor, categoria, escopo, conta, dia do mês, `dataInicio`,
+`dataFim`, ativa.
 
-**Acerto** — pagamento entre membros: `deMembroId`, `paraMembroId`, `valorCentavos`, `data`,
-`observacao`.
+**Preferência** — por membro: `layoutMes` (`PAINEIS` ou `LISTA`), `tema`.
 
 **Auditoria** — `tabela`, `registroId`, `membroId`, `acao`, `diff` (JSON), `criadoEm`.
 
@@ -142,21 +145,21 @@ explicitamente, mesmo quando é o 50/50 padrão.
 
 Todas implementadas como funções puras, sem I/O, e testadas isoladamente.
 
-1. **Competência.** `dataCompra` + `cartao.diaFechamento` → competência da fatura. Compra até
-   o dia do fechamento entra na fatura que fecha naquele mês; depois disso, na seguinte.
-   O resultado é sempre editável pelo usuário.
+1. **Competência.** Para conta do tipo cartão: `dataCompra` + `diaFechamento` → competência da
+   fatura. Compra até o dia do fechamento entra na fatura que fecha naquele mês; depois disso,
+   na seguinte. Para conta externa: a competência é o mês da data do pagamento. Em ambos os
+   casos o resultado é editável pelo usuário.
 2. **Parcelamento.** A parcela `n` cai em `competenciaBase + (n-1)` meses. Quando o valor
    digitado é o total, a divisão é em centavos e a diferença de arredondamento vai na
    **última** parcela.
 3. **Rateio.** Lançamento `CONJUNTO` gera cotas por membro, 50/50 por padrão. A soma das cotas
    é sempre igual ao valor da parcela, com o resto de centavos em uma cota definida.
 4. **Totais do mês.** `TOTAL` por pessoa e para o conjunto → `METADE` → `TOTAL GERAL` por
-   pessoa → `FATURA` (soma dos três). Devem reproduzir exatamente os números da planilha.
-5. **Saldo entre membros.** Somam apenas lançamentos avulsos pagos por um membro em benefício
-   de outro, e reembolsos entre membros. Saldo do mês, mais o acumulado dos meses não
-   quitados, menos os acertos registrados.
-6. **Reembolso externo.** Sai do total de gasto do casal nos relatórios, mas permanece na
+   pessoa → `FATURA` por conta de cartão. Devem reproduzir exatamente os números da planilha.
+5. **Reembolso de terceiro.** Sai do total de gasto do casal nos relatórios, mas permanece na
    fatura — porque o dinheiro efetivamente saiu.
+6. **Projeção.** Soma das parcelas em aberto por competência futura, com marcação das que
+   ultrapassam R$ 2.000.
 
 **Dinheiro é sempre inteiro em centavos.** Nenhum `float` em nenhuma camada.
 **Datas são `date` sem hora**, com timezone fixo `America/Sao_Paulo`.
@@ -169,11 +172,11 @@ Todas implementadas como funções puras, sem I/O, e testadas isoladamente.
 src/
   domain/          # regras puras, zero I/O
     money.ts       # centavos, formatação BRL
-    competencia.ts # data + fechamento → qual fatura
+    competencia.ts # data + tipo de conta → qual competência
     parcelamento.ts# geração de parcelas e arredondamento
     rateio.ts      # divisão do conjunto
     totais.ts      # TOTAL / METADE / TOTAL GERAL / FATURA
-    saldo.ts       # dívidas e acertos entre membros
+    projecao.ts    # parcelas em aberto por mês futuro e alerta
   server/          # Prisma, repositórios, server actions, validação Zod
   app/             # rotas Next (App Router)
   components/      # UI
@@ -190,11 +193,13 @@ sem banco e sem browser.
 |---|---|
 | Framework | Next.js 15 (App Router) + TypeScript estrito |
 | Banco | Postgres no Neon + Prisma |
-| Auth | Auth.js v5, provider Google, allowlist de e-mails |
+| Auth | Auth.js v5, provider Google, allowlist fixa de dois e-mails |
 | UI | Tailwind + shadcn/ui + TanStack Table |
 | Gráficos | Recharts |
 | Testes | Vitest no domínio; Playwright em fluxos críticos |
 | Hospedagem | Vercel |
+
+Tema claro e escuro, ambos suportados, com preferência por pessoa.
 
 ### 7.3 Pontos de robustez
 
@@ -213,8 +218,7 @@ Página de relatório com CSS de impressão e um botão que dispara `window.prin
 PDF pelo próprio navegador. Aproveita os gráficos Recharts reais, sem duplicar layout nem
 adicionar dependência pesada de renderização no servidor.
 
-Limitação aceita: não gera PDF agendado sem alguém clicar. Se envio automático virar
-requisito, aí entra uma biblioteca de geração no servidor.
+Limitação aceita: não gera PDF agendado sem alguém clicar.
 
 ### 7.5 Migração da planilha
 
@@ -222,26 +226,46 @@ Script de uso único em `scripts/importar-planilha.ts`, lendo o CSV exportado da
 criando as compras com as parcelas restantes já posicionadas nas competências corretas. Não
 vira tela nem funcionalidade do produto.
 
-## 8. Telas
+## 8. Navegação e telas
 
-1. **Mês** — a grade principal, com os totais do mês. Layout em aberto (seção 11).
-2. **Lançamento** — linha inline na grade; modal apenas para parcelamento, reembolso e
-   rateio customizado.
-3. **Faturas** — lista por cartão, com conferência contra o valor real e status.
-4. **Fechamento** — fluxo guiado: revisar fixos → conferir fatura → acertar saldo → travar mês.
-5. **Saldo entre vocês** — saldo do mês, acumulado, e registro de pagamento.
-6. **A receber** — pendências de reembolso externo.
-7. **Relatórios** — os três gráficos, com exportação em PDF.
-8. **Busca** — por descrição, valor, categoria, pessoa, etiqueta e período.
-9. **Configurações** — membros, cartões, categorias, etiquetas, recorrentes, limite de alerta.
-10. **Lixeira** — restauração de lançamentos excluídos.
+Três destinos principais, mais um menu flutuante para o resto.
+
+```
+login
+ ├── Despesas ......... chips de conta: [Todos] [C6] [Nu] [Externa]
+ │                      grade do mês, em layout A ou B conforme a preferência
+ ├── Resumo ........... TOTAL por pessoa, METADE, TOTAL GERAL, FATURA,
+ │                      fatura real e diferença
+ └── Gráficos ......... ranking de categorias, categoria em rosca,
+                        evolução mensal, projeção futura
+
+menu flutuante
+ ├── Fechar o mês ..... fluxo guiado de 3 passos
+ ├── A receber ........ pendências de reembolso de terceiros
+ ├── Buscar ........... descrição, valor, categoria, pessoa, período
+ ├── Configurações .... contas, categorias, recorrentes, layout, tema
+ └── Lixeira .......... restauração de lançamentos excluídos
+```
+
+**Despesas** é a tela onde o tempo é gasto. Os chips no topo filtram por conta, e `Todos`
+mostra o mês inteiro — é assim que se percebe o que ficou faltando. Dois layouts:
+
+- **A, três painéis** — Nardy, Nick e Conjunto lado a lado, fiel à planilha.
+- **B, lista única** — uma linha por lançamento, com a pessoa como coluna, ordenável e
+  filtrável por qualquer campo.
+
+Os dois consomem os mesmos dados e chegam aos mesmos totais; muda apenas o componente que
+desenha a grade. A escolha é preferência de cada pessoa, não configuração global.
+
+**Fechamento do mês**, em três passos: revisar os fixos → conferir contra a fatura real →
+travar o mês.
 
 ## 9. Fases de entrega
 
 **Fase 1 — paridade com a planilha.** Sem isso a planilha não pode ser abandonada.
-Auth e allowlist; cadastros; grade do mês; parcelamento automático; rateio; totais; estornos;
-faturas com conferência; saldo entre membros e acertos; proteção contra edição simultânea;
-importação do mês corrente e das parcelas em aberto.
+Auth e allowlist; cadastros de conta e categoria; grade do mês no layout B; parcelamento
+automático; rateio; totais; estornos; contas externas; faturas com conferência; proteção
+contra edição simultânea; importação do mês corrente e das parcelas em aberto.
 
 Dois itens estão nesta fase por dependência, não por conveniência. **Estornos** entram aqui
 porque sem valor negativo a conferência da fatura não fecha em nenhum mês que tenha tido
@@ -249,16 +273,24 @@ devolução, e conferência é requisito da Fase 1. **Proteção contra edição
 aqui porque custa uma coluna e uma cláusula `WHERE` durante a modelagem, e vira retrabalho
 em toda action depois.
 
-**Fase 2 — o que a planilha não faz.** Recorrentes; a receber de terceiros; relatórios e
-gráficos; exportação PDF/CSV; busca global; etiquetas; alerta de pico.
+**Fase 2 — o que a planilha não faz.** Layout A e a preferência que alterna entre os dois;
+recorrentes; a receber de terceiros; relatórios e gráficos; exportação PDF/CSV; busca global;
+alerta de pico.
 
 **Fase 3 — ritual e rede de segurança.** Fechamento guiado com trava de fatura; lixeira;
 histórico de alterações; backup automático.
+
+> Sobre a ordem dos layouts: a Fase 1 entrega apenas o layout B, que é o recomendado e o mais
+> simples de construir. O layout A entra na Fase 2 junto do seletor. Assim a Fase 1 não paga
+> o custo de dois renderizadores antes de alguém ter usado o sistema de verdade.
 
 ## 10. Fora de escopo
 
 Decididos e descartados; todos podem voltar se virarem dor real:
 
+- Controle de dívidas e acertos entre Nardy e Nick
+- Etiquetas livres cruzando categorias
+- Convite de colaborador, papéis e permissões
 - Integração bancária / Open Finance
 - Orçamento e metas por categoria
 - Receitas, saldo de contas e investimentos
@@ -268,30 +300,39 @@ Decididos e descartados; todos podem voltar se virarem dor real:
   futuras manualmente)
 - Lançamento por interpretação de texto livre
 - Aplicativo nativo e multi-moeda
-- Rateio entre mais de duas pessoas nos moldes de um Splitwise
 
-## 11. Questões em aberto
-
-Aguardando a revisão do casal sobre a proposta visual.
-
-1. **Layout da tela do mês.** Opção A (três painéis, fiel à planilha) ou opção B (lista única
-   com coluna "de quem"). Recomendação registrada: **opção B**.
-2. **Categorias.** As 8 atuais bastam, ou falta alguma que hoje é forçada numa categoria
-   errada (mercado, casa, alimentação, pet)?
-3. **Etiquetas.** Quais eventos concretos seriam marcados.
-4. **Limite de alerta.** A partir de qual valor um mês futuro merece aviso. Referência real:
-   setembro está em R$ 1.100,00 e os cinco meses seguintes em R$ 600,00.
-5. **Dores não cobertas.** Qualquer incômodo mensal da planilha que não apareceu no desenho.
-
-## 12. Pré-requisitos de ambiente
+## 11. Pré-requisitos de ambiente
 
 - Node.js 24.19.0 LTS — instalado em 2026-08-08
 - npm 11.17.0 — instalado em 2026-08-08
 - git 2.55.0 — presente
-- GitHub CLI 2.97.0 — instalado em 2026-08-08
+- GitHub CLI 2.97.0 — instalado e autenticado em 2026-08-08
 - Conta no Neon (Postgres) — pendente
 - Conta na Vercel — pendente
 - Credenciais OAuth do Google (client id e secret) — pendente
+
+## 12. Histórico de revisão
+
+**2026-08-09** — revisão do casal. Mudanças em relação à primeira versão:
+
+- **Saldo entre Nardy e Nick removido.** Não há mais dívida de um para o outro: some a
+  entidade de acerto, a tela de saldo e o terceiro passo do fechamento. O `manutenção da moto`
+  deixa de ser dívida e passa a ser uma despesa de Nick numa conta externa.
+- **O bloco `OUTROS` da planilha muda de significado**: deixa de ser transferências entre as
+  duas pessoas e passa a ser despesas pagas fora do cartão.
+- **Conceito de conta** introduzido, em dois tipos, substituindo a entidade cartão.
+- **Etiquetas removidas** do escopo.
+- **Alerta de mês futuro fixado em R$ 2.000.** Com as parcelas atuais nenhum mês futuro
+  atinge esse valor: setembro é o pico, com R$ 1.100,00. O alerta nasce silencioso, por
+  desenho.
+- **Os dois layouts serão construídos**, alternáveis por preferência de cada pessoa, em vez
+  de escolher um só.
+- **Convite de colaborador descartado.** A allowlist de dois e-mails continua fixa.
+- **Navegação redesenhada** a partir do diagrama de fluxo do casal: Despesas, Resumo e
+  Gráficos como destinos principais, com menu flutuante para o restante.
+
+A proposta visual publicada reflete a primeira versão e ainda mostra a tela de saldo e a
+pergunta sobre etiquetas.
 
 ## Apêndice — dados de referência (agosto)
 
