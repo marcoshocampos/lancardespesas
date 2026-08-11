@@ -12,6 +12,8 @@ relatórios que atravessem meses — coisas que uma aba por mês não consegue f
 Design fechado, sem questões em aberto. Nenhum código de aplicação ainda.
 
 - **Documento de design:** [docs/superpowers/specs/2026-08-08-sistema-despesas-casal-design.md](docs/superpowers/specs/2026-08-08-sistema-despesas-casal-design.md)
+- **Regras de negócio e casos de borda:** [docs/regras-de-negocio.md](docs/regras-de-negocio.md)
+- **Orientação para o Claude Code:** [CLAUDE.md](CLAUDE.md)
 - **Proposta visual, com os mockups:** https://claude.ai/code/artifact/542e24e6-fa0e-4d68-9f86-2d1c84db0c16
   (reflete a primeira versão do desenho; ver o histórico de revisão na seção 12 da spec)
 
