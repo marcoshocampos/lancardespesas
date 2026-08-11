@@ -14,7 +14,7 @@ plano de implementação da Fase 1.
 
 | Documento | Para quê |
 |---|---|
-| [`docs/superpowers/specs/2026-08-08-sistema-despesas-casal-design.md`](docs/superpowers/specs/2026-08-08-sistema-despesas-casal-design.md) | Design: modelo, arquitetura, fases, e o histórico de revisão |
+| [`docs/specs/2026-08-08-sistema-despesas-casal-design.md`](docs/specs/2026-08-08-sistema-despesas-casal-design.md) | Design: modelo, arquitetura, fases, e o histórico de revisão |
 | [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
 
 A spec é a fonte da verdade para **o que** o sistema é. As regras de negócio são a fonte da
@@ -59,6 +59,9 @@ Quebrar qualquer um destes é bug, não escolha de estilo.
 - **Idioma.** Vocabulário de domínio em português nos identificadores, sem acento
   (`competencia`, `rateio`, `lancamento`, `fatura`). Termos técnicos em inglês
   (`repository`, `handler`, `schema`). Comentários, commits e documentação em português.
+- **Nunca commitar sem consultar o usuário.** Ele revisa o que entra em cada commit. Prepare
+  as alterações, descreva o que mudou e qual seria a mensagem, e espere a autorização. Vale
+  também para `push`, `--amend`, branch e PR. Editar arquivo e deixar sem commit está liberado.
 - **Commits** em português, no imperativo, explicando o porquê e não o quê.
 - **Testes** com Vitest no domínio, cobrindo os casos de borda de
   [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md). Playwright só nos fluxos críticos.

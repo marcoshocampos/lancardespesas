@@ -1,6 +1,6 @@
 # Regras de negócio
 
-Como o sistema se comporta, caso a caso. A [spec de design](superpowers/specs/2026-08-08-sistema-despesas-casal-design.md)
+Como o sistema se comporta, caso a caso. A [spec de design](specs/2026-08-08-sistema-despesas-casal-design.md)
 define o que o sistema é; este documento define o que ele faz quando alguém clica.
 
 Itens marcados com **[a confirmar]** são decisões que eu tomei para não deixar o
@@ -115,7 +115,8 @@ A soma das cotas é sempre exatamente igual ao valor da parcela.
 
 ## 4. Totais do mês
 
-Calculados na ordem, reproduzindo a planilha:
+Os totais formam uma **matriz de pessoas por contas**. Uma coluna por conta, mais uma coluna
+de total; nas linhas, a mesma escada da planilha.
 
 ```
 TOTAL Nardy      = soma das parcelas de escopo PESSOAL/Nardy
@@ -123,18 +124,32 @@ TOTAL Nick       = soma das parcelas de escopo PESSOAL/Nick
 TOTAL Conjunto   = soma das parcelas de escopo CONJUNTO
 METADE           = cota de cada pessoa no TOTAL Conjunto
 TOTAL GERAL X    = TOTAL X + METADE de X
-FATURA           = TOTAL Nardy + TOTAL Nick + TOTAL Conjunto, por conta de cartão
+SOMADO           = TOTAL Nardy + TOTAL Nick + TOTAL Conjunto
 ```
 
-Referência de agosto, que os testes devem reproduzir: `423,75` · `500,75` · `101,01` ·
-`50,50` · `474,25` · `551,26` · `1.025,51`.
+Cada uma dessas linhas é calculada **por conta** e depois somada na coluna de total. Para uma
+conta de cartão, o `SOMADO` daquela coluna é a `FATURA` da competência.
+
+Com os dados reais de agosto, e o `manutenção da moto` de R$ 80,00 como despesa externa de Nick:
+
+|  | C6 | Externa | Total |
+|---|---:|---:|---:|
+| Nardy | 423,75 | 0,00 | 423,75 |
+| Nick | 500,75 | 80,00 | 580,75 |
+| Conjunto | 101,01 | 0,00 | 101,01 |
+| Metade cada | 50,50 | 0,00 | 50,50 |
+| Nardy total | 474,25 | 0,00 | 474,25 |
+| Nick total | 551,26 | 80,00 | 631,26 |
+| Somado | 1.025,51 | 80,00 | 1.105,51 |
+
+A coluna do C6 reproduz exatamente a planilha, e é ela que os testes devem validar. A leitura
+horizontal responde quanto cada pessoa gastou no mês inteiro, dentro e fora da fatura.
+
+**Nenhum rótulo muda de significado** em relação à planilha: `TOTAL GERAL` continua sendo
+pessoal mais metade do conjunto, agora por conta. O número que soma tudo é a célula onde a
+linha `TOTAL GERAL` cruza a coluna `Total`.
 
 Parcelas canceladas e lançamentos na lixeira **não entram** em nenhum total.
-
-Lançamentos de conta externa **não entram na fatura** de cartão nenhuma, mas entram nos
-totais por pessoa da competência. **[a confirmar]** — a alternativa seria manter os totais
-por pessoa separados por conta, o que dificultaria enxergar quanto cada um gastou no mês
-como um todo.
 
 ---
 

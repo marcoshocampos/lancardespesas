@@ -154,8 +154,10 @@ Todas implementadas como funções puras, sem I/O, e testadas isoladamente.
    **última** parcela.
 3. **Rateio.** Lançamento `CONJUNTO` gera cotas por membro, 50/50 por padrão. A soma das cotas
    é sempre igual ao valor da parcela, com o resto de centavos em uma cota definida.
-4. **Totais do mês.** `TOTAL` por pessoa e para o conjunto → `METADE` → `TOTAL GERAL` por
-   pessoa → `FATURA` por conta de cartão. Devem reproduzir exatamente os números da planilha.
+4. **Totais do mês.** Calculados como uma matriz de **pessoas por contas**: `TOTAL` por pessoa
+   e para o conjunto → `METADE` → `TOTAL GERAL` por pessoa → `SOMADO`, cada um deles aberto
+   por conta e com uma coluna de total. A coluna de uma conta de cartão é a `FATURA` daquela
+   competência. Os números da coluna do C6 devem reproduzir exatamente os da planilha.
 5. **Reembolso de terceiro.** Sai do total de gasto do casal nos relatórios, mas permanece na
    fatura — porque o dinheiro efetivamente saiu.
 6. **Projeção.** Soma das parcelas em aberto por competência futura, com marcação das que
@@ -234,8 +236,7 @@ Três destinos principais, mais um menu flutuante para o resto.
 login
  ├── Despesas ......... chips de conta: [Todos] [C6] [Nu] [Externa]
  │                      grade do mês, em layout A ou B conforme a preferência
- ├── Resumo ........... TOTAL por pessoa, METADE, TOTAL GERAL, FATURA,
- │                      fatura real e diferença
+ ├── Resumo ........... matriz pessoas x contas, com extrato real e diferença
  └── Gráficos ......... ranking de categorias, categoria em rosca,
                         evolução mensal, projeção futura
 
@@ -256,6 +257,15 @@ mostra o mês inteiro — é assim que se percebe o que ficou faltando. Dois lay
 
 Os dois consomem os mesmos dados e chegam aos mesmos totais; muda apenas o componente que
 desenha a grade. A escolha é preferência de cada pessoa, não configuração global.
+
+**Resumo** é uma matriz de pessoas por contas: uma coluna por conta — os mesmos chips da tela
+de Despesas — mais uma coluna de total. Nas linhas, `TOTAL` de cada pessoa e do conjunto,
+`METADE`, `TOTAL GERAL` por pessoa e `SOMADO`. Abaixo, para cada coluna de cartão, o extrato
+real e a diferença.
+
+A leitura horizontal responde "quanto o Nick gastou no mês inteiro, dentro e fora da fatura"; a
+vertical responde "quanto essa conta somou". Nenhum rótulo da planilha muda de significado, e
+uma conta nova é só mais uma coluna.
 
 **Fechamento do mês**, em três passos: revisar os fixos → conferir contra a fatura real →
 travar o mês.
