@@ -83,6 +83,11 @@ permissões · integração bancária · orçamento e metas · receitas e saldo 
 comprovante · importação de CSV/OFX da fatura · lançamento por texto livre · app nativo ·
 multi-moeda
 
+**Neon Auth fica desativado.** A autenticação é Auth.js v5 com Google e allowlist fixa de dois
+e-mails, com sessão em JWT — sem tabela de auth no banco. O Neon Auth resolve cadastro,
+senha, organizações e administração de usuários, nada disso existe aqui, e ligá-lo criaria um
+segundo dono da identidade e um schema `neon_auth` no meio das migrations do Prisma.
+
 ## Dados de referência
 
 O apêndice da spec traz os números reais de agosto. **Use-os como fixture nos testes de
