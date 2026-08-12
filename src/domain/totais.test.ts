@@ -84,4 +84,75 @@ describe('calcularResumo, casos de borda', () => {
       calcularResumo([{ contaId: C6, escopo: 'CONJUNTO', valorCentavos: 100 }], MEMBROS, CONTAS),
     ).toThrow('Parcela de conjunto sem rateio');
   });
+
+  it('recusa parcela pessoal com conta desconhecida', () => {
+    expect(() =>
+      calcularResumo(
+        [{ contaId: 'conta-inexistente', escopo: 'PESSOAL', membroId: NICK, valorCentavos: 100 }],
+        MEMBROS,
+        CONTAS,
+      ),
+    ).toThrow('Conta desconhecida no resumo');
+  });
+
+  it('recusa parcela de conjunto com conta desconhecida', () => {
+    expect(() =>
+      calcularResumo(
+        [
+          {
+            contaId: 'conta-inexistente',
+            escopo: 'CONJUNTO',
+            valorCentavos: 100,
+            cotas: [
+              { membroId: NARDY, valorCentavos: 50 },
+              { membroId: NICK, valorCentavos: 50 },
+            ],
+          },
+        ],
+        MEMBROS,
+        CONTAS,
+      ),
+    ).toThrow('Conta desconhecida no resumo');
+  });
+
+  it('recusa rateio cuja soma das cotas nao fecha com o valor da parcela', () => {
+    expect(() =>
+      calcularResumo(
+        [
+          {
+            contaId: C6,
+            escopo: 'CONJUNTO',
+            valorCentavos: 10000,
+            cotas: [
+              { membroId: NARDY, valorCentavos: 4000 },
+              { membroId: NICK, valorCentavos: 5000 },
+            ],
+          },
+        ],
+        MEMBROS,
+        CONTAS,
+      ),
+    ).toThrow('Rateio nao fecha com o valor da parcela');
+  });
+
+  it('mantem a identidade contabil com rateio assimetrico', () => {
+    const resumo = calcularResumo(
+      [
+        {
+          contaId: C6,
+          escopo: 'CONJUNTO',
+          valorCentavos: 10000,
+          cotas: [
+            { membroId: NARDY, valorCentavos: 7000 },
+            { membroId: NICK, valorCentavos: 3000 },
+          ],
+        },
+      ],
+      MEMBROS,
+      CONTAS,
+    );
+    const soma =
+      (resumo.totalGeral[NARDY]?.[COLUNA_TOTAL] ?? 0) + (resumo.totalGeral[NICK]?.[COLUNA_TOTAL] ?? 0);
+    expect(soma).toBe(resumo.somado[COLUNA_TOTAL]);
+  });
 });

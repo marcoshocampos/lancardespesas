@@ -57,8 +57,12 @@ export function calcularResumo(
   }
   const conjunto = linhaZerada(contaIds);
   const somado = linhaZerada(contaIds);
+  const contasValidas = new Set(contaIds);
 
   for (const parcela of parcelas) {
+    if (!contasValidas.has(parcela.contaId)) {
+      throw new Error(`Conta desconhecida no resumo: ${parcela.contaId}`);
+    }
     if (parcela.escopo === 'PESSOAL') {
       const membroId = parcela.membroId;
       if (!membroId) throw new Error('Parcela pessoal sem membro');
@@ -68,6 +72,10 @@ export function calcularResumo(
     } else {
       const cotas = parcela.cotas;
       if (!cotas || cotas.length === 0) throw new Error('Parcela de conjunto sem rateio');
+      const somaCotas = cotas.reduce((acc, cota) => acc + cota.valorCentavos, 0);
+      if (somaCotas !== parcela.valorCentavos) {
+        throw new Error('Rateio nao fecha com o valor da parcela');
+      }
       acumular(conjunto, parcela.contaId, parcela.valorCentavos);
       for (const cota of cotas) {
         const linha = metade[cota.membroId];
