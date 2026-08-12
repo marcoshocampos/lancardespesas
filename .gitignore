@@ -11,9 +11,9 @@ dist/
 *.tsbuildinfo
 next-env.d.ts
 
-# ambiente e segredos
-.env
-.env*.local
+# ambiente e segredos — tudo, menos o arquivo de exemplo
+.env*
+!.env.example
 
 # banco local
 *.db
