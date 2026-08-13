@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emailAutorizado } from './auth-regras';
+import { emailAutorizado, loginPermitido } from './auth-regras';
 
 const LISTA = 'nardy@exemplo.com,nick@exemplo.com';
 
@@ -26,5 +26,34 @@ describe('emailAutorizado', () => {
   it('recusa todo mundo quando a lista esta vazia, em vez de liberar geral', () => {
     expect(emailAutorizado('nick@exemplo.com', '')).toBe(false);
     expect(emailAutorizado('nick@exemplo.com', '   ')).toBe(false);
+  });
+});
+
+describe('loginPermitido', () => {
+  it('aceita perfil com e-mail da lista e email_verified true', () => {
+    expect(
+      loginPermitido({ email: 'nick@exemplo.com', email_verified: true }, LISTA),
+    ).toBe(true);
+  });
+
+  it('recusa perfil com e-mail da lista mas email_verified false', () => {
+    expect(
+      loginPermitido({ email: 'nick@exemplo.com', email_verified: false }, LISTA),
+    ).toBe(false);
+  });
+
+  it('recusa perfil com e-mail da lista e email_verified ausente', () => {
+    expect(loginPermitido({ email: 'nick@exemplo.com' }, LISTA)).toBe(false);
+  });
+
+  it('recusa perfil com email_verified true mas e-mail fora da lista', () => {
+    expect(
+      loginPermitido({ email: 'estranho@gmail.com', email_verified: true }, LISTA),
+    ).toBe(false);
+  });
+
+  it('recusa perfil nulo ou indefinido', () => {
+    expect(loginPermitido(null, LISTA)).toBe(false);
+    expect(loginPermitido(undefined, LISTA)).toBe(false);
   });
 });
