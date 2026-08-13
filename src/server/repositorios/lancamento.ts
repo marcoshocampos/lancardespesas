@@ -20,6 +20,8 @@ export type ResultadoGravacao =
   | { ok: true }
   | { ok: false; motivo: 'CONFLITO' | 'FATURA_TRAVADA'; atual?: unknown };
 
+export type ResultadoCriacao = { ok: true; id: string } | { ok: false; motivo: 'FATURA_TRAVADA' };
+
 async function competenciaBaseDe(entrada: EntradaLancamento): Promise<string> {
   if (entrada.competenciaManual) return entrada.competenciaManual;
 
@@ -33,6 +35,27 @@ async function competenciaBaseDe(entrada: EntradaLancamento): Promise<string> {
   return competenciaDeContaExterna(entrada.dataCompra);
 }
 
+/** As competencias que as parcelas DESTA entrada vao ocupar, se gravada. */
+async function competenciasDe(entrada: EntradaLancamento): Promise<string[]> {
+  const competenciaBase = await competenciaBaseDe(entrada);
+  return gerarParcelas({
+    valorCentavos: entrada.valorCentavos,
+    origem: entrada.origemValor,
+    numeroParcelas: entrada.numeroParcelas,
+    competenciaBase,
+  }).map((p) => p.competencia);
+}
+
+/** Ha fatura TRAVADA entre as competencias informadas, nesta conta? */
+async function temFaturaTravada(contaId: string, competencias: string[]): Promise<boolean> {
+  if (competencias.length === 0) return false;
+  const travada = await prisma.fatura.findFirst({
+    where: { status: 'TRAVADA', contaId, competencia: { in: competencias } },
+  });
+  return travada !== null;
+}
+
+/** Ha fatura TRAVADA nas competencias ONDE AS PARCELAS JA ESTAO GRAVADAS. */
 async function competenciasTravadas(lancamentoId: string): Promise<boolean> {
   const parcelas = await prisma.parcela.findMany({
     where: { lancamentoId },
@@ -62,9 +85,23 @@ async function gravarFilhos(lancamentoId: string, entrada: EntradaLancamento): P
     competenciaBase,
   });
 
+  // Parcela cancelada (quitacao antecipada) nao pode "ressuscitar" so porque
+  // o lancamento foi editado e as parcelas foram recriadas do zero.
+  // Preservamos o cancelamento pelo numero, a chave estavel entre a versao
+  // antiga e a nova (unique com o lancamentoId).
+  const canceladas = await prisma.parcela.findMany({
+    where: { lancamentoId, cancelada: true },
+    select: { numero: true },
+  });
+  const numerosCancelados = new Set(canceladas.map((p) => p.numero));
+
   await prisma.parcela.deleteMany({ where: { lancamentoId } });
   await prisma.parcela.createMany({
-    data: parcelas.map((p) => ({ ...p, lancamentoId })),
+    data: parcelas.map((p) => ({
+      ...p,
+      lancamentoId,
+      cancelada: numerosCancelados.has(p.numero),
+    })),
   });
 
   await prisma.rateio.deleteMany({ where: { lancamentoId } });
@@ -83,7 +120,11 @@ async function gravarFilhos(lancamentoId: string, entrada: EntradaLancamento): P
   }
 }
 
-export async function criarLancamento(entrada: EntradaLancamento): Promise<{ id: string }> {
+export async function criarLancamento(entrada: EntradaLancamento): Promise<ResultadoCriacao> {
+  if (await temFaturaTravada(entrada.contaId, await competenciasDe(entrada))) {
+    return { ok: false, motivo: 'FATURA_TRAVADA' };
+  }
+
   const lancamento = await prisma.lancamento.create({
     data: {
       descricao: entrada.descricao,
@@ -99,7 +140,7 @@ export async function criarLancamento(entrada: EntradaLancamento): Promise<{ id:
   });
 
   await gravarFilhos(lancamento.id, entrada);
-  return { id: lancamento.id };
+  return { ok: true, id: lancamento.id };
 }
 
 export async function editarLancamento(
@@ -107,7 +148,13 @@ export async function editarLancamento(
   versao: number,
   entrada: EntradaLancamento,
 ): Promise<ResultadoGravacao> {
+  // Origem: onde as parcelas ja gravadas estao hoje.
   if (await competenciasTravadas(id)) return { ok: false, motivo: 'FATURA_TRAVADA' };
+  // Destino: para onde a edicao levaria as parcelas (contaId, dataCompra ou
+  // competenciaManual podem mudar a competencia).
+  if (await temFaturaTravada(entrada.contaId, await competenciasDe(entrada))) {
+    return { ok: false, motivo: 'FATURA_TRAVADA' };
+  }
 
   const alteradas = await prisma.lancamento.updateMany({
     where: { id, versao, deletadoEm: null },
