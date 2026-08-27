@@ -25,6 +25,17 @@ describe('reaisParaCentavos', () => {
     expect(() => reaisParaCentavos('abc')).toThrow('Valor invalido');
     expect(() => reaisParaCentavos('')).toThrow('Valor invalido');
   });
+
+  it('recusa ponto sem virgula em vez de adivinhar se e milhar ou decimal', () => {
+    expect(() => reaisParaCentavos('129.54')).toThrow('Valor ambiguo');
+    expect(() => reaisParaCentavos('2560.62')).toThrow('Valor ambiguo');
+    expect(() => reaisParaCentavos('.50')).toThrow('Valor ambiguo');
+    expect(() => reaisParaCentavos('1.234')).toThrow('Valor ambiguo');
+  });
+
+  it('recusa mais de uma virgula', () => {
+    expect(() => reaisParaCentavos('12,3,4')).toThrow('Valor invalido');
+  });
 });
 
 describe('formatarBRL', () => {
