@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../db';
 import { criarLancamento, editarLancamento, type EntradaLancamento } from './lancamento';
 
@@ -11,7 +11,7 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
   let categoriaId: string;
   let membroId: string;
 
-  beforeEach(async () => {
+  async function limparBanco(): Promise<void> {
     await prisma.parcela.deleteMany();
     await prisma.rateio.deleteMany();
     await prisma.lancamento.deleteMany();
@@ -19,8 +19,20 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     // vezes seguidas colide no unique(contaId, competencia) e deixa uma
     // fatura travada residual que derruba os outros casos.
     await prisma.fatura.deleteMany();
+  }
+
+  beforeEach(async () => {
+    await limparBanco();
     categoriaId = (await prisma.categoria.findFirstOrThrow()).id;
     membroId = (await prisma.membro.findFirstOrThrow()).id;
+  });
+
+  // O beforeEach so limpa ANTES de cada caso: sem isto, o ultimo caso da suite
+  // fica no banco depois do `vitest run` terminar. O banco e o de producao do
+  // casal — um lancamento fantasma aqui desloca o total que a importacao da
+  // planilha confere contra o extrato.
+  afterAll(async () => {
+    await limparBanco();
   });
 
   const entrada = (): EntradaLancamento => ({
