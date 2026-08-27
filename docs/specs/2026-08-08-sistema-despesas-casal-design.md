@@ -135,9 +135,10 @@ explicitamente, mesmo quando é o 50/50 padrão.
 (`ABERTA` / `CONFERIDA` / `TRAVADA`), `travadaEm`.
 
 **Recorrente** — descrição, valor, categoria, escopo, conta, dia do mês, `dataInicio`,
-`dataFim`, ativa.
+`dataFim`, ativa. **Tabela criada na Fase 2**, junto da funcionalidade que a usa.
 
-**Preferência** — por membro: `layoutMes` (`PAINEIS` ou `LISTA`), `tema`.
+**Preferência** — por membro: `layoutMes` (`PAINEIS` ou `LISTA`), `tema`. **Tabela criada na
+Fase 2**, junto do layout A e do seletor que alterna entre os dois.
 
 **Auditoria** — `tabela`, `registroId`, `membroId`, `acao`, `diff` (JSON), `criadoEm`.
 
@@ -193,7 +194,7 @@ sem banco e sem browser.
 
 | Camada | Escolha |
 |---|---|
-| Framework | Next.js 15 (App Router) + TypeScript estrito |
+| Framework | Next.js 16 (App Router) + TypeScript estrito |
 | Banco | Postgres no Neon + Prisma |
 | Auth | Auth.js v5, provider Google, allowlist fixa de dois e-mails |
 | UI | Tailwind + shadcn/ui + TanStack Table |
@@ -283,9 +284,10 @@ devolução, e conferência é requisito da Fase 1. **Proteção contra edição
 aqui porque custa uma coluna e uma cláusula `WHERE` durante a modelagem, e vira retrabalho
 em toda action depois.
 
-**Fase 2 — o que a planilha não faz.** Layout A e a preferência que alterna entre os dois;
-recorrentes; a receber de terceiros; relatórios e gráficos; exportação PDF/CSV; busca global;
-alerta de pico.
+**Fase 2 — o que a planilha não faz.** Abre com a migration que cria as tabelas
+`Recorrente` e `Preferencia`, que a Fase 1 não precisou. Depois: layout A e a preferência
+que alterna entre os dois; recorrentes; a receber de terceiros; relatórios e gráficos;
+exportação PDF/CSV; busca global; alerta de pico.
 
 **Fase 3 — ritual e rede de segurança.** Fechamento guiado com trava de fatura; lixeira;
 histórico de alterações; backup automático.
