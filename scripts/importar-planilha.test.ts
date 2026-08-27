@@ -105,6 +105,25 @@ describe('interpretarPlanilha — bloco Outros', () => {
     );
   });
 
+  it('aborta com o mapa de producao quando o cabecalho nao esta nele', () => {
+    // Os testes acima passam um mapa fornecido pelo proprio teste ({} ou um
+    // mapa ficticio) — provam a funcao, mas nao a configuracao real. Este
+    // usa o DONO_DO_SUBBLOCO_OUTROS de producao (sem segundo argumento),
+    // porque o aborto e a unica defesa contra descartar lancamento em
+    // silencio: se a normalizacao de cabecalho ficar permissiva demais, ou
+    // uma entrada larga demais for acrescentada ao mapa, e aqui que a
+    // suite percebe.
+    const csv = [
+      'Outros',
+      'Nardy > Nick > Sogra,,,',
+      'presente sogra,"R$45,00",,Presente',
+    ].join('\n');
+
+    expect(() => interpretarPlanilha(csv)).toThrow(
+      'Cabecalho de sub-bloco desconhecido no bloco Outros: "Nardy > Nick > Sogra".',
+    );
+  });
+
   it('recusa linha de Outros sem cabecalho de sub-bloco antes dela', () => {
     const csv = ['Outros', 'gasto sem sub-bloco,"R$10,00",,Jogo'].join('\n');
 
