@@ -1,5 +1,6 @@
 import { ChipsConta } from '@/components/chips-conta';
 import { GradeLancamentos } from '@/components/grade-lancamentos';
+import { LinhaNova } from '@/components/linha-nova';
 import { prisma } from '@/server/db';
 import { carregarLinhasDaGrade } from '@/server/repositorios/resumo';
 
@@ -13,8 +14,10 @@ function competenciaAtual(): string {
 export default async function Despesas({ searchParams }: Props) {
   const { competencia = competenciaAtual(), conta } = await searchParams;
 
-  const [contas, linhas] = await Promise.all([
+  const [contas, categorias, membros, linhas] = await Promise.all([
     prisma.conta.findMany({ where: { ativa: true }, orderBy: { ordem: 'asc' } }),
+    prisma.categoria.findMany({ where: { arquivada: false }, orderBy: { nome: 'asc' } }),
+    prisma.membro.findMany({ where: { ativo: true }, orderBy: { criadoEm: 'asc' } }),
     carregarLinhasDaGrade(competencia, conta),
   ]);
 
@@ -26,6 +29,7 @@ export default async function Despesas({ searchParams }: Props) {
 
       <div className="mt-4 rounded-md border">
         <GradeLancamentos linhas={linhas} />
+        <LinhaNova contas={contas} categorias={categorias} membros={membros} />
       </div>
     </main>
   );
