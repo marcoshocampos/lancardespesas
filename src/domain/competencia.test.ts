@@ -4,6 +4,7 @@ import {
   compararCompetencias,
   competenciaDeCartao,
   competenciaDeContaExterna,
+  competenciaDeDataISO,
 } from './competencia';
 
 // C6: fecha dia 4, vence dia 10. A competencia e o mes do vencimento.
@@ -35,6 +36,18 @@ describe('competenciaDeCartao', () => {
   it('recusa dia de fechamento fora do intervalo valido', () => {
     expect(() => competenciaDeCartao('2026-08-04', 0)).toThrow('Dia de fechamento invalido');
     expect(() => competenciaDeCartao('2026-08-04', 32)).toThrow('Dia de fechamento invalido');
+  });
+});
+
+describe('competenciaDeDataISO', () => {
+  it('usa o mes calendario da data, sem fechamento nenhum', () => {
+    expect(competenciaDeDataISO('2026-08-28')).toBe('2026-08');
+    expect(competenciaDeDataISO('2026-08-01')).toBe('2026-08');
+    expect(competenciaDeDataISO('2026-12-31')).toBe('2026-12');
+  });
+
+  it('recusa data mal formada', () => {
+    expect(() => competenciaDeDataISO('2026-8-1')).toThrow('Data invalida');
   });
 });
 

@@ -3,13 +3,9 @@ import { GradeLancamentos } from '@/components/grade-lancamentos';
 import { LinhaNova } from '@/components/linha-nova';
 import { prisma } from '@/server/db';
 import { carregarLinhasDaGrade } from '@/server/repositorios/resumo';
+import { competenciaAtual } from '@/app/competencia-atual';
 
 type Props = { searchParams: Promise<{ competencia?: string; conta?: string }> };
-
-function competenciaAtual(): string {
-  const agora = new Date();
-  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
-}
 
 export default async function Despesas({ searchParams }: Props) {
   const { competencia = competenciaAtual(), conta } = await searchParams;

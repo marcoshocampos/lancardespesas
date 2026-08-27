@@ -4,13 +4,9 @@ import { calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { carregarValorReal } from '@/server/repositorios/fatura';
 import { carregarParcelasDaCompetencia } from '@/server/repositorios/resumo';
+import { competenciaAtual } from '@/app/competencia-atual';
 
 type Props = { searchParams: Promise<{ competencia?: string }> };
-
-function competenciaAtual(): string {
-  const agora = new Date();
-  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`;
-}
 
 export default async function Resumo({ searchParams }: Props) {
   const { competencia = competenciaAtual() } = await searchParams;

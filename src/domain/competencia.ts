@@ -36,10 +36,15 @@ export function competenciaDeCartao(dataCompra: DataISO, diaFechamento: number):
   return dia <= fechamentoEfetivo ? montar(ano, mes) : avancarCompetencia(montar(ano, mes), 1);
 }
 
+/** Competencia do mes calendario de uma data, sem nenhuma regra de fechamento. */
+export function competenciaDeDataISO(data: DataISO): Competencia {
+  const { ano, mes } = partesDaData(data);
+  return montar(ano, mes);
+}
+
 /** Competencia de uma conta externa: o mes do proprio pagamento. */
 export function competenciaDeContaExterna(dataPagamento: DataISO): Competencia {
-  const { ano, mes } = partesDaData(dataPagamento);
-  return montar(ano, mes);
+  return competenciaDeDataISO(dataPagamento);
 }
 
 /** Avanca (ou recua, com valor negativo) uma quantidade de meses. */
