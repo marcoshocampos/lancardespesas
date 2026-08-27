@@ -175,6 +175,17 @@ function blocoPrincipalDe(primeiraColuna: string): BlocoPrincipal | null {
   return BLOCOS_PRINCIPAIS.find((b) => semAcento(b) === normalizado) ?? null;
 }
 
+/**
+ * Nome de bloco principal "de gente" (Nardy/Nick/Conjunto, nunca Outros) que
+ * o texto do cabecalho nomeia — usado para a guarda de ordem dentro de
+ * Outros (ver interpretarPlanilha): so esses tres nomes colidem com a forma
+ * nova de sub-bloco, porque "Outros" nunca e um dono valido.
+ */
+function nomeDeBlocoCanonico(primeiraColuna: string): Bloco | null {
+  const bloco = blocoPrincipalDe(primeiraColuna);
+  return bloco !== null && bloco !== 'Outros' ? bloco : null;
+}
+
 /** Cabecalho de coluna repetido no topo do arquivo ou de cada bloco ("Descricao,Valor,..."). */
 function ehCabecalhoDeColuna(primeiraColuna: string): boolean {
   return semAcento(primeiraColuna) === 'descricao';
@@ -250,8 +261,10 @@ export type PlanilhaInterpretada = {
  *
  * Lanca erro alto (nunca descarta em silencio) quando: uma linha aparece
  * fora de qualquer bloco reconhecido; uma linha de Outros aparece antes de
- * qualquer sub-bloco; ou um cabecalho de sub-bloco de Outros nao esta em
- * `donoDoSubBlocoOutros`.
+ * qualquer sub-bloco; um cabecalho de sub-bloco de Outros nao esta em
+ * `donoDoSubBlocoOutros`; ou um cabecalho dentro de Outros nomeia um bloco
+ * principal (Nardy/Nick/Conjunto) que ainda nao apareceu no arquivo — sinal
+ * de que a ordem dos blocos mudou (ver comentario dentro do laco).
  */
 export function interpretarPlanilha(
   conteudoCsv: string,
@@ -263,6 +276,10 @@ export function interpretarPlanilha(
 
   let blocoAtual: BlocoPrincipal | null = null;
   let donoOutros: 'Nardy' | 'Nick' | 'Conjunto' | null = null;
+  // Nomes de bloco principal ja abertos ate agora — a guarda de ordem dentro
+  // de Outros usa isto para distinguir "cabecalho novo de sub-bloco" de
+  // "bloco principal que ainda nao existe" (ver comentario mais abaixo).
+  const blocosPrincipaisVistos = new Set<Bloco>();
 
   for (let i = 0; i < linhas.length; i += 1) {
     const linhaBruta = linhas[i] ?? '';
@@ -281,10 +298,31 @@ export function interpretarPlanilha(
 
     // Dentro de Outros, um cabecalho de sub-bloco vem antes da checagem de
     // bloco principal: a forma nova usa "Nardy"/"Nick"/"Conjunto" como
-    // cabecalho, texto identico ao dos blocos principais, e Outros e sempre
-    // o ultimo bloco do arquivo — nao ha bloco principal legitimo depois
-    // dele para essas linhas abrirem.
+    // cabecalho, texto identico ao dos blocos principais. Isso so e seguro
+    // porque a linha abaixo EXIGE que o nome ja tenha aparecido antes como
+    // bloco principal de verdade (blocosPrincipaisVistos) — no arquivo real,
+    // Outros vem depois dos tres blocos do cartao, entao a exigencia sempre
+    // passa. Se algum dia a ordem mudar e "Conjunto" aparecer dentro de
+    // Outros ANTES de existir como bloco principal, a linha seria lida como
+    // sub-bloco em vez de reabrir o bloco principal, e a proxima linha viraria
+    // despesa EXTERNA em silencio — sem esta guarda, so a conferencia de
+    // FATURA: pegaria isso, por acidente, com uma mensagem que aponta pro
+    // lugar errado, e nem isso se o bloco reordenado somar zero. Por isso
+    // abortamos aqui, no lugar certo, em vez de confiar na conferencia final.
     if (blocoAtual === 'Outros' && ehLinhaDeCabecalho(colunas)) {
+      const nomeCanonico = nomeDeBlocoCanonico(primeiraColuna);
+      if (nomeCanonico !== null && !blocosPrincipaisVistos.has(nomeCanonico)) {
+        const { quantidade, somaCentavos } = contarLinhasAfetadas(linhas, i + 1);
+        throw new Error(
+          `Cabecalho "${primeiraColuna}" apareceu dentro do bloco Outros antes de existir ` +
+            `como bloco principal. A ordem dos blocos provavelmente mudou — Outros precisa ` +
+            `vir depois do bloco ${nomeCanonico} para este cabecalho ser lido como sub-bloco, ` +
+            `em vez de reabertura do bloco principal. ${quantidade} linha(s), soma ` +
+            `${formatarBRL(somaCentavos)}, ficariam classificadas errado se a importacao ` +
+            'continuasse.',
+        );
+      }
+
       const dono = donoDoSubBloco(donoDoSubBlocoOutros, primeiraColuna);
       if (!dono) {
         const { quantidade, somaCentavos } = contarLinhasAfetadas(linhas, i + 1);
@@ -302,6 +340,7 @@ export function interpretarPlanilha(
     if (blocoPrincipal) {
       blocoAtual = blocoPrincipal;
       donoOutros = null;
+      if (blocoPrincipal !== 'Outros') blocosPrincipaisVistos.add(blocoPrincipal);
       continue;
     }
 
