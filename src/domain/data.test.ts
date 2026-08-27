@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { partesDaData, ultimoDiaDoMes } from './data';
+import { diaClampeado, partesDaData, ultimoDiaDoMes } from './data';
 
 describe('partesDaData', () => {
   it('decompoe sem envolver fuso horario', () => {
@@ -29,5 +29,28 @@ describe('ultimoDiaDoMes', () => {
     expect(ultimoDiaDoMes(2028, 2)).toBe(29);
     expect(ultimoDiaDoMes(2000, 2)).toBe(29);
     expect(ultimoDiaDoMes(1900, 2)).toBe(28);
+  });
+});
+
+describe('diaClampeado', () => {
+  it('deixa passar o dia que existe no mes', () => {
+    expect(diaClampeado(2026, 8, 4)).toBe(4);
+  });
+
+  it('limita dia 31 num mes de 30 dias', () => {
+    expect(diaClampeado(2026, 4, 31)).toBe(30);
+  });
+
+  it('limita dia 31 em fevereiro comum', () => {
+    expect(diaClampeado(2026, 2, 31)).toBe(28);
+  });
+
+  it('limita dia 31 em fevereiro bissexto', () => {
+    expect(diaClampeado(2028, 2, 31)).toBe(29);
+  });
+
+  it('respeita as duas regras de seculo do ano bissexto', () => {
+    expect(diaClampeado(2000, 2, 31)).toBe(29);
+    expect(diaClampeado(1900, 2, 31)).toBe(28);
   });
 });

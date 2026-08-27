@@ -9,6 +9,11 @@ export function ultimoDiaDoMes(ano: number, mes: number): number {
   return dias[mes - 1] ?? 31;
 }
 
+/** O dia pedido, limitado ao ultimo dia que existe naquele mes. */
+export function diaClampeado(ano: number, mes: number, dia: number): number {
+  return Math.min(dia, ultimoDiaDoMes(ano, mes));
+}
+
 export function partesDaData(data: DataISO): { ano: number; mes: number; dia: number } {
   const casou = FORMATO.exec(data);
   if (!casou) throw new Error(`Data invalida: ${data}`);

@@ -1,4 +1,4 @@
-import { ultimoDiaDoMes } from '@/domain/data';
+import { diaClampeado } from '@/domain/data';
 import { prisma } from '../db';
 
 const FORMATO_COMPETENCIA = /^(\d{4})-(\d{2})$/;
@@ -7,16 +7,16 @@ const FORMATO_COMPETENCIA = /^(\d{4})-(\d{2})$/;
 // naquele mes: dia de fechamento/vencimento 31 numa competencia de fevereiro produzia
 // "2026-02-31", uma data que nao existe no calendario. `dataFechamento`/`dataVencimento`
 // sao String no schema, entao o Postgres aceita o valor sem reclamar — o problema so
-// aparece se algo tentar interpretar essa string como data de verdade. O dominio ja resolve
-// o mesmo caso em `competenciaDeCartao` (src/domain/competencia.ts) com
-// `Math.min(diaFechamento, ultimoDiaDoMes(...))`; aplicamos a mesma regra aqui.
+// aparece se algo tentar interpretar essa string como data de verdade. `diaClampeado`
+// (src/domain/data.ts) e a mesma regra que `competenciaDeCartao` usa para o fechamento,
+// extraida para nao existir em dois lugares com um deles sem teste.
 function diaNaCompetencia(competencia: string, dia: number): string {
   const casou = FORMATO_COMPETENCIA.exec(competencia);
   if (!casou) throw new Error(`Competencia invalida: ${competencia}`);
 
   const ano = Number(casou[1]);
   const mes = Number(casou[2]);
-  const diaEfetivo = Math.min(dia, ultimoDiaDoMes(ano, mes));
+  const diaEfetivo = diaClampeado(ano, mes, dia);
 
   return `${competencia}-${String(diaEfetivo).padStart(2, '0')}`;
 }

@@ -1,4 +1,4 @@
-import { partesDaData, ultimoDiaDoMes, type DataISO } from './data';
+import { diaClampeado, partesDaData, type DataISO } from './data';
 
 /** Mes ao qual um lancamento pertence, no formato AAAA-MM. */
 export type Competencia = string;
@@ -31,7 +31,7 @@ export function competenciaDeCartao(dataCompra: DataISO, diaFechamento: number):
   }
 
   const { ano, mes, dia } = partesDaData(dataCompra);
-  const fechamentoEfetivo = Math.min(diaFechamento, ultimoDiaDoMes(ano, mes));
+  const fechamentoEfetivo = diaClampeado(ano, mes, diaFechamento);
 
   return dia <= fechamentoEfetivo ? montar(ano, mes) : avancarCompetencia(montar(ano, mes), 1);
 }
