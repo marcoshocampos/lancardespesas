@@ -77,19 +77,53 @@ type BlocoPrincipal = Bloco | 'Outros';
 const BLOCOS_PRINCIPAIS: BlocoPrincipal[] = ['Nardy', 'Nick', 'Conjunto', 'Outros'];
 
 /**
- * Dentro do bloco Outros, os sub-blocos herdam nomes do significado antigo da
- * planilha — direcao de divida entre o casal, ex.: "Nardy > Nick". Hoje o
- * bloco significa despesa paga fora do cartao (spec, revisao 2026-08-09,
- * secao 12), e o dono do gasto NAO e o mesmo que o nome antigo sugere sem
- * confirmar com quem editou a planilha. Por isso o mapa comeca vazio: um
- * cabecalho de sub-bloco desconhecido faz a importacao abortar (ver
- * interpretarPlanilha) em vez de adivinhar a quem o gasto pertence.
+ * Dentro do bloco Outros, os sub-blocos podem vir em duas formas. A nova, que
+ * o casal vai usar daqui pra frente, tem o cabecalho dizendo o dono direto —
+ * "Nardy", "Nick" ou "Conjunto" — igual aos blocos do cartao. A antiga herda
+ * nomes de quando Outros era direcao de divida entre o casal, ex.:
+ * "Nardy > Nick"; nessa forma o PRIMEIRO nome e o dono do gasto ("cuidados
+ * moto" sob "Nick > Nardy" e despesa de Nick, nao de Nardy).
  *
- * Preencha depois de confirmar a direcao real, por exemplo:
- *   'Nardy > Nick': 'Nick',
- *   'Nick > Nardy': 'Nardy',
+ * O conceito de divida entre o casal foi abandonado (confirmado com o
+ * usuario em 2026-08-27): Outros e so lancamento comum de debito e boleto, e
+ * essa questao nao volta a ser reaberta. Um cabecalho de sub-bloco fora deste
+ * mapa continua abortando a importacao (ver interpretarPlanilha) em vez de
+ * adivinhar a quem o gasto pertence.
  */
-const DONO_DO_SUBBLOCO_OUTROS: Record<string, 'Nardy' | 'Nick'> = {};
+const DONO_DO_SUBBLOCO_OUTROS: Record<string, 'Nardy' | 'Nick' | 'Conjunto'> = {
+  // Forma nova: o cabecalho diz o dono direto, igual aos blocos do cartao.
+  Nardy: 'Nardy',
+  Nick: 'Nick',
+  Conjunto: 'Conjunto',
+
+  // Forma antiga, de quando Outros era direcao de divida. O primeiro nome e o
+  // dono do gasto: "manutencao da moto" esta sob "Nick > Nardy" e a spec registra
+  // a linha como despesa de Nick.
+  'Nardy > Nick': 'Nardy',
+  'Nick > Nardy': 'Nick',
+};
+
+/**
+ * Normaliza um cabecalho de sub-bloco de Outros para comparar com as chaves
+ * de DONO_DO_SUBBLOCO_OUTROS: sem acento, sem depender de caixa, tolerando
+ * espaco em volta do ">" — mesma normalizacao que blocoPrincipalDe usa
+ * para os cabecalhos de bloco principal.
+ */
+function normalizarCabecalhoSubBloco(texto: string): string {
+  return semAcento(texto).replace(/\s*>\s*/g, '>');
+}
+
+/** Dono do sub-bloco de Outros, comparando o cabecalho normalizado contra o mapa. */
+function donoDoSubBloco(
+  mapa: Record<string, 'Nardy' | 'Nick' | 'Conjunto'>,
+  cabecalho: string,
+): 'Nardy' | 'Nick' | 'Conjunto' | undefined {
+  const normalizado = normalizarCabecalhoSubBloco(cabecalho);
+  const encontrada = Object.entries(mapa).find(
+    ([chave]) => normalizarCabecalhoSubBloco(chave) === normalizado,
+  );
+  return encontrada?.[1];
+}
 
 /** Remove acento e normaliza caixa, porque o seed usa "Veículo" e a planilha varia. */
 function semAcento(texto: string): string {
@@ -221,14 +255,14 @@ export type PlanilhaInterpretada = {
  */
 export function interpretarPlanilha(
   conteudoCsv: string,
-  donoDoSubBlocoOutros: Record<string, 'Nardy' | 'Nick'> = DONO_DO_SUBBLOCO_OUTROS,
+  donoDoSubBlocoOutros: Record<string, 'Nardy' | 'Nick' | 'Conjunto'> = DONO_DO_SUBBLOCO_OUTROS,
 ): PlanilhaInterpretada {
   const linhas = conteudoCsv.split(/\r?\n/);
   const itens: ItemPlanilha[] = [];
   let faturaEsperada: number | null = null;
 
   let blocoAtual: BlocoPrincipal | null = null;
-  let donoOutros: 'Nardy' | 'Nick' | null = null;
+  let donoOutros: 'Nardy' | 'Nick' | 'Conjunto' | null = null;
 
   for (let i = 0; i < linhas.length; i += 1) {
     const linhaBruta = linhas[i] ?? '';
@@ -245,15 +279,13 @@ export function interpretarPlanilha(
       continue;
     }
 
-    const blocoPrincipal = blocoPrincipalDe(primeiraColuna);
-    if (blocoPrincipal) {
-      blocoAtual = blocoPrincipal;
-      donoOutros = null;
-      continue;
-    }
-
+    // Dentro de Outros, um cabecalho de sub-bloco vem antes da checagem de
+    // bloco principal: a forma nova usa "Nardy"/"Nick"/"Conjunto" como
+    // cabecalho, texto identico ao dos blocos principais, e Outros e sempre
+    // o ultimo bloco do arquivo — nao ha bloco principal legitimo depois
+    // dele para essas linhas abrirem.
     if (blocoAtual === 'Outros' && ehLinhaDeCabecalho(colunas)) {
-      const dono = donoDoSubBlocoOutros[primeiraColuna];
+      const dono = donoDoSubBloco(donoDoSubBlocoOutros, primeiraColuna);
       if (!dono) {
         const { quantidade, somaCentavos } = contarLinhasAfetadas(linhas, i + 1);
         throw new Error(
@@ -263,6 +295,13 @@ export function interpretarPlanilha(
         );
       }
       donoOutros = dono;
+      continue;
+    }
+
+    const blocoPrincipal = blocoPrincipalDe(primeiraColuna);
+    if (blocoPrincipal) {
+      blocoAtual = blocoPrincipal;
+      donoOutros = null;
       continue;
     }
 
@@ -287,8 +326,11 @@ export function interpretarPlanilha(
         totalParcelas: linha.totalParcelas,
         categoria: linha.categoria,
         contaTipo: 'EXTERNA',
-        escopo: 'PESSOAL',
-        dono: donoOutros,
+        // Igual ao bloco Conjunto do cartao: escopo CONJUNTO carrega o
+        // rateio, entao dono fica null (criarLancamento so usa membroId
+        // quando o escopo e PESSOAL).
+        escopo: donoOutros === 'Conjunto' ? 'CONJUNTO' : 'PESSOAL',
+        dono: donoOutros === 'Conjunto' ? null : donoOutros,
       });
       continue;
     }
@@ -342,7 +384,7 @@ export async function importar(
   competencia: string,
   contaCartaoId: string,
   contaExternaId: string,
-  donoDoSubBlocoOutros: Record<string, 'Nardy' | 'Nick'> = DONO_DO_SUBBLOCO_OUTROS,
+  donoDoSubBlocoOutros: Record<string, 'Nardy' | 'Nick' | 'Conjunto'> = DONO_DO_SUBBLOCO_OUTROS,
 ): Promise<ResultadoImportacao> {
   const conteudo = readFileSync(caminhoCsv, 'utf8');
   const { itens, faturaEsperada } = interpretarPlanilha(conteudo, donoDoSubBlocoOutros);

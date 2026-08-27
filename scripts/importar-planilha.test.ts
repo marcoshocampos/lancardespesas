@@ -110,4 +110,83 @@ describe('interpretarPlanilha — bloco Outros', () => {
 
     expect(() => interpretarPlanilha(csv, {})).toThrow('sem sub-bloco definido');
   });
+
+  it('sub-bloco "Nick > Nardy" (forma antiga) produz lancamento com dono Nick', () => {
+    // Forma antiga, de quando Outros era direcao de divida: o PRIMEIRO nome
+    // e o dono do gasto, nao o segundo.
+    const csv = [
+      'Outros',
+      'Nick > Nardy,,,',
+      'manutencao da moto,"R$80,00",,Veiculo',
+    ].join('\n');
+
+    const resultado = interpretarPlanilha(csv);
+
+    expect(resultado.itens).toEqual([
+      {
+        descricao: 'manutencao da moto',
+        valorCentavos: 8000,
+        parcelaAtual: 1,
+        totalParcelas: 1,
+        categoria: 'Veiculo',
+        contaTipo: 'EXTERNA',
+        escopo: 'PESSOAL',
+        dono: 'Nick',
+      },
+    ]);
+  });
+
+  it('sub-bloco "Nardy" (forma nova) produz lancamento com dono Nardy', () => {
+    // Forma nova: o cabecalho diz o dono direto, igual aos blocos do cartao.
+    const csv = ['Outros', 'Nardy,,,', 'gasto da nardy,"R$20,00",,Presente'].join('\n');
+
+    const resultado = interpretarPlanilha(csv);
+
+    expect(resultado.itens).toEqual([
+      {
+        descricao: 'gasto da nardy',
+        valorCentavos: 2000,
+        parcelaAtual: 1,
+        totalParcelas: 1,
+        categoria: 'Presente',
+        contaTipo: 'EXTERNA',
+        escopo: 'PESSOAL',
+        dono: 'Nardy',
+      },
+    ]);
+  });
+
+  it('sub-bloco "Conjunto" dentro de Outros produz lancamento de escopo CONJUNTO', () => {
+    // Boleto do casal pago fora do cartao (ex.: condominio) precisa de
+    // escopo CONJUNTO com rateio, nao PESSOAL — e o tipo antigo do mapa
+    // (so Nardy | Nick) nao tinha onde colocar esse caso.
+    const csv = ['Outros', 'Conjunto,,,', 'boleto condominio,"R$400,00",,Moradia'].join('\n');
+
+    const resultado = interpretarPlanilha(csv);
+
+    expect(resultado.itens).toEqual([
+      {
+        descricao: 'boleto condominio',
+        valorCentavos: 40000,
+        parcelaAtual: 1,
+        totalParcelas: 1,
+        categoria: 'Moradia',
+        contaTipo: 'EXTERNA',
+        escopo: 'CONJUNTO',
+        dono: null,
+      },
+    ]);
+  });
+
+  it('cabecalho desconhecido continua abortando mesmo com o mapa padrao preenchido', () => {
+    const csv = [
+      'Outros',
+      'sub bloco realmente desconhecido,,,',
+      'gasto 1,"R$50,00",,Presente',
+    ].join('\n');
+
+    expect(() => interpretarPlanilha(csv)).toThrow(
+      'Cabecalho de sub-bloco desconhecido no bloco Outros: "sub bloco realmente desconhecido".',
+    );
+  });
 });
