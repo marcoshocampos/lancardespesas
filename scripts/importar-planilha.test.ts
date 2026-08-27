@@ -111,9 +111,9 @@ describe('interpretarPlanilha — bloco Outros', () => {
     expect(() => interpretarPlanilha(csv, {})).toThrow('sem sub-bloco definido');
   });
 
-  it('sub-bloco "Nick > Nardy" (forma antiga) produz lancamento com dono Nick', () => {
-    // Forma antiga, de quando Outros era direcao de divida: o PRIMEIRO nome
-    // e o dono do gasto, nao o segundo.
+  it('sub-bloco "Nick > Nardy" produz lancamento externo com dono Nick', () => {
+    // O PRIMEIRO nome e o dono do gasto, nao o segundo — resquicio de quando
+    // Outros era direcao de divida entre o casal.
     const csv = [
       'Outros',
       'Nick > Nardy,,,',
@@ -136,19 +136,19 @@ describe('interpretarPlanilha — bloco Outros', () => {
     ]);
   });
 
-  it('sub-bloco "Nardy" (forma nova) produz lancamento com dono Nardy', () => {
-    // Forma nova: o cabecalho diz o dono direto, igual aos blocos do cartao.
-    // O bloco principal Nardy precisa aparecer antes (mesmo vazio) para a
-    // guarda de ordem dentro de Outros nao confundir este cabecalho com uma
-    // reabertura do bloco principal — ver describe de ordem mais abaixo.
-    const csv = ['Nardy', 'Outros', 'Nardy,,,', 'gasto da nardy,"R$20,00",,Presente'].join('\n');
+  it('sub-bloco "Nardy > Nick" produz lancamento externo com dono Nardy', () => {
+    const csv = [
+      'Outros',
+      'Nardy > Nick,,,',
+      'presente sogra,"R$45,00",,Presente',
+    ].join('\n');
 
     const resultado = interpretarPlanilha(csv);
 
     expect(resultado.itens).toEqual([
       {
-        descricao: 'gasto da nardy',
-        valorCentavos: 2000,
+        descricao: 'presente sogra',
+        valorCentavos: 4500,
         parcelaAtual: 1,
         totalParcelas: 1,
         categoria: 'Presente',
@@ -158,71 +158,32 @@ describe('interpretarPlanilha — bloco Outros', () => {
       },
     ]);
   });
-
-  it('sub-bloco "Conjunto" dentro de Outros produz lancamento de escopo CONJUNTO', () => {
-    // Boleto do casal pago fora do cartao (ex.: condominio) precisa de
-    // escopo CONJUNTO com rateio, nao PESSOAL — e o tipo antigo do mapa
-    // (so Nardy | Nick) nao tinha onde colocar esse caso. O bloco principal
-    // Conjunto precisa aparecer antes (mesmo vazio), pelo mesmo motivo do
-    // teste acima.
-    const csv = ['Conjunto', 'Outros', 'Conjunto,,,', 'boleto condominio,"R$400,00",,Moradia'].join(
-      '\n',
-    );
-
-    const resultado = interpretarPlanilha(csv);
-
-    expect(resultado.itens).toEqual([
-      {
-        descricao: 'boleto condominio',
-        valorCentavos: 40000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Moradia',
-        contaTipo: 'EXTERNA',
-        escopo: 'CONJUNTO',
-        dono: null,
-      },
-    ]);
-  });
-
-  it('cabecalho desconhecido continua abortando mesmo com o mapa padrao preenchido', () => {
-    const csv = [
-      'Outros',
-      'sub bloco realmente desconhecido,,,',
-      'gasto 1,"R$50,00",,Presente',
-    ].join('\n');
-
-    expect(() => interpretarPlanilha(csv)).toThrow(
-      'Cabecalho de sub-bloco desconhecido no bloco Outros: "sub bloco realmente desconhecido".',
-    );
-  });
 });
 
-describe('interpretarPlanilha — ordem dos blocos dentro de Outros', () => {
-  // A forma nova de sub-bloco usa texto identico ao dos blocos principais
-  // ("Nardy", "Nick", "Conjunto"). Isso so e seguro se Outros vem depois dos
-  // blocos do cartao no arquivo, porque e assim que o cabecalho consegue
-  // distinguir "sub-bloco novo" de "reabertura do bloco principal". Estes
-  // testes provam que a guarda de ordem torna essa premissa uma verificacao,
-  // nao um comentario que confia sem checar.
+describe('interpretarPlanilha — Outros sem colidir com bloco principal', () => {
+  // Os cabecalhos de sub-bloco reais ("Nardy > Nick", "Nick > Nardy") nao tem
+  // o mesmo texto de nenhum bloco principal, entao nao ha mais ambiguidade a
+  // resolver dentro de Outros: nenhuma guarda de ordem e necessaria.
 
-  it('Outros depois dos tres blocos do cartao, com sub-bloco Conjunto: funciona como hoje', () => {
+  it('mes sem bloco Conjunto no cartao, com sub-bloco Nick > Nardy em Outros, importa normalmente', () => {
+    // Este e o cenario que a guarda de ordem especulativa recusava por
+    // engano: sem despesa conjunta no cartao naquele mes, o bloco Conjunto
+    // nunca aparece no arquivo, e isso nao pode impedir Outros de ser
+    // importado.
     const csv = [
       'Nardy',
       'compra nardy,"R$50,00",,Presente',
       'Nick',
       'compra nick,"R$30,00",,Jogo',
-      'Conjunto',
-      'compra conjunta,"R$20,00",,Assinatura',
       'Outros',
-      'Conjunto,,,',
-      'boleto conjunto,"R$40,00",,Terceiros',
-      'FATURA:,"R$100,00",,',
+      'Nick > Nardy,,,',
+      'manutencao da moto,"R$80,00",,Veiculo',
+      'FATURA:,"R$80,00",,',
     ].join('\n');
 
     const resultado = interpretarPlanilha(csv);
 
-    expect(resultado.faturaEsperada).toBe(10000);
+    expect(resultado.faturaEsperada).toBe(8000);
     expect(resultado.itens).toEqual([
       {
         descricao: 'compra nardy',
@@ -245,79 +206,30 @@ describe('interpretarPlanilha — ordem dos blocos dentro de Outros', () => {
         dono: 'Nick',
       },
       {
-        descricao: 'compra conjunta',
-        valorCentavos: 2000,
+        descricao: 'manutencao da moto',
+        valorCentavos: 8000,
         parcelaAtual: 1,
         totalParcelas: 1,
-        categoria: 'Assinatura',
-        contaTipo: 'CARTAO',
-        escopo: 'CONJUNTO',
-        dono: null,
-      },
-      {
-        descricao: 'boleto conjunto',
-        valorCentavos: 4000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Terceiros',
+        categoria: 'Veiculo',
         contaTipo: 'EXTERNA',
-        escopo: 'CONJUNTO',
-        dono: null,
+        escopo: 'PESSOAL',
+        dono: 'Nick',
       },
     ]);
   });
 
-  it('Outros antes de um bloco principal Conjunto legitimo: aborta citando a ordem', () => {
-    const csv = [
-      'Nardy',
-      'compra nardy,"R$50,00",,Presente',
-      'Outros',
-      'Conjunto,,,',
-      'boleto conjunto,"R$30,00",,Terceiros',
-      'Conjunto',
-      'compra conjunta,"R$20,00",,Assinatura',
-      'FATURA:,"R$70,00",,',
-    ].join('\n');
-
-    expect(() => interpretarPlanilha(csv)).toThrow(
-      'Cabecalho "Conjunto" apareceu dentro do bloco Outros antes de existir como bloco ' +
-        'principal. A ordem dos blocos provavelmente mudou',
-    );
-  });
-
-  it('Outros antes de um bloco cujo total e zero: aborta mesmo sem a fatura divergir', () => {
-    // O caso que passava despercebido: se o bloco reordenado nao somar nada
-    // (aqui, Conjunto sem nenhum lancamento), a conferencia final de
-    // FATURA: nao teria como perceber a diferenca — so a guarda de ordem
-    // pega, e pega antes de qualquer lancamento ser classificado errado.
-    const csv = [
-      'Nardy',
-      'compra nardy,"R$50,00",,Presente',
-      'Outros',
-      'Conjunto,,,',
-      'boleto perdido,"R$0,00",,Terceiros',
-      'Conjunto',
-      'FATURA:,"R$50,00",,',
-    ].join('\n');
-
-    expect(() => interpretarPlanilha(csv)).toThrow(
-      'Cabecalho "Conjunto" apareceu dentro do bloco Outros antes de existir como bloco ' +
-        'principal. A ordem dos blocos provavelmente mudou',
-    );
-  });
-
-  it('sub-bloco no formato antigo funciona independente da ordem dos blocos', () => {
-    // "Nick > Nardy" nao tem o mesmo texto de nenhum bloco principal, entao a
-    // guarda de ordem nunca se aplica a ele — funciona mesmo quando o nome
-    // referenciado (Nick) nunca chega a aparecer como bloco principal neste
-    // arquivo. Nardy aparece antes so para o CSV ter mais de um bloco; o
-    // ponto do teste e o sub-bloco Outros, nao o bloco Nardy.
+  it('cabecalho Conjunto depois de Outros reabre o bloco principal, linhas seguintes vao para o cartao', () => {
+    // "Conjunto" nao esta mais no mapa de sub-blocos, entao esse cabecalho e
+    // sempre bloco principal, mesmo aparecendo depois de Outros.
     const csv = [
       'Nardy',
       'compra nardy,"R$50,00",,Presente',
       'Outros',
       'Nick > Nardy,,,',
       'manutencao da moto,"R$80,00",,Veiculo',
+      'Conjunto',
+      'compra conjunta,"R$20,00",,Assinatura',
+      'FATURA:,"R$70,00",,',
     ].join('\n');
 
     const resultado = interpretarPlanilha(csv);
@@ -342,6 +254,16 @@ describe('interpretarPlanilha — ordem dos blocos dentro de Outros', () => {
         contaTipo: 'EXTERNA',
         escopo: 'PESSOAL',
         dono: 'Nick',
+      },
+      {
+        descricao: 'compra conjunta',
+        valorCentavos: 2000,
+        parcelaAtual: 1,
+        totalParcelas: 1,
+        categoria: 'Assinatura',
+        contaTipo: 'CARTAO',
+        escopo: 'CONJUNTO',
+        dono: null,
       },
     ]);
   });
