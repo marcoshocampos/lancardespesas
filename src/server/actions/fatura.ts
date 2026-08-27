@@ -16,6 +16,7 @@ export async function acaoRegistrarValorReal(dados: unknown) {
   if (!sessao?.user) throw new Error('Não autenticado');
 
   const { contaId, competencia, valorCentavos } = esquema.parse(dados);
-  await registrarValorReal(contaId, competencia, valorCentavos);
-  revalidatePath('/resumo');
+  const resultado = await registrarValorReal(contaId, competencia, valorCentavos);
+  if (resultado.ok) revalidatePath('/resumo');
+  return resultado;
 }

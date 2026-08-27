@@ -36,7 +36,10 @@ export function ConferenciaFatura({ contaId, competencia, nome, somado, valorRea
 
     iniciar(async () => {
       try {
-        await acaoRegistrarValorReal({ contaId, competencia, valorCentavos });
+        const resultado = await acaoRegistrarValorReal({ contaId, competencia, valorCentavos });
+        if (!resultado.ok) {
+          setErro('Essa fatura está travada. Destrave para registrar um novo valor do extrato.');
+        }
       } catch (e) {
         setErro(e instanceof Error ? e.message : 'Não foi possível salvar.');
       }

@@ -21,15 +21,28 @@ function diaNaCompetencia(competencia: string, dia: number): string {
   return `${competencia}-${String(diaEfetivo).padStart(2, '0')}`;
 }
 
+export type ResultadoRegistroValorReal = { ok: true } | { ok: false; motivo: 'FATURA_TRAVADA' };
+
 export async function registrarValorReal(
   contaId: string,
   competencia: string,
   valorCentavos: number,
-): Promise<void> {
+): Promise<ResultadoRegistroValorReal> {
   const conta = await prisma.conta.findUniqueOrThrow({ where: { id: contaId } });
   if (conta.tipo !== 'CARTAO') throw new Error('Conferencia so existe em conta de cartao');
   if (conta.diaFechamento === null || conta.diaVencimento === null) {
     throw new Error(`Conta de cartao sem fechamento ou vencimento: ${conta.nome}`);
+  }
+
+  // Fatura travada e somente-leitura: destravar e acao explicita e auditada em outro
+  // lugar. O upsert sozinho nao olha o status, entao o pre-check e obrigatorio aqui —
+  // criar/editar/excluir lancamento ja recusam do mesmo jeito (lancamento.ts).
+  const existente = await prisma.fatura.findUnique({
+    where: { contaId_competencia: { contaId, competencia } },
+    select: { status: true },
+  });
+  if (existente?.status === 'TRAVADA') {
+    return { ok: false, motivo: 'FATURA_TRAVADA' };
   }
 
   await prisma.fatura.upsert({
@@ -43,6 +56,7 @@ export async function registrarValorReal(
       dataVencimento: diaNaCompetencia(competencia, conta.diaVencimento),
     },
   });
+  return { ok: true };
 }
 
 export async function carregarValorReal(
