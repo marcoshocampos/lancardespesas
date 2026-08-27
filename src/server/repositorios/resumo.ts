@@ -31,7 +31,13 @@ export async function carregarParcelasDaCompetencia(
           contaId: true,
           escopo: true,
           membroId: true,
-          rateios: { select: { membroId: true, percentual: true } },
+          // Mesma ordem da gravacao (lancamento.ts, gravarFilhos): ratear() joga o resto
+          // de centavos no primeiro peso da lista, e isso so fica estavel entre leituras
+          // se a ordem for sempre a mesma — o membro mais antigo por cadastro.
+          rateios: {
+            select: { membroId: true, percentual: true },
+            orderBy: { membro: { criadoEm: 'asc' } },
+          },
         },
       },
     },
