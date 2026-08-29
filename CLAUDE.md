@@ -7,18 +7,26 @@ Orientação para sessões novas. Leia isto antes de propor qualquer coisa.
 Sistema web para Nardy e Nick lançarem as despesas do casal, substituindo uma planilha do
 Google Sheets com uma aba por mês. Duas pessoas, uso privado, desktop-first.
 
-**Estado atual: design fechado, nenhum código de aplicação escrito.** O próximo passo é o
-plano de implementação da Fase 1.
+**Estado atual em [`docs/estado.md`](docs/estado.md). Leia primeiro** — é o arquivo que diz
+onde paramos, o que já funciona e qual é a próxima tarefa.
 
 ## Onde está cada coisa
 
 | Documento | Para quê |
 |---|---|
+| [`docs/estado.md`](docs/estado.md) | Onde paramos, o que funciona, o que falta, como retomar |
+| [`docs/decisoes.md`](docs/decisoes.md) | Escolhas técnicas que parecem melhoráveis e não são |
 | [`docs/specs/2026-08-08-sistema-despesas-casal-design.md`](docs/specs/2026-08-08-sistema-despesas-casal-design.md) | Design: modelo, arquitetura, fases, e o histórico de revisão |
 | [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
+| [`docs/plans/fase-1/`](docs/plans/fase-1/README.md) | O plano de execução da Fase 1, uma etapa por arquivo |
 
 A spec é a fonte da verdade para **o que** o sistema é. As regras de negócio são a fonte da
 verdade para **como ele se comporta**. Divergiu, a spec vence e as regras se ajustam.
+
+**Antes de mudar qualquer escolha estrutural, leia [`docs/decisoes.md`](docs/decisoes.md).**
+Datas como `String`, Prisma fixado no 6, segredos em `.env` e não em `.env.local`, a sobra de
+centavos indo sempre para o mesmo membro — todas têm motivo, e todas já foram quase desfeitas
+por alguém achando que estava melhorando.
 
 ## Vocabulário do domínio
 
@@ -62,6 +70,9 @@ Quebrar qualquer um destes é bug, não escolha de estilo.
 - **Nunca commitar sem consultar o usuário.** Ele revisa o que entra em cada commit. Prepare
   as alterações, descreva o que mudou e qual seria a mensagem, e espere a autorização. Vale
   também para `push`, `--amend`, branch e PR. Editar arquivo e deixar sem commit está liberado.
+  **Exceção:** durante a execução de um plano, em branch de trabalho, os subagentes commitam
+  livremente — a revisão compara faixas de commit. A consulta continua obrigatória para
+  `main` e para qualquer `push`; o commit que o usuário revisa é o merge.
 - **Commits** em português, no imperativo, explicando o porquê e não o quê.
 - **Testes** com Vitest no domínio, cobrindo os casos de borda de
   [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md). Playwright só nos fluxos críticos.
@@ -69,7 +80,7 @@ Quebrar qualquer um destes é bug, não escolha de estilo.
 
 ## Stack
 
-Next.js 15 App Router, TypeScript estrito, Postgres no Neon via Prisma, Auth.js v5 com Google
+Next.js 16 App Router, TypeScript estrito, Postgres no Neon via Prisma 6, Auth.js v5 com Google
 e allowlist fixa de dois e-mails, Tailwind e shadcn/ui, TanStack Table na grade, Recharts nos
 gráficos, deploy na Vercel. Tema claro e escuro.
 
@@ -83,6 +94,11 @@ permissões · integração bancária · orçamento e metas · receitas e saldo 
 comprovante · importação de CSV/OFX da fatura · lançamento por texto livre · app nativo ·
 multi-moeda
 
+**Neon Auth fica desativado.** A autenticação é Auth.js v5 com Google e allowlist fixa de dois
+e-mails, com sessão em JWT — sem tabela de auth no banco. O Neon Auth resolve cadastro,
+senha, organizações e administração de usuários, nada disso existe aqui, e ligá-lo criaria um
+segundo dono da identidade e um schema `neon_auth` no meio das migrations do Prisma.
+
 ## Dados de referência
 
 O apêndice da spec traz os números reais de agosto. **Use-os como fixture nos testes de
@@ -92,8 +108,13 @@ cálculo** — se os totais do sistema não reproduzirem `R$ 1.025,51` de fatura
 ## Ambiente
 
 Node 24.19 e npm 11.17 instalados; git 2.55; GitHub CLI 2.97 autenticado como `marcoshocampos`.
-Repositório privado. Neon, Vercel e as credenciais OAuth do Google ainda não existem — são do
-usuário criar, não faça no lugar dele.
+Repositório privado.
+
+Neon e as credenciais OAuth do Google **já existem e estão configurados**; a Vercel ainda não,
+e só é necessária para publicar. Segredos ficam em `.env` na raiz, a partir do `.env.example`
+— **`.env`, e não `.env.local`**, porque o CLI do Prisma lê o primeiro e não lê o segundo.
+Nunca peça um segredo em conversa nem o escreva em arquivo versionado. Conta em serviço
+externo é o usuário que cria, não faça no lugar dele.
 
 Nesta máquina, `git` não está no PATH do PowerShell (só no Git Bash). Use a ferramenta Bash
 para git, ou recarregue o PATH da máquina antes.
