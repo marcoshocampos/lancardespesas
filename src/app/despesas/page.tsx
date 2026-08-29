@@ -24,7 +24,13 @@ export default async function Despesas({ searchParams }: Props) {
       <ChipsConta competencia={competencia} contas={contas} contaSelecionada={conta} />
 
       <div className="mt-4 rounded-md border">
-        <GradeLancamentos linhas={linhas} />
+        <GradeLancamentos
+          linhas={linhas}
+          competencia={competencia}
+          contas={contas}
+          categorias={categorias}
+          membros={membros}
+        />
         <LinhaNova contas={contas} categorias={categorias} membros={membros} />
       </div>
     </main>

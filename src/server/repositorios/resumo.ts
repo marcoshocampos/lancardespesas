@@ -8,12 +8,21 @@ export type LinhaGrade = {
   versao: number;
   dataCompra: string;
   descricao: string;
+  // O valor DIGITADO na criacao do lancamento — nao o da parcela (`valorCentavos`
+  // abaixo). Com origemValor TOTAL os dois divergem: a parcela e uma fracao. E o
+  // que o formulario de edicao precisa reenviar para nao encolher o total ao salvar
+  // sem mudar nada. Ver nota na Tarefa 15 sobre por que o brief nao pedia isto.
+  lancamentoValorCentavos: number;
+  origemValor: 'POR_PARCELA' | 'TOTAL';
   escopo: 'PESSOAL' | 'CONJUNTO';
+  membroId: string | null;
   membroNome: string | null;
+  categoriaId: string;
   categoriaNome: string;
   numero: number;
   numeroParcelas: number;
   valorCentavos: number;
+  contaId: string;
   contaNome: string;
   ehReembolso: boolean;
 };
@@ -94,12 +103,19 @@ export async function carregarLinhasDaGrade(
     versao: p.lancamento.versao,
     dataCompra: p.lancamento.dataCompra,
     descricao: p.lancamento.descricao,
+    lancamentoValorCentavos: p.lancamento.valorCentavos,
+    origemValor: p.lancamento.origemValor,
     escopo: p.lancamento.escopo,
+    // Os ids sao colunas escalares do proprio lancamento (contaId, categoriaId,
+    // membroId) — ja vem no `include` sem precisar pedir `id` de cada relacao.
+    membroId: p.lancamento.membroId,
     membroNome: p.lancamento.membro?.nome ?? null,
+    categoriaId: p.lancamento.categoriaId,
     categoriaNome: p.lancamento.categoria.nome,
     numero: p.numero,
     numeroParcelas: p.lancamento.numeroParcelas,
     valorCentavos: p.valorCentavos,
+    contaId: p.lancamento.contaId,
     contaNome: p.lancamento.conta.nome,
     ehReembolso: p.lancamento.statusReembolso !== null,
   }));
