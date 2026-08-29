@@ -782,3 +782,78 @@ Diferenca positiva significa lancamento faltando.
 
 ---
 
+
+---
+
+## Tarefa 15 — Editar e excluir lançamento
+
+Surgiu da revisão final da branch. `acaoEditarLancamento` e `acaoExcluirLancamento` existem
+desde a Tarefa 9, testadas, com lock otimista e barreira de fatura travada — e **sem nenhum
+chamador**. Dá para lançar e não dá para corrigir: valor errado só se conserta pelo Prisma
+Studio. "Abandonar a planilha" não se sustenta assim.
+
+**Arquivos:**
+- Modificar: `src/server/repositorios/resumo.ts` (o tipo `LinhaGrade` e a query)
+- Modificar: `src/components/grade-lancamentos.tsx` (ações na linha)
+- Criar: `src/components/linha-edicao.tsx` (formulário de edição)
+- Modificar: `src/app/despesas/page.tsx` (passar contas, categorias e membros para a grade)
+
+**Interfaces já prontas:**
+
+```ts
+// src/server/actions/lancamento.ts — validam com Zod e exigem sessao
+acaoEditarLancamento(id: string, versao: number, dados: unknown)
+acaoExcluirLancamento(id: string, versao: number)
+
+// src/server/repositorios/lancamento.ts
+type ResultadoGravacao =
+  | { ok: true }
+  | { ok: false; motivo: 'CONFLITO' | 'FATURA_TRAVADA'; atual?: unknown };
+```
+
+### O que a tarefa precisa resolver
+
+**1. `LinhaGrade` carrega nome, o formulário precisa de id.** Hoje a leitura devolve
+`membroNome`, `categoriaNome` e `contaNome`. Para editar é preciso `categoriaId`, `contaId`,
+`membroId` e `origemValor`. Acrescente-os ao tipo e à query, sem remover os nomes, que a
+grade usa para exibir.
+
+**2. A grade mostra parcela; editar e excluir agem no lançamento inteiro.** A linha que
+exibe `3/12` pertence a uma compra com doze parcelas. Excluir dali apaga **a compra toda**.
+
+Isso precisa estar escrito na tela, não subentendido. Na confirmação de exclusão de um
+lançamento parcelado, diga quantas parcelas serão removidas e em quais competências —
+algo como "Excluir *fone bluetooth* remove as 5 parcelas, de agosto de 2026 a dezembro de 2026".
+Para lançamento à vista, uma confirmação simples basta.
+
+O mesmo vale para a edição: mudar o valor de um parcelado **regera todas as parcelas**.
+Avise antes de salvar.
+
+**3. As duas recusas precisam aparecer.**
+
+- `CONFLITO` — a outra pessoa gravou no meio do caminho. Mostre que houve conflito e **não
+  limpe o formulário**: o que foi digitado não pode se perder. O campo `atual` traz o estado
+  gravado; exibir a descrição e o valor atuais já ajuda a decidir.
+- `FATURA_TRAVADA` — o mês está fechado. Mesmo tratamento do `linha-nova.tsx`.
+
+Recusa tratada como sucesso aqui é pior que o bug original: a pessoa acha que corrigiu.
+
+**4. Exclusão é lixeira, mas não há lixeira.** `excluirLancamento` marca `deletadoEm`, não
+apaga. Como a tela de lixeira só chega na Fase 3, para o casal o efeito é definitivo — não
+prometa "dá para restaurar" na interface.
+
+### Passos
+
+- [ ] Estender `LinhaGrade` e a query com os ids, sem quebrar a Tarefa 10
+- [ ] Escrever o formulário de edição, espelhando `linha-nova.tsx`, que já é o padrão da casa
+- [ ] Ligar as duas ações na grade, com a confirmação de exclusão descrita acima
+- [ ] Tratar `CONFLITO` e `FATURA_TRAVADA` sem limpar o que foi digitado
+- [ ] Verificar: `npm test`, `npx tsc --noEmit`, `npm run build`, e a suíte destrutiva com
+      o banco zerado depois
+
+### Verificação
+
+O fluxo completo exige login, que nenhum agente faz. Prove o que dá sem browser: os testes,
+os tipos, o build, e a leitura estendida devolvendo os ids. Deixe no relatório a lista de
+verificação manual para o usuário — editar valor de um parcelado e conferir que as parcelas
+foram regeradas, excluir um parcelado e conferir que sumiu de todas as competências.

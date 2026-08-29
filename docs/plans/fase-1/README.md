@@ -24,9 +24,9 @@ Decisões tomadas e o porquê em [`docs/decisoes.md`](../../decisoes.md).
 |---|---|---|
 | [01 — Fundação](01-fundacao.md) | 1, 2 | Concluída |
 | [02 — Domínio](02-dominio.md) | 3, 4, 5, 6 | Concluída |
-| [03 — Persistência e acesso](03-persistencia.md) | 7, 8, 9 | Tarefas 7 e 8 concluídas; **9 é a próxima** |
-| [04 — Telas](04-telas.md) | 10, 11, 12, 13 | Pendente |
-| [05 — Migração da planilha](05-migracao.md) | 14 | Pendente |
+| [03 — Persistência e acesso](03-persistencia.md) | 7, 8, 9 | Concluída |
+| [04 — Telas](04-telas.md) | 10, 11, 12, 13, 15 | Concluída |
+| [05 — Migração da planilha](05-migracao.md) | 14 | Concluída |
 
 As tarefas já executadas estão **enxutas**: o código extenso saiu e no lugar ficou o que foi
 feito, por que, e um ponteiro para os arquivos reais. O código de verdade está em `src/`,
@@ -96,9 +96,10 @@ O que a Fase 1 entrega, por requisito da spec: auth e allowlist (tarefa 8); cada
 (tarefa 7, via seed); grade do mês no layout B (tarefas 10 e 11); parcelamento (tarefa 4);
 rateio (tarefa 5); totais (tarefas 6 e 12); estornos (tarefas 4, 5 e 6); contas externas
 (tarefas 3, 7 e 10); faturas com conferência (tarefa 13); lock otimista (tarefa 9);
-importação (tarefa 14).
+importação (tarefa 14); editar e excluir lançamento (tarefa 15, nascida da revisão final).
 
-Duas lacunas assumidas, que **não** são esquecimento:
+Lacunas assumidas, que **não** são esquecimento. As três primeiras foram decididas; as demais
+foram encontradas na revisão final da branch e aceitas conscientemente:
 
 - **Não há tela de cadastro de categoria.** O seed cria as oito; categoria nova sai pelo
   `prisma studio` até a Fase 2. Precisa existir antes do primeiro mês em que vocês quiserem
@@ -108,6 +109,16 @@ Duas lacunas assumidas, que **não** são esquecimento:
   comparativo — o conflito aparece como mensagem. A proteção contra sobrescrita existe desde
   a Fase 1, que era o objetivo; a tela de resolução fica para a Fase 3, junto do histórico
   de alterações.
+- **Não há tela para travar ou destravar fatura.** A maquinaria existe e é respeitada por
+  criar, editar e excluir, mas só é acionável por SQL direto. A interface chega a dizer
+  "destrave a fatura para lançar", apontando para algo que ainda não dá para fazer pela tela.
+  É a lacuna mais incômoda das seis.
+- **Não há tela de lixeira.** A exclusão marca `deletadoEm` e não apaga, mas sem tela de
+  restauração o efeito para o casal é definitivo. A interface não promete o contrário.
+- **Não há tela para marcar reembolso como recebido**, e `calcularResumo` ainda soma
+  reembolso no gasto do casal, divergindo da seção 6 das regras de negócio.
+- **O status `CONFERIDA` nunca é gravado.** A conferência aponta a diferença corretamente,
+  mas toda fatura permanece `ABERTA`.
 
 ## Depois da Fase 1
 
