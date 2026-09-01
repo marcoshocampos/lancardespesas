@@ -102,9 +102,10 @@ Leia [`docs/decisoes.md`](decisoes.md) antes de mudar qualquer escolha estrutura
 
 1. **Testar o login no navegador**, com um e-mail da allowlist e um de fora. É o único teste
    que nenhum agente conseguiu fazer
-2. **Importar a planilha**, com `npx tsx scripts/importar-planilha.ts`. Ele confere o total
-   contra a linha `FATURA:` e desfaz tudo se não bater
-3. **Corrigir os nomes dos membros**, que o seed derivou dos e-mails
+2. **Importar a planilha.** O leitor foi validado contra o arquivo real de agosto: lê o
+   formato colunar da exportação do Sheets, confere a soma do cartão contra a linha
+   `FATURA:` e desfaz tudo se não bater. O comando está no cabeçalho do script
+3. **Publicar na Vercel**, se quiserem acessar de fora de casa
 
 ## Pendências menores para triar
 

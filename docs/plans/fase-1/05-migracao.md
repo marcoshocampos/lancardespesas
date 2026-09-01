@@ -184,3 +184,70 @@ onde a importacao erra; a conferencia final e o total bater com a fatura.
 
 ---
 
+
+---
+
+## Tarefa 16 — Reescrever o leitor para o formato real da planilha
+
+A Tarefa 14 construiu o importador supondo **blocos empilhados**: uma linha com o nome do
+bloco, depois as linhas de lançamento. O implementador registrou no relatório que o formato
+era suposição dele e recomendou conferir contra o arquivo real antes de importar.
+
+Conferido: **a planilha é colunar.** Os blocos ficam lado a lado, em faixas de colunas. O
+leitor precisa ser trocado; o resto do importador continua valendo.
+
+### O formato real
+
+Arquivo em `dados-privados/`, 34 linhas, 19 a 23 colunas. **Contém as finanças reais do
+casal — nunca versione, nunca imprima valores em relatório ou log.**
+
+| Linha | Conteúdo |
+|---|---|
+| 1 | Título dos grupos: `C6` e `OUTROS`, cada um na coluna onde seu primeiro bloco começa |
+| 3 | Cabeçalho dos blocos: `Nardy`, `Nick`, `Conjunto`, `Nardy > Nick`, `Nick > Nardy` |
+| 5 | Cabeçalho das colunas de cada bloco |
+| 6+ | Lançamentos, e no fim as linhas de total |
+
+As faixas de coluna de cada bloco, em agosto:
+
+| Grupo | Bloco | Colunas |
+|---|---|---|
+| C6 | Nardy | Descrição, Valor, Parcela, Categoria |
+| C6 | Nick | Descrição, Valor, Parcela, Categoria |
+| C6 | Conjunto | Descrição, Valor, Parcela, Categoria |
+| OUTROS | Nardy > Nick | Descrição, Valor |
+| OUTROS | Nick > Nardy | Descrição, Valor, Parcela |
+
+**Não fixe as posições no código.** Derive tudo dos cabeçalhos: ache a linha dos blocos, ache
+a linha das colunas, e para cada bloco leia da coluna dele até a coluna do bloco seguinte. A
+planilha vai ganhar coluna e mudar de largura, e um leitor posicional quebra em silêncio.
+
+O grupo de cada bloco sai da linha 1: o título mais próximo à esquerda, na mesma coluna ou
+antes. Bloco sob `C6` vira lançamento de cartão; sob `OUTROS`, de conta externa.
+
+### As três diferenças que o leitor antigo não previa
+
+1. **Os sub-blocos do OUTROS têm formatos diferentes entre si.** `Nardy > Nick` tem só
+   Descrição e Valor; `Nick > Nardy` tem também Parcela. Leia o que existe em cada um.
+2. **Nenhum bloco do OUTROS tem Categoria.** Essas linhas recebem a categoria
+   **`Sem categoria`**, criada pelo importador se ainda não existir. É decisão do casal: não
+   inventar classificação que a planilha não tem, e deixar visível o que falta reclassificar.
+3. **As linhas de total no rodapé mudam de coluna**, por causa de células mescladas. Não
+   confie na posição: reconheça pelo texto (`TOTAL:`, `TOTAL GERAL:`, `METADE:`, `FATURA:`) em
+   qualquer coluna, e ignore. O valor de `FATURA:` continua sendo a conferência do cartão.
+
+### O que não muda
+
+Continuam valendo, testados e revisados: a competência da parcela 1 a partir de `x/y`, o mapa
+de donos dos sub-blocos do OUTROS, o aborto por cabeçalho desconhecido, a compensação que
+desfaz tudo em caso de falha, a conferência contra `FATURA:` com código de saída diferente de
+zero, e o total externo impresso em separado.
+
+### Verificação
+
+O teste de `interpretarLinha` some junto com o leitor antigo. No lugar, teste o leitor novo com
+CSVs **fictícios** montados no formato colunar, cobrindo: bloco com e sem coluna de Parcela,
+linha de total no meio das colunas, bloco vazio, e cabeçalho de bloco desconhecido abortando.
+
+A prova final é rodar contra o arquivo real e a soma bater com `FATURA:`. **Reporte só se
+bateu ou não** — nunca os valores.
