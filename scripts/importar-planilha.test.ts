@@ -44,58 +44,161 @@ describe('interpretarLinha', () => {
   });
 });
 
-describe('interpretarPlanilha — bloco Outros', () => {
-  it('interpreta uma linha do bloco Outros como lancamento normal, na conta externa', () => {
-    // O bloco Outros hoje e despesa fora do cartao (spec, revisao 2026-08-09,
-    // secao 12), nao mais divida entre o casal. A linha nao pode ser
-    // descartada: precisa virar um item de conta EXTERNA, com o dono
-    // resolvido pelo cabecalho do sub-bloco.
+// A planilha real e COLUNAR: a linha de grupos ("C6"/"OUTROS") e a primeira
+// linha nao-em-branco do arquivo; a linha de blocos ("Nardy", "Conjunto",
+// "Nardy > Nick"...) fica logo acima da linha de colunas ("Descricao",
+// "Valor", "Parcela", "Categoria"), cada nome de bloco na coluna onde ele
+// comeca. `linha(...)` monta uma linha de CSV a partir das celulas (uma por
+// coluna absoluta), e `q(...)` cerca um valor em aspas — necessario porque
+// "R$10,00" tem virgula, e sem aspas o divisor de CSV cortaria a celula ao
+// meio.
+function linha(...celulas: string[]): string {
+  return celulas.join(',');
+}
+
+function q(valor: string): string {
+  return `"${valor}"`;
+}
+
+describe('interpretarPlanilha (formato colunar)', () => {
+  it('deriva a faixa de cada bloco do cabecalho: um bloco com Parcela (C6) e um sem Parcela (Outros)', () => {
+    // O bloco Conjunto (C6) tem as quatro colunas; o sub-bloco Nardy > Nick
+    // (Outros) so tem Descricao e Valor — a planilha real e assim (ver
+    // brief da Tarefa 16). O leitor deriva os offsets de cada um a partir
+    // do cabecalho, nao de uma posicao fixa; a linha TOTAL: aparece em
+        // colunas diferentes (1 para o bloco C6, 5 para o de Outros), e ainda
+    // assim e reconhecida e ignorada nos dois.
     const csv = [
-      'Nardy',
-      'compra normal,"R$50,00",,Presente',
-      'Outros',
-      'sub bloco ficticio,,,',
-      'manutencao da moto,"R$80,00",,Veiculo',
-      'FATURA:,"R$50,00",,',
+      linha('', 'C6', '', '', '', 'OUTROS'),
+      linha(''),
+      linha('', 'Conjunto', '', '', '', 'Nardy > Nick'),
+      linha(''),
+      linha('', 'Descricao', 'Valor', 'Parcela', 'Categoria', 'Descricao', 'Valor'),
+      linha('', 'item conjunto', q('R$10,00'), '2/3', 'Presente', 'item outros', q('R$5,00')),
+      linha('', 'TOTAL:', q('R$10,00'), '', '', 'TOTAL:', q('R$5,00')),
+      linha('', 'FATURA:', q('R$10,00')),
     ].join('\n');
 
-    const mapa: Record<string, 'Nardy' | 'Nick'> = { 'sub bloco ficticio': 'Nick' };
-    const resultado = interpretarPlanilha(csv, mapa);
+    const resultado = interpretarPlanilha(csv);
 
-    expect(resultado.faturaEsperada).toBe(5000);
+    expect(resultado.faturaEsperada).toBe(1000);
     expect(resultado.itens).toEqual([
       {
-        descricao: 'compra normal',
-        valorCentavos: 5000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
+        descricao: 'item conjunto',
+        valorCentavos: 1000,
+        parcelaAtual: 2,
+        totalParcelas: 3,
         categoria: 'Presente',
         contaTipo: 'CARTAO',
-        escopo: 'PESSOAL',
-        dono: 'Nardy',
+        escopo: 'CONJUNTO',
+        dono: null,
       },
       {
-        descricao: 'manutencao da moto',
-        valorCentavos: 8000,
+        descricao: 'item outros',
+        valorCentavos: 500,
         parcelaAtual: 1,
         totalParcelas: 1,
-        categoria: 'Veiculo',
+        // Nenhum sub-bloco de Outros tem coluna Categoria: cai em "Sem categoria".
+        categoria: 'Sem categoria',
         contaTipo: 'EXTERNA',
         escopo: 'PESSOAL',
-        dono: 'Nick',
+        dono: 'Nardy',
       },
     ]);
   });
 
-  it('aborta e cita o cabecalho, a quantidade e a soma quando o sub-bloco nao esta no mapa', () => {
+  it('reconhece a linha de total pelo texto, nao pela posicao: rotulos em colunas bem diferentes sao ambos ignorados', () => {
+    // Celulas mescladas fazem "TOTAL:" mudar de coluna conforme o bloco.
+    // Aqui os dois blocos tem larguras diferentes (Nardy so Descricao+Valor,
+    // Nick as quatro colunas), entao os rotulos TOTAL: caem em colunas
+    // absolutas bem distantes (1 e 3) — um leitor com posicao fixa erraria
+    // um dos dois.
+    const csv = [
+      linha('', 'C6'),
+      linha(''),
+      linha('', 'Nardy', '', 'Nick'),
+      linha(''),
+      linha('', 'Descricao', 'Valor', 'Descricao', 'Valor', 'Parcela', 'Categoria'),
+      linha('', 'item nardy', q('R$20,00'), 'item nick', q('R$30,00'), '', 'Jogo'),
+      linha('', 'TOTAL:', q('R$20,00'), 'TOTAL:', q('R$30,00'), '', ''),
+      linha('', 'FATURA:', q('R$50,00')),
+    ].join('\n');
+
+    const resultado = interpretarPlanilha(csv);
+
+    expect(resultado.faturaEsperada).toBe(5000);
+    expect(resultado.itens).toHaveLength(2);
+    expect(resultado.itens.map((item) => item.descricao)).toEqual(['item nardy', 'item nick']);
+    expect(resultado.itens.map((item) => item.valorCentavos)).toEqual([2000, 3000]);
+  });
+
+  it('bloco vazio (cabecalho presente, nenhuma linha de lancamento) nao gera item nem erro', () => {
+    const csv = [
+      linha('', 'C6'),
+      linha(''),
+      linha('', 'Nardy', '', '', '', 'Conjunto'),
+      linha(''),
+      linha('', 'Descricao', 'Valor', 'Parcela', 'Categoria', 'Descricao', 'Valor', 'Parcela', 'Categoria'),
+      linha('', 'item nardy', q('R$15,00'), '', 'Jogo', '', '', '', ''),
+      linha('', 'TOTAL:', q('R$15,00'), '', '', '', '', '', ''),
+      linha('', 'FATURA:', q('R$15,00')),
+    ].join('\n');
+
+    const resultado = interpretarPlanilha(csv);
+
+    expect(resultado.itens).toEqual([
+      {
+        descricao: 'item nardy',
+        valorCentavos: 1500,
+        parcelaAtual: 1,
+        totalParcelas: 1,
+        categoria: 'Jogo',
+        contaTipo: 'CARTAO',
+        escopo: 'PESSOAL',
+        dono: 'Nardy',
+      },
+    ]);
+  });
+
+  it('linha de C6 sem Categoria preenchida cai em Sem categoria, sem adivinhar classificacao', () => {
+    const csv = [
+      linha('', 'C6'),
+      linha(''),
+      linha('', 'Nardy'),
+      linha(''),
+      linha('', 'Descricao', 'Valor', 'Parcela', 'Categoria'),
+      linha('', 'item sem categoria', q('R$12,00'), '', ''),
+      linha('', 'FATURA:', q('R$12,00')),
+    ].join('\n');
+
+    const resultado = interpretarPlanilha(csv);
+
+    expect(resultado.itens).toEqual([
+      {
+        descricao: 'item sem categoria',
+        valorCentavos: 1200,
+        parcelaAtual: 1,
+        totalParcelas: 1,
+        categoria: 'Sem categoria',
+        contaTipo: 'CARTAO',
+        escopo: 'PESSOAL',
+        dono: 'Nardy',
+      },
+    ]);
+  });
+
+  it('aborta e cita o cabecalho, a quantidade e a soma quando o sub-bloco de Outros nao esta no mapa', () => {
     // "voce nao pode adivinhar" a quem o gasto pertence: um cabecalho de
     // sub-bloco desconhecido tem que abortar em vez de pular a linha, e a
     // mensagem precisa dizer o que esta em risco (nao so "desconhecido").
     const csv = [
-      'Outros',
-      'sub bloco desconhecido,,,',
-      'gasto 1,"R$50,00",,Presente',
-      'gasto 2,"R$25,00",,Jogo',
+      linha('', 'OUTROS'),
+      linha(''),
+      linha('', 'sub bloco desconhecido'),
+      linha(''),
+      linha('', 'Descricao', 'Valor'),
+      linha('', 'gasto 1', q('R$50,00')),
+      linha('', 'gasto 2', q('R$25,00')),
     ].join('\n');
 
     expect(() => interpretarPlanilha(csv, {})).toThrow(
@@ -108,15 +211,18 @@ describe('interpretarPlanilha — bloco Outros', () => {
   it('aborta com o mapa de producao quando o cabecalho nao esta nele', () => {
     // Os testes acima passam um mapa fornecido pelo proprio teste ({} ou um
     // mapa ficticio) — provam a funcao, mas nao a configuracao real. Este
-    // usa o DONO_DO_SUBBLOCO_OUTROS de producao (sem segundo argumento),
+    // usa o DONO_DO_SUBBLOCO_OUTROS de producao (sem terceiro argumento),
     // porque o aborto e a unica defesa contra descartar lancamento em
     // silencio: se a normalizacao de cabecalho ficar permissiva demais, ou
     // uma entrada larga demais for acrescentada ao mapa, e aqui que a
     // suite percebe.
     const csv = [
-      'Outros',
-      'Nardy > Nick > Sogra,,,',
-      'presente sogra,"R$45,00",,Presente',
+      linha('', 'OUTROS'),
+      linha(''),
+      linha('', 'Nardy > Nick > Sogra'),
+      linha(''),
+      linha('', 'Descricao', 'Valor'),
+      linha('', 'presente sogra', q('R$45,00')),
     ].join('\n');
 
     expect(() => interpretarPlanilha(csv)).toThrow(
@@ -124,165 +230,47 @@ describe('interpretarPlanilha — bloco Outros', () => {
     );
   });
 
-  it('recusa linha de Outros sem cabecalho de sub-bloco antes dela', () => {
-    const csv = ['Outros', 'gasto sem sub-bloco,"R$10,00",,Jogo'].join('\n');
+  it('cabecalho de bloco desconhecido no grupo C6 aborta citando o grupo', () => {
+    const csv = [
+      linha('', 'C6'),
+      linha(''),
+      linha('', 'Sogra'),
+      linha(''),
+      linha('', 'Descricao', 'Valor', 'Parcela', 'Categoria'),
+      linha('', 'presente', q('R$45,00'), '', 'Presente'),
+    ].join('\n');
 
-    expect(() => interpretarPlanilha(csv, {})).toThrow('sem sub-bloco definido');
+    expect(() => interpretarPlanilha(csv)).toThrow(
+      'Cabecalho de bloco desconhecido no grupo C6: "Sogra". 1 linha(s), soma R$ 45,00, ' +
+        'estao em risco de nao ser importadas. Os nomes reconhecidos sao Nardy, Nick e Conjunto.',
+    );
   });
 
-  it('sub-bloco "Nick > Nardy" produz lancamento externo com dono Nick', () => {
+  it('sub-bloco "Nick > Nardy" (com coluna Parcela) usa o mapa de producao e produz lancamento externo com dono Nick', () => {
     // O PRIMEIRO nome e o dono do gasto, nao o segundo — resquicio de quando
-    // Outros era direcao de divida entre o casal.
+    // Outros era direcao de divida entre o casal. Este sub-bloco, ao
+    // contrario de Nardy > Nick, tem coluna Parcela na planilha real.
     const csv = [
-      'Outros',
-      'Nick > Nardy,,,',
-      'manutencao da moto,"R$80,00",,Veiculo',
+      linha('', 'OUTROS'),
+      linha(''),
+      linha('', 'Nick > Nardy'),
+      linha(''),
+      linha('', 'Descricao', 'Valor', 'Parcela'),
+      linha('', 'item ficticio', q('R$80,00'), '3/6'),
     ].join('\n');
 
     const resultado = interpretarPlanilha(csv);
 
     expect(resultado.itens).toEqual([
       {
-        descricao: 'manutencao da moto',
+        descricao: 'item ficticio',
         valorCentavos: 8000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Veiculo',
+        parcelaAtual: 3,
+        totalParcelas: 6,
+        categoria: 'Sem categoria',
         contaTipo: 'EXTERNA',
         escopo: 'PESSOAL',
         dono: 'Nick',
-      },
-    ]);
-  });
-
-  it('sub-bloco "Nardy > Nick" produz lancamento externo com dono Nardy', () => {
-    const csv = [
-      'Outros',
-      'Nardy > Nick,,,',
-      'presente sogra,"R$45,00",,Presente',
-    ].join('\n');
-
-    const resultado = interpretarPlanilha(csv);
-
-    expect(resultado.itens).toEqual([
-      {
-        descricao: 'presente sogra',
-        valorCentavos: 4500,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Presente',
-        contaTipo: 'EXTERNA',
-        escopo: 'PESSOAL',
-        dono: 'Nardy',
-      },
-    ]);
-  });
-});
-
-describe('interpretarPlanilha — Outros sem colidir com bloco principal', () => {
-  // Os cabecalhos de sub-bloco reais ("Nardy > Nick", "Nick > Nardy") nao tem
-  // o mesmo texto de nenhum bloco principal, entao nao ha mais ambiguidade a
-  // resolver dentro de Outros: nenhuma guarda de ordem e necessaria.
-
-  it('mes sem bloco Conjunto no cartao, com sub-bloco Nick > Nardy em Outros, importa normalmente', () => {
-    // Este e o cenario que a guarda de ordem especulativa recusava por
-    // engano: sem despesa conjunta no cartao naquele mes, o bloco Conjunto
-    // nunca aparece no arquivo, e isso nao pode impedir Outros de ser
-    // importado.
-    const csv = [
-      'Nardy',
-      'compra nardy,"R$50,00",,Presente',
-      'Nick',
-      'compra nick,"R$30,00",,Jogo',
-      'Outros',
-      'Nick > Nardy,,,',
-      'manutencao da moto,"R$80,00",,Veiculo',
-      'FATURA:,"R$80,00",,',
-    ].join('\n');
-
-    const resultado = interpretarPlanilha(csv);
-
-    expect(resultado.faturaEsperada).toBe(8000);
-    expect(resultado.itens).toEqual([
-      {
-        descricao: 'compra nardy',
-        valorCentavos: 5000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Presente',
-        contaTipo: 'CARTAO',
-        escopo: 'PESSOAL',
-        dono: 'Nardy',
-      },
-      {
-        descricao: 'compra nick',
-        valorCentavos: 3000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Jogo',
-        contaTipo: 'CARTAO',
-        escopo: 'PESSOAL',
-        dono: 'Nick',
-      },
-      {
-        descricao: 'manutencao da moto',
-        valorCentavos: 8000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Veiculo',
-        contaTipo: 'EXTERNA',
-        escopo: 'PESSOAL',
-        dono: 'Nick',
-      },
-    ]);
-  });
-
-  it('cabecalho Conjunto depois de Outros reabre o bloco principal, linhas seguintes vao para o cartao', () => {
-    // "Conjunto" nao esta mais no mapa de sub-blocos, entao esse cabecalho e
-    // sempre bloco principal, mesmo aparecendo depois de Outros.
-    const csv = [
-      'Nardy',
-      'compra nardy,"R$50,00",,Presente',
-      'Outros',
-      'Nick > Nardy,,,',
-      'manutencao da moto,"R$80,00",,Veiculo',
-      'Conjunto',
-      'compra conjunta,"R$20,00",,Assinatura',
-      'FATURA:,"R$70,00",,',
-    ].join('\n');
-
-    const resultado = interpretarPlanilha(csv);
-
-    expect(resultado.itens).toEqual([
-      {
-        descricao: 'compra nardy',
-        valorCentavos: 5000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Presente',
-        contaTipo: 'CARTAO',
-        escopo: 'PESSOAL',
-        dono: 'Nardy',
-      },
-      {
-        descricao: 'manutencao da moto',
-        valorCentavos: 8000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Veiculo',
-        contaTipo: 'EXTERNA',
-        escopo: 'PESSOAL',
-        dono: 'Nick',
-      },
-      {
-        descricao: 'compra conjunta',
-        valorCentavos: 2000,
-        parcelaAtual: 1,
-        totalParcelas: 1,
-        categoria: 'Assinatura',
-        contaTipo: 'CARTAO',
-        escopo: 'CONJUNTO',
-        dono: null,
       },
     ]);
   });
