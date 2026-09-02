@@ -110,12 +110,28 @@ os de UI são Playwright. O plugin entra quando o primeiro teste de componente e
 
 ## A sobra de centavos vai sempre para o mesmo membro
 
-Em `ratear`, o resto da divisão vai para o **primeiro** peso da lista — por convenção, o
-membro mais antigo por ordem de cadastro. Nunca alternando.
+Em `ratear`, o resto da divisão vai para o **primeiro** peso da lista. Nunca alternando.
 
 Alternar seria "mais justo" em tese e tornaria o resultado dependente do histórico, portanto
 impossível de conferir na mão. Numa ferramenta que existe para o casal confiar nos números,
 poder refazer a conta no papel vale mais do que um centavo de simetria.
+
+Quem é esse "primeiro" é **escolha explícita, marcada no membro** — o campo
+`Membro.absorveSobra` — e não mais um acidente da ordem em que o seed criou os registros.
+Foi assim no começo (o primeiro peso vinha ordenado por `criadoEm`), até o casal pedir que
+fosse sempre o Nick e pudesse ser trocado depois sem mexer em código.
+
+**Onde:** `prisma/schema.prisma` define o campo, `default(false)`. Exatamente um membro deve
+ter `true` — não é imposto pelo schema, é uma invariante de dado, conferida a mão. A leitura,
+em `src/server/repositorios/resumo.ts`, ordena os rateios com `absorveSobra: 'desc'` primeiro
+e `criadoEm: 'asc'` como desempate — o desempate existe para o dia (que não deveria acontecer)
+em que dois membros tiverem `true` ao mesmo tempo; sem ele a ordem volta a depender do
+Postgres, que foi um bug já corrigido nesta base. `ratear`, no domínio, continua sem saber
+nada disso: só usa a ordem da lista que recebe.
+
+A ordem de **exibição** das colunas na grade e no resumo (`criadoEm asc`, em
+`src/app/despesas/page.tsx` e `src/app/resumo/page.tsx`) é outra coisa e não muda com isto —
+o casal não pediu para inverter quem aparece primeiro na tela.
 
 ## O rateio é calculado sobre o valor da parcela
 

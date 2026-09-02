@@ -30,6 +30,19 @@ describe('ratear', () => {
     ]);
   });
 
+  it('a sobra segue a ordem da lista recebida, nao a ordem de criacao dos membros', () => {
+    // ratear() nao sabe quem foi criado primeiro — quem absorve a sobra e quem
+    // o chamador colocou primeiro na lista de pesos. E o repositorio (resumo.ts)
+    // quem decide essa ordem, lendo o campo Membro.absorveSobra. Mesmo que NICK
+    // tenha sido cadastrado depois de NARDY, se ele vier primeiro na lista —
+    // porque e ele quem tem absorveSobra=true — e ele quem fica com o centavo.
+    const cotas = ratear(10001, pesosMeioAMeio([NICK, NARDY]));
+    expect(cotas).toEqual([
+      { membroId: NICK, valorCentavos: 5001 },
+      { membroId: NARDY, valorCentavos: 5000 },
+    ]);
+  });
+
   it('respeita percentuais diferentes de 50/50', () => {
     const cotas = ratear(10000, [
       { membroId: NARDY, percentual: 30 },

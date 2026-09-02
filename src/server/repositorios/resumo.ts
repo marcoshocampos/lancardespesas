@@ -40,12 +40,14 @@ export async function carregarParcelasDaCompetencia(
           contaId: true,
           escopo: true,
           membroId: true,
-          // Mesma ordem da gravacao (lancamento.ts, gravarFilhos): ratear() joga o resto
-          // de centavos no primeiro peso da lista, e isso so fica estavel entre leituras
-          // se a ordem for sempre a mesma — o membro mais antigo por cadastro.
+          // ratear() joga o resto de centavos no primeiro peso da lista — quem
+          // absorve a sobra e escolha explicita em Membro.absorveSobra, nao mais
+          // um efeito da ordem de cadastro (ver docs/decisoes.md). O desempate
+          // por criadoEm so entra se, por engano, mais de um membro tiver
+          // absorveSobra=true; sem ele a ordem volta a depender do Postgres.
           rateios: {
             select: { membroId: true, percentual: true },
-            orderBy: { membro: { criadoEm: 'asc' } },
+            orderBy: [{ membro: { absorveSobra: 'desc' } }, { membro: { criadoEm: 'asc' } }],
           },
         },
       },

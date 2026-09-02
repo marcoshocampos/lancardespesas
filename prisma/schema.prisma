@@ -42,12 +42,16 @@ enum StatusReembolso {
 }
 
 model Membro {
-  id        String   @id @default(cuid())
-  nome      String
-  email     String   @unique
-  cor       String
-  ativo     Boolean  @default(true)
-  criadoEm  DateTime @default(now())
+  id           String   @id @default(cuid())
+  nome         String
+  email        String   @unique
+  cor          String
+  ativo        Boolean  @default(true)
+  // Quem fica com o centavo de sobra no rateio 50/50 quando o valor e impar.
+  // Exatamente um membro deve ter true — ver src/domain/rateio.ts e
+  // docs/decisoes.md ("A sobra de centavos vai sempre para o mesmo membro").
+  absorveSobra Boolean  @default(false)
+  criadoEm     DateTime @default(now())
 
   lancamentos Lancamento[]
   rateios     Rateio[]
@@ -56,14 +60,14 @@ model Membro {
 }
 
 model Conta {
-  id             String    @id @default(cuid())
-  nome           String
-  tipo           TipoConta
-  cor            String
-  ativa          Boolean   @default(true)
-  diaFechamento  Int?
-  diaVencimento  Int?
-  ordem          Int       @default(0)
+  id            String    @id @default(cuid())
+  nome          String
+  tipo          TipoConta
+  cor           String
+  ativa         Boolean   @default(true)
+  diaFechamento Int?
+  diaVencimento Int?
+  ordem         Int       @default(0)
 
   lancamentos Lancamento[]
   faturas     Fatura[]
@@ -82,28 +86,28 @@ model Categoria {
 }
 
 model Lancamento {
-  id              String            @id @default(cuid())
+  id              String           @id @default(cuid())
   descricao       String
   valorCentavos   Int
-  origemValor     OrigemValor       @default(POR_PARCELA)
-  dataCompra      String            // AAAA-MM-DD, sem fuso
-  numeroParcelas  Int               @default(1)
+  origemValor     OrigemValor      @default(POR_PARCELA)
+  dataCompra      String // AAAA-MM-DD, sem fuso
+  numeroParcelas  Int              @default(1)
   escopo          EscopoLancamento
   meioPagamento   MeioPagamento?
   devedorNome     String?
   statusReembolso StatusReembolso?
-  versao          Int               @default(1)
+  versao          Int              @default(1)
   deletadoEm      DateTime?
-  criadoEm        DateTime          @default(now())
-  atualizadoEm    DateTime          @updatedAt
+  criadoEm        DateTime         @default(now())
+  atualizadoEm    DateTime         @updatedAt
 
   contaId     String
   categoriaId String
   membroId    String?
 
-  conta     Conta      @relation(fields: [contaId], references: [id])
-  categoria Categoria  @relation(fields: [categoriaId], references: [id])
-  membro    Membro?    @relation(fields: [membroId], references: [id])
+  conta     Conta     @relation(fields: [contaId], references: [id])
+  categoria Categoria @relation(fields: [categoriaId], references: [id])
+  membro    Membro?   @relation(fields: [membroId], references: [id])
   parcelas  Parcela[]
   rateios   Rateio[]
 
@@ -115,7 +119,7 @@ model Parcela {
   id            String  @id @default(cuid())
   numero        Int
   valorCentavos Int
-  competencia   String  // AAAA-MM
+  competencia   String // AAAA-MM
   cancelada     Boolean @default(false)
 
   lancamentoId String
@@ -139,9 +143,9 @@ model Rateio {
 
 model Fatura {
   id                 String       @id @default(cuid())
-  competencia        String       // AAAA-MM
-  dataFechamento     String       // AAAA-MM-DD
-  dataVencimento     String       // AAAA-MM-DD
+  competencia        String // AAAA-MM
+  dataFechamento     String // AAAA-MM-DD
+  dataVencimento     String // AAAA-MM-DD
   valorRealCentavos  Int?
   status             StatusFatura @default(ABERTA)
   travadaEm          DateTime?

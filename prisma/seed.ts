@@ -29,11 +29,16 @@ async function main() {
     const nomeDerivado = email.split('@')[0] ?? email;
     await prisma.membro.upsert({
       where: { email },
+      // Nunca sobrescreve: se o membro ja existe, a escolha de quem absorve a
+      // sobra (aqui ou feita depois a mao no banco) fica como esta.
       update: {},
       create: {
         email,
         nome: nomeDerivado.charAt(0).toUpperCase() + nomeDerivado.slice(1),
         cor: CORES_MEMBRO[indice] ?? '#666666',
+        // Escolha deterministica para o primeiro seed: o primeiro e-mail da
+        // lista absorve o centavo de sobra do rateio. Ver docs/decisoes.md.
+        absorveSobra: indice === 0,
       },
     });
   }
