@@ -12,9 +12,11 @@ export function pesosMeioAMeio(membroIds: string[]): PesoRateio[] {
 /**
  * Divide um valor entre membros conforme os percentuais.
  *
- * O resto de centavos vai para o PRIMEIRO peso da lista — por convencao, o membro
- * mais antigo por ordem de cadastro. Sempre o mesmo, para que o resultado nao
- * dependa do historico e possa ser conferido na mao.
+ * O resto de centavos vai para o PRIMEIRO peso da lista, sempre — nunca alterna.
+ * Esta funcao nao decide QUEM e o primeiro: so respeita a ordem que recebeu. Quem
+ * monta a lista decide isso, na leitura (src/server/repositorios/resumo.ts), pelo
+ * campo Membro.absorveSobra. O resultado assim nao depende do historico e pode
+ * ser conferido na mao.
  */
 export function ratear(valorCentavos: Centavos, pesos: PesoRateio[]): Cota[] {
   if (pesos.length === 0) throw new Error('Rateio exige ao menos um membro');
