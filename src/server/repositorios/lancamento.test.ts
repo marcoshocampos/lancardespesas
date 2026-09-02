@@ -12,6 +12,19 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
   let membroId: string;
 
   async function limparBanco(): Promise<void> {
+    // A trava TESTE_DESTRUTIVO foi pensada para banco vazio. Depois da
+    // importacao da planilha, o mesmo comando apagaria os 35 lancamentos
+    // reais do casal sem aviso. A guarda reage ao que existe no banco, nao a
+    // uma convencao de nome — convencao de nome tambem se esquece de
+    // configurar. Se ha lancamento, recusa antes de qualquer deleteMany.
+    const existentes = await prisma.lancamento.count();
+    if (existentes > 0) {
+      throw new Error(
+        `Banco tem ${existentes} lancamento(s) — recuso rodar TESTE_DESTRUTIVO aqui. ` +
+          'Aponte DATABASE_URL para um banco vazio.',
+      );
+    }
+
     await prisma.parcela.deleteMany();
     await prisma.rateio.deleteMany();
     await prisma.lancamento.deleteMany();
