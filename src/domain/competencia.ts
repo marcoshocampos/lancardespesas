@@ -9,6 +9,21 @@ function montar(ano: number, mes: number): Competencia {
   return `${String(ano).padStart(4, '0')}-${String(mes).padStart(2, '0')}`;
 }
 
+const NOMES_DOS_MESES = [
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+] as const;
+
 function partesDaCompetencia(c: Competencia): { ano: number; mes: number } {
   const casou = FORMATO.exec(c);
   if (!casou) throw new Error(`Competencia invalida: ${c}`);
@@ -52,6 +67,19 @@ export function avancarCompetencia(c: Competencia, meses: number): Competencia {
   const { ano, mes } = partesDaCompetencia(c);
   const total = ano * 12 + (mes - 1) + meses;
   return montar(Math.floor(total / 12), (total % 12) + 1);
+}
+
+/**
+ * Competencia em texto legivel para humanos: "2026-08" vira "agosto de 2026".
+ *
+ * Fica ao lado de `formatarBRL` em `money.ts` — formatacao de dominio para exibicao
+ * mora perto da regra que ela formata, nao dentro de um componente de UI.
+ */
+export function formatarCompetencia(c: Competencia): string {
+  const { ano, mes } = partesDaCompetencia(c);
+  const nomeDoMes = NOMES_DOS_MESES[mes - 1];
+  if (!nomeDoMes) throw new Error(`Competencia invalida: ${c}`);
+  return `${nomeDoMes} de ${ano}`;
 }
 
 /** Negativo se a vem antes de b, zero se iguais, positivo se depois. */

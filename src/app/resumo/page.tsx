@@ -1,5 +1,6 @@
 import { ConferenciaFatura } from '@/components/conferencia-fatura';
 import { MatrizResumo } from '@/components/matriz-resumo';
+import { Navegacao } from '@/components/navegacao';
 import { calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { carregarValorReal } from '@/server/repositorios/fatura';
@@ -29,7 +30,9 @@ export default async function Resumo({ searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
-      <h1 className="mb-4 text-xl font-semibold">Resumo · {competencia}</h1>
+      <Navegacao tela="resumo" competencia={competencia} conta={undefined} />
+
+      <h1 className="mt-4 mb-4 text-xl font-semibold">Resumo</h1>
       <MatrizResumo
         resumo={resumo}
         membroIds={membroIds}

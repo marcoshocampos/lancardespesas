@@ -1,6 +1,7 @@
 import { ChipsConta } from '@/components/chips-conta';
 import { GradeLancamentos } from '@/components/grade-lancamentos';
 import { LinhaNova } from '@/components/linha-nova';
+import { Navegacao } from '@/components/navegacao';
 import { prisma } from '@/server/db';
 import { carregarLinhasDaGrade } from '@/server/repositorios/resumo';
 import { competenciaAtual } from '@/app/competencia-atual';
@@ -19,7 +20,9 @@ export default async function Despesas({ searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-5xl p-6">
-      <h1 className="text-xl font-semibold">Despesas · {competencia}</h1>
+      <Navegacao tela="despesas" competencia={competencia} conta={conta} />
+
+      <h1 className="mt-4 text-xl font-semibold">Despesas</h1>
 
       <ChipsConta competencia={competencia} contas={contas} contaSelecionada={conta} />
 

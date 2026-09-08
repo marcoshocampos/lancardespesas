@@ -5,6 +5,7 @@ import {
   competenciaDeCartao,
   competenciaDeContaExterna,
   competenciaDeDataISO,
+  formatarCompetencia,
 } from './competencia';
 
 // C6: fecha dia 4, vence dia 10. A competencia e o mes do vencimento.
@@ -80,6 +81,40 @@ describe('avancarCompetencia', () => {
   it('recusa competencia mal formada', () => {
     expect(() => avancarCompetencia('2026-8', 1)).toThrow('Competencia invalida');
     expect(() => avancarCompetencia('2026-13', 1)).toThrow('Competencia invalida');
+  });
+});
+
+describe('formatarCompetencia', () => {
+  it('formata mes e ano por extenso', () => {
+    expect(formatarCompetencia('2026-08')).toBe('agosto de 2026');
+    expect(formatarCompetencia('2026-01')).toBe('janeiro de 2026');
+    expect(formatarCompetencia('2026-12')).toBe('dezembro de 2026');
+  });
+
+  it('cobre todos os doze meses', () => {
+    const nomes = [
+      'janeiro',
+      'fevereiro',
+      'março',
+      'abril',
+      'maio',
+      'junho',
+      'julho',
+      'agosto',
+      'setembro',
+      'outubro',
+      'novembro',
+      'dezembro',
+    ];
+    nomes.forEach((nome, indice) => {
+      const mes = String(indice + 1).padStart(2, '0');
+      expect(formatarCompetencia(`2026-${mes}`)).toBe(`${nome} de 2026`);
+    });
+  });
+
+  it('recusa competencia mal formada', () => {
+    expect(() => formatarCompetencia('2026-8')).toThrow('Competencia invalida');
+    expect(() => formatarCompetencia('2026-13')).toThrow('Competencia invalida');
   });
 });
 
