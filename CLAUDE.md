@@ -17,6 +17,7 @@ onde paramos, o que já funciona e qual é a próxima tarefa.
 | [`docs/estado.md`](docs/estado.md) | Onde paramos, o que funciona, o que falta, como retomar |
 | [`docs/decisoes.md`](docs/decisoes.md) | Escolhas técnicas que parecem melhoráveis e não são |
 | [`docs/specs/2026-08-08-sistema-despesas-casal-design.md`](docs/specs/2026-08-08-sistema-despesas-casal-design.md) | Design: modelo, arquitetura, fases, e o histórico de revisão |
+| [`docs/specs/2026-09-07-redesenho-visual-e-navegacao-design.md`](docs/specs/2026-09-07-redesenho-visual-e-navegacao-design.md) | Design da camada visual: navegação, telas, tokens, e o que ficou de fora |
 | [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
 | [`docs/arquitetura.md`](docs/arquitetura.md) | Onde cada coisa mora no código, camada por camada, e as armadilhas já conhecidas |
 | [`docs/plans/fase-1/`](docs/plans/fase-1/README.md) | O plano de execução da Fase 1, uma etapa por arquivo |
