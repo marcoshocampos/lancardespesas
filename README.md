@@ -19,6 +19,7 @@ autenticação, gravação e as telas.
 | [docs/plans/fase-1/](docs/plans/fase-1/README.md) | O plano de execução, uma etapa por arquivo |
 | [docs/specs/](docs/specs/2026-08-08-sistema-despesas-casal-design.md) | O design: modelo, arquitetura, fases |
 | [docs/regras-de-negocio.md](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
+| [docs/arquitetura.md](docs/arquitetura.md) | Onde cada coisa mora no código, camada por camada |
 | [CLAUDE.md](CLAUDE.md) | Orientação para sessões do Claude Code |
 
 Os mockups da proposta original estão publicados em
