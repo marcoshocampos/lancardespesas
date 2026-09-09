@@ -178,8 +178,18 @@ Entra quando existir ordenação por qualquer coluna de verdade.
 
 ### 5.1 Barra lateral
 
-Componente de servidor. Três blocos: identidade do sistema no topo, destinos no meio, quem está
-logado no rodapé.
+**Componente de cliente**, com a identidade passada como filho a partir do servidor. Três blocos:
+identidade do sistema no topo, destinos no meio, quem está logado no rodapé.
+
+A escolha não é preferência: **layout do App Router não recebe `searchParams`**, e a barra precisa
+da competência para preservá-la ao trocar de tela. Ela lê `usePathname()` e `useSearchParams()`, o
+que exige `'use client'` e uma fronteira de `Suspense`. Como `Identidade` precisa de `auth()`, que é
+de servidor, ela é renderizada no layout e **passada como `children`** — componente de servidor
+dentro de um de cliente é o único arranjo que evita serializar a sessão como prop.
+
+Pelo mesmo motivo, os destinos usam `next/link`, não `<a>`: a barra vive num layout persistente, e
+`<a>` puro recarregaria o documento a cada troca de tela, remontando a própria barra e relendo a
+sessão — o oposto do que um layout compartilhado existe para fazer.
 
 Destinos ativos: **Despesas**, **Resumo**, **Configurações**. Destinos desabilitados, visíveis com
 marca de *em breve*: **Gráficos**, **Lixeira**. Mostrar o que ainda vem evita inventar botão depois
