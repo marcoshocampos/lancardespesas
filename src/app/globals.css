@@ -34,6 +34,9 @@
   /* Sombra do painel lateral */
   --shadow-painel: -8px 0 32px rgb(26 25 23 / 0.10);
 
+  /* Sombra do painel flutuante */
+  --shadow-flutuante: 0 4px 12px rgb(26 25 23 / 0.08);
+
   --font-sans: var(--font-geist-sans);
 }
 
