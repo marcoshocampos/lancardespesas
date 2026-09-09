@@ -15,7 +15,7 @@ export function ChipsConta({ competencia, contas, contaSelecionada }: Props) {
     <nav className="mt-4 flex gap-2">
       <a
         href={`/despesas?competencia=${competencia}`}
-        className={`rounded-full border px-3 py-1 text-sm ${!contaSelecionada ? 'bg-neutral-900 text-white' : ''}`}
+        className={`rounded-full border px-3 py-1 text-sm ${!contaSelecionada ? 'bg-acento text-superficie' : ''}`}
       >
         Todos
       </a>
@@ -23,7 +23,7 @@ export function ChipsConta({ competencia, contas, contaSelecionada }: Props) {
         <a
           key={c.id}
           href={`/despesas?competencia=${competencia}&conta=${c.id}`}
-          className={`rounded-full border px-3 py-1 text-sm ${contaSelecionada === c.id ? 'bg-neutral-900 text-white' : ''}`}
+          className={`rounded-full border px-3 py-1 text-sm ${contaSelecionada === c.id ? 'bg-acento text-superficie' : ''}`}
         >
           {c.nome}
         </a>

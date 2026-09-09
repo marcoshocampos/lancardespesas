@@ -1,6 +1,6 @@
 import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
-import { ChipsConta } from '@/components/chips-conta';
-import { GradeLancamentos } from '@/components/grade-lancamentos';
+import { ChipsConta } from '@/components/despesas/chips-conta';
+import { GradeLancamentos } from '@/components/despesas/grade-lancamentos';
 import { LinhaNova } from '@/components/linha-nova';
 import { COLUNA_TOTAL, calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
@@ -53,15 +53,18 @@ export default async function Despesas({ searchParams }: Props) {
 
       <ChipsConta competencia={competencia} contas={contas} contaSelecionada={conta} />
 
-      <div className="mt-4 rounded-md border">
+      <div className="mt-4 overflow-hidden rounded-caixa border border-borda bg-superficie">
         <GradeLancamentos
           linhas={linhas}
           competencia={competencia}
           contas={contas}
           categorias={categorias}
           membros={membros}
+          contaSelecionada={conta}
         />
-        <LinhaNova contas={contas} categorias={categorias} membros={membros} />
+        <div id="lancar-despesa">
+          <LinhaNova contas={contas} categorias={categorias} membros={membros} />
+        </div>
       </div>
     </div>
   );
