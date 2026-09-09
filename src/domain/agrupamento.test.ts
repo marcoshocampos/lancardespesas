@@ -73,4 +73,10 @@ describe('agrupar', () => {
   it('recusa item com chave fora da ordem em vez de descarta-lo em silencio', () => {
     expect(() => agrupar([item('membro-fantasma', 100)], ORDEM)).toThrow();
   });
+
+  it('recusa chave repetida em ordemDasChaves em vez de duplicar o grupo em silencio', () => {
+    expect(() =>
+      agrupar([item(NARDY, 100), item(NARDY, 50)], [NARDY, NARDY, NICK]),
+    ).toThrow(/membro-nardy/);
+  });
 });
