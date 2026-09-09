@@ -1,9 +1,10 @@
+import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
 import { ChipsConta } from '@/components/chips-conta';
 import { GradeLancamentos } from '@/components/grade-lancamentos';
 import { LinhaNova } from '@/components/linha-nova';
-import { Navegacao } from '@/components/navegacao';
+import { COLUNA_TOTAL, calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
-import { carregarLinhasDaGrade } from '@/server/repositorios/resumo';
+import { carregarLinhasDaGrade, carregarParcelasDaCompetencia } from '@/server/repositorios/resumo';
 import { competenciaAtual } from '@/app/competencia-atual';
 
 type Props = { searchParams: Promise<{ competencia?: string; conta?: string }> };
@@ -11,16 +12,42 @@ type Props = { searchParams: Promise<{ competencia?: string; conta?: string }> }
 export default async function Despesas({ searchParams }: Props) {
   const { competencia = competenciaAtual(), conta } = await searchParams;
 
-  const [contas, categorias, membros, linhas] = await Promise.all([
+  const [contas, categorias, membros, linhas, parcelas] = await Promise.all([
     prisma.conta.findMany({ where: { ativa: true }, orderBy: { ordem: 'asc' } }),
     prisma.categoria.findMany({ where: { arquivada: false }, orderBy: { nome: 'asc' } }),
     prisma.membro.findMany({ where: { ativo: true }, orderBy: { criadoEm: 'asc' } }),
     carregarLinhasDaGrade(competencia, conta),
+    carregarParcelasDaCompetencia(competencia),
   ]);
 
+  const membroIds = membros.map((m) => m.id);
+  const resumo = calcularResumo(
+    parcelas,
+    membroIds,
+    contas.map((c) => c.id),
+  );
+
+  const totais = {
+    membros: membros.map((m) => ({
+      membroId: m.id,
+      nome: m.nome,
+      cor: m.cor,
+      centavos: resumo.totalGeral[m.id]?.[COLUNA_TOTAL] ?? 0,
+    })),
+    faturas: contas
+      .filter((c) => c.tipo === 'CARTAO')
+      .map((c) => ({ contaId: c.id, nome: c.nome, centavos: resumo.somado[c.id] ?? 0 })),
+  };
+
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <Navegacao tela="despesas" competencia={competencia} conta={conta} />
+    <div className="mx-auto max-w-5xl p-6">
+      <FaixaCompetencia
+        competencia={competencia}
+        rota="/despesas"
+        conta={conta}
+        totais={totais}
+        filtroAtivo={Boolean(conta)}
+      />
 
       <h1 className="mt-4 text-xl font-semibold">Despesas</h1>
 
@@ -36,6 +63,6 @@ export default async function Despesas({ searchParams }: Props) {
         />
         <LinhaNova contas={contas} categorias={categorias} membros={membros} />
       </div>
-    </main>
+    </div>
   );
 }

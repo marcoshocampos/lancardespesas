@@ -1,6 +1,6 @@
+import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
 import { ConferenciaFatura } from '@/components/conferencia-fatura';
 import { MatrizResumo } from '@/components/matriz-resumo';
-import { Navegacao } from '@/components/navegacao';
 import { calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { carregarValorReal } from '@/server/repositorios/fatura';
@@ -29,8 +29,8 @@ export default async function Resumo({ searchParams }: Props) {
   );
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      <Navegacao tela="resumo" competencia={competencia} conta={undefined} />
+    <div className="mx-auto max-w-4xl p-6">
+      <FaixaCompetencia competencia={competencia} rota="/resumo" />
 
       <h1 className="mt-4 mb-4 text-xl font-semibold">Resumo</h1>
       <MatrizResumo
@@ -49,6 +49,6 @@ export default async function Resumo({ searchParams }: Props) {
           valorReal={valoresReaisPorConta[c.id] ?? null}
         />
       ))}
-    </main>
+    </div>
   );
 }
