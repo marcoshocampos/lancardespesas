@@ -4,12 +4,14 @@ import { useRef, useState, useTransition } from 'react';
 import { reaisParaCentavos } from '@/domain/money';
 import { acaoCriarLancamento } from '@/server/actions/lancamento';
 
-type Opcao = { id: string; nome: string };
+type Membro = { id: string; nome: string; cor: string };
+type Categoria = { id: string; nome: string; cor: string };
+type Conta = { id: string; nome: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null };
 
 type Props = {
-  contas: Opcao[];
-  categorias: Opcao[];
-  membros: Opcao[];
+  contas: Conta[];
+  categorias: Categoria[];
+  membros: Membro[];
 };
 
 export function LinhaNova({ contas, categorias, membros }: Props) {

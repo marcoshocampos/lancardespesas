@@ -1,4 +1,4 @@
-type Conta = { id: string; nome: string };
+type Conta = { id: string; nome: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null };
 
 type Props = {
   competencia: string;

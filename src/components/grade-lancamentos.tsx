@@ -7,14 +7,16 @@ import { acaoExcluirLancamento } from '@/server/actions/lancamento';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
 import { LinhaEdicao } from './linha-edicao';
 
-type Opcao = { id: string; nome: string };
+type Membro = { id: string; nome: string; cor: string };
+type Categoria = { id: string; nome: string; cor: string };
+type Conta = { id: string; nome: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null };
 
 type Props = {
   linhas: LinhaGrade[];
   competencia: string;
-  contas: Opcao[];
-  categorias: Opcao[];
-  membros: Opcao[];
+  contas: Conta[];
+  categorias: Categoria[];
+  membros: Membro[];
 };
 
 const CABECALHOS = ['Data', 'Descrição', 'De quem', 'Categoria', 'Parc.', 'Valor', 'Ações'];
