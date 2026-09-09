@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @theme {
   /* Superfícies */
@@ -38,4 +40,17 @@
 body {
   background: var(--color-fundo);
   color: var(--color-tinta);
+}
+
+/* Base do shadcn/ui, revestida com os tokens da casa — sem tema escuro. */
+@layer base {
+  * {
+    @apply border-borda outline-acento/50;
+  }
+  body {
+    @apply bg-fundo text-tinta;
+  }
+  html {
+    @apply font-sans;
+  }
 }
