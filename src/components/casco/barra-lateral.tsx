@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { BarChart3, ClipboardList, Receipt, Settings, Trash2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -59,7 +60,7 @@ export function BarraLateral({ children }: { children: ReactNode }) {
   const competencia = searchParams.get('competencia');
 
   return (
-    <div className="flex w-56 shrink-0 flex-col border-r border-borda bg-superficie max-[1179px]:w-16">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-borda bg-superficie max-[1179px]:w-16">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-borda px-4 max-[1179px]:justify-center max-[1179px]:px-2">
         <span
           className="flex size-7 shrink-0 items-center justify-center rounded-campo bg-acento text-sm font-semibold text-superficie"
@@ -78,7 +79,7 @@ export function BarraLateral({ children }: { children: ReactNode }) {
             return (
               <li key={destino.rotulo}>
                 {destino.rota ? (
-                  <a
+                  <Link
                     href={competencia ? `${destino.rota}?competencia=${competencia}` : destino.rota}
                     aria-current={ativo ? 'page' : undefined}
                     className={`${CLASSE_ITEM} ${
@@ -89,7 +90,7 @@ export function BarraLateral({ children }: { children: ReactNode }) {
                   >
                     <destino.Icone className="size-4 shrink-0" aria-hidden="true" />
                     <span className={CLASSE_ROTULO}>{destino.rotulo}</span>
-                  </a>
+                  </Link>
                 ) : (
                   <span aria-disabled="true" className={`${CLASSE_ITEM} text-tinta-apagada`}>
                     <destino.Icone className="size-4 shrink-0" aria-hidden="true" />
@@ -104,6 +105,6 @@ export function BarraLateral({ children }: { children: ReactNode }) {
       </nav>
 
       <div className="mt-auto shrink-0 border-t border-borda">{children}</div>
-    </div>
+    </aside>
   );
 }
