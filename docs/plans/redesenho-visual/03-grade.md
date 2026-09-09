@@ -125,6 +125,25 @@ divergir da soma real sem ninguém notar — exatamente o tipo de bug que esta b
 `calcularResumo` lança pelo mesmo motivo, e `docs/arquitetura.md` manda não embrulhar em
 `try/catch` "para a tela não quebrar".
 
+
+### O 9º teste, acrescentado depois
+
+O plano nasceu com oito testes. A revisão desta tarefa achou, **executando o módulo**, um nono caso
+que nenhum deles cobria: **chave repetida em `ordemDasChaves`**.
+
+`agrupar` semeia um acumulador por ocorrência da chave e depois itera `ordemDasChaves` de novo, então
+uma chave repetida materializava o mesmo grupo duas vezes. Dois itens somando R$ 1,50 devolviam dois
+grupos de R$ 1,50 — soma de subtotais igual a R$ 3,00 contra um total real de R$ 1,50, **sem lançar**.
+
+É a divergência silenciosa entre soma exibida e soma real que esta função inteira existe para
+impedir, e havia uma assimetria clara: chave *desconhecida* já lançava, chave *repetida* não. As duas
+são erro do chamador pelo mesmo motivo.
+
+Hoje `agrupar` lança nos dois casos, com a chave na mensagem, e há teste para cada um. Não é excesso
+de zelo: `docs/decisoes.md` defende explicitamente contra estados de dado "que não deveriam
+acontecer" — inclusive com um desempate previsto para o dia em que dois membros tenham
+`absorveSobra` ao mesmo tempo.
+
 - [ ] **Passo 2: rodar e ver falhar**
 
 ```bash
@@ -148,7 +167,7 @@ npx vitest run src/domain/agrupamento.test.ts
 npm test
 ```
 
-Os 96 anteriores continuam passando.
+Os anteriores continuam passando. A suíte tinha 100 antes desta etapa; com estes nove testes vai a 109.
 
 - [ ] **Passo 5: commitar**
 
@@ -182,7 +201,7 @@ Nos componentes que recebem `contas`, `categorias` e `membros`:
 ```ts
 type Membro = { id: string; nome: string; cor: string };
 type Categoria = { id: string; nome: string; cor: string };
-type Conta = { id: string; nome: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null };
+type Conta = { id: string; nome: string; cor: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null };
 ```
 
 `tipo` e `diaFechamento` da conta não são usados nesta etapa — são para a dica de competência da
@@ -301,7 +320,7 @@ git commit -m "Separa a grade do mes por pessoa, com subtotal em cada uma"
 
 ## Como saber que a etapa terminou
 
-- `npm test` com **104+** testes (96 antigos + os 8 de `agrupamento`)
+- `npm test` com **109** testes passando (100 anteriores + os 9 de `agrupamento`)
 - `npm run build` e `npm run lint` limpos
 - A soma dos subtotais bate com o total do rodapé em qualquer filtro
 - Nenhuma cor literal em `src/components/despesas/`

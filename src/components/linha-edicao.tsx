@@ -5,15 +5,13 @@ import { formatarBRL, reaisParaCentavos } from '@/domain/money';
 import { acaoEditarLancamento } from '@/server/actions/lancamento';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
 
-type Membro = { id: string; nome: string; cor: string };
-type Categoria = { id: string; nome: string; cor: string };
-type Conta = { id: string; nome: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null };
+type Opcao = { id: string; nome: string };
 
 type Props = {
   linha: LinhaGrade;
-  contas: Conta[];
-  categorias: Categoria[];
-  membros: Membro[];
+  contas: Opcao[];
+  categorias: Opcao[];
+  membros: Opcao[];
   onCancelar: () => void;
   onSalvo: () => void;
 };

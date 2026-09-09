@@ -9,7 +9,7 @@ import { LinhaEdicao } from './linha-edicao';
 
 type Membro = { id: string; nome: string; cor: string };
 type Categoria = { id: string; nome: string; cor: string };
-type Conta = { id: string; nome: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null };
+type Conta = { id: string; nome: string; tipo: 'CARTAO' | 'EXTERNA'; diaFechamento: number | null; cor: string };
 
 type Props = {
   linhas: LinhaGrade[];
