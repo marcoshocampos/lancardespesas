@@ -1,4 +1,7 @@
+import { Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { BarraLateral } from '@/components/casco/barra-lateral';
+import { Identidade } from '@/components/casco/identidade';
 
 /**
  * Casco comum as telas autenticadas (Despesas, Resumo): barra lateral fixa a
@@ -8,15 +11,28 @@ import type { ReactNode } from 'react';
  *
  * A competencia mora na query string, e layout do App Router nao recebe
  * `searchParams` — por isso o casco nao le nem repassa competencia aqui.
- * Cada pagina continua resolvendo isso sozinha.
+ * Cada pagina continua resolvendo isso sozinha; quem le a competencia para
+ * preservar o mes ao trocar de tela e a propria `BarraLateral`, via
+ * `useSearchParams()`.
+ *
+ * `BarraLateral` e componente de cliente por causa desse `useSearchParams()`,
+ * e o Next exige uma fronteira de `Suspense` em volta de quem usa esse hook —
+ * sem ela, `npm run build` falha com "useSearchParams should be wrapped in a
+ * suspense boundary". O fallback repete a largura exata da barra para a tela
+ * nao pular ao hidratar.
+ *
+ * `Identidade` e componente de servidor (le a sessao com `auth()`) e entra
+ * como `children` da `BarraLateral` — e o jeito de um componente de servidor
+ * viver dentro de um de cliente sem virar prop serializada.
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full">
-      {/* Reserva o lugar da barra lateral. A Tarefa 2 troca esta div por
-          <BarraLateral><Identidade /></BarraLateral> dentro de um Suspense
-          (BarraLateral usa useSearchParams, que exige essa fronteira). */}
-      <div className="w-56 shrink-0 border-r border-borda" />
+      <Suspense fallback={<div className="w-56 shrink-0 border-r border-borda" />}>
+        <BarraLateral>
+          <Identidade />
+        </BarraLateral>
+      </Suspense>
 
       <main className="min-w-0 flex-1">{children}</main>
     </div>
