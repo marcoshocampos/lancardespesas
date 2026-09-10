@@ -201,6 +201,49 @@ git commit -m "Confirma exclusao numa caixa desenhada, nao na do navegador"
 
 ---
 
+
+---
+
+## Tarefa 2b — O segundo `window.confirm`
+
+**Arquivos:**
+- Modifica: `src/components/despesas/painel-lancamento.tsx`
+
+Descoberta depois que o plano foi escrito: existem **dois** `window.confirm` no sistema, e o
+critério de encerramento desta etapa exige que nenhum sobre.
+
+O primeiro é a exclusão, que a Tarefa 2 trata. O segundo é o aviso de que editar um lançamento
+parcelado **regera todas as parcelas** — o comportamento 4 dos cinco protegidos.
+
+**Por que ele merece tarefa própria, e não um acréscimo à Tarefa 2:**
+
+`window.confirm` **bloqueia**. O código chama, recebe `true` ou `false`, e segue em linha reta. Um
+`AlertDialog` não bloqueia: ele abre, e a decisão volta por callback. Trocar um pelo outro **refatora
+`enviar()`** — a chamada à action precisa sair do fluxo direto e virar continuação. E `enviar()` é
+onde moram cinco comportamentos que custaram correção para existir.
+
+Além disso, esse diálogo abre **de dentro do painel**, que já é um `Sheet` do Radix. Diálogo dentro
+de diálogo tem armadilhas próprias de foco e de camada.
+
+- [ ] **Passo 1: preservar o comportamento 4 ao pé da letra**
+
+O aviso tem que continuar acontecendo **antes de qualquer coisa ir para o servidor**. Se a pessoa
+recusar, nada é enviado. Se aceitar, o envio segue com exatamente os mesmos dados que teria enviado
+antes — nenhum campo relido, nenhum estado recalculado no meio do caminho.
+
+- [ ] **Passo 2: não repetir o buraco da Tarefa 1**
+
+Enquanto a gravação estiver em curso, nem o diálogo nem o painel fecham por `Esc` ou clique fora.
+`painel-lancamento.tsx` já resolveu isso para o painel; siga o mesmo padrão.
+
+- [ ] **Passo 3: verificar**
+
+```bash
+grep -rn "window.confirm" src/
+```
+
+Tem que voltar **vazio** — é o critério de encerramento da etapa.
+
 ## Tarefa 3 — Aviso de sucesso
 
 **Arquivos:**
