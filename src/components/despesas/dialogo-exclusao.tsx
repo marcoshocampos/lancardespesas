@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -96,6 +97,11 @@ export function DialogoExclusao({ linha, competencia }: Props) {
           return;
         }
         setAberto(false);
+        const mensagem =
+          linha.numeroParcelas <= 1
+            ? 'Lançamento excluído'
+            : `${linha.numeroParcelas} parcelas excluídas`;
+        toast.success(mensagem);
       } catch (e) {
         setErro(e instanceof Error ? e.message : 'Não foi possível excluir.');
       }
