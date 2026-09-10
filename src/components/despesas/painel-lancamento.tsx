@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition, type TransitionStartFunction } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,14 @@ export type ModoPainel = { modo: 'criar' } | { modo: 'editar'; linha: LinhaGrade
  * foco quando o painel fecha (ver `onCloseAutoFocus` abaixo). Compartilhado como
  * constante para as duas pontas nunca saírem de sincronia. */
 export const ID_BOTAO_NOVO_LANCAMENTO = 'botao-novo-lancamento';
+
+/** Id previsivel do botao de editar de cada linha da grade — mesma ideia do id
+ * acima, um por parcela. `secao-pessoa.tsx` marca o botao com ele; aqui serve
+ * para achar o alvo do foco quando o painel fecha em modo editar (ver
+ * `onCloseAutoFocus` em `PainelLancamento` — achado 2 da revisao de bc54df3). */
+export function idBotaoEditar(parcelaId: string): string {
+  return `botao-editar-${parcelaId}`;
+}
 
 type EstadoAtual = { descricao: string; valorCentavos: number };
 
@@ -92,6 +100,11 @@ type FormularioProps = {
   contas: Conta[];
   categorias: Categoria[];
   membros: Membro[];
+  /** Levantados para `PainelLancamento`: o `Sheet` precisa saber se ha uma
+   * gravacao em voo para recusar fechar por Esc, clique fora ou o X, o que
+   * fica fora do alcance deste componente. (achado 1 da revisao de bc54df3) */
+  pendente: boolean;
+  iniciar: TransitionStartFunction;
   onFechar: () => void;
 };
 
@@ -103,10 +116,9 @@ type FormularioProps = {
  * painel para uma linha diferente mostraria dado da linha anterior, porque campo
  * nao controlado (`defaultValue`) so le a prop uma vez, no mount.
  */
-function Formulario({ estado, contas, categorias, membros, onFechar }: FormularioProps) {
+function Formulario({ estado, contas, categorias, membros, pendente, iniciar, onFechar }: FormularioProps) {
   const [erro, setErro] = useState<string | null>(null);
   const [conflito, setConflito] = useState<EstadoAtual | null>(null);
-  const [pendente, iniciar] = useTransition();
 
   const editando = estado.modo === 'editar' ? estado : null;
 
@@ -372,25 +384,68 @@ type Props = {
  * por inteiro antes do conteudo sumir.
  */
 export function PainelLancamento({ estado, contas, categorias, membros, onFechar }: Props) {
+  const [pendente, iniciar] = useTransition();
+
+  // Guarda o ALVO do foco no momento em que o painel ABRE, nao no momento em
+  // que fecha: `onFechar` zera `estado` antes da animacao de fechar terminar,
+  // entao ler `estado` direto dentro de `onCloseAutoFocus` so acharia o modo
+  // criar (ja de volta a null) e nunca a linha editada. O ref sobrevive a
+  // essa troca. (achado 2 da revisao de bc54df3)
+  const focoAoFecharRef = useRef(ID_BOTAO_NOVO_LANCAMENTO);
+
+  useEffect(() => {
+    if (estado === null) return;
+    focoAoFecharRef.current =
+      estado.modo === 'editar' ? idBotaoEditar(estado.linha.parcelaId) : ID_BOTAO_NOVO_LANCAMENTO;
+  }, [estado]);
+
   return (
     <Sheet
       open={estado !== null}
       onOpenChange={(aberto) => {
-        if (!aberto) onFechar();
+        // Esc, clique fora e o X do SheetContent pedem fechar por aqui — o X
+        // (`Dialog.Close` do radix-ui) chama `onOpenChange(false)` direto,
+        // sem passar pelos handlers de baixo, entao SO da pra barra-lo aqui.
+        // Ignorar o pedido enquanto `pendente` e o que evita desmontar o
+        // formulario com uma gravacao em voo: se o servidor recusar depois
+        // (CONFLITO ou FATURA_TRAVADA), a mensagem ainda precisa de alguem
+        // montado pra mostrar — o dado nao se perde (o lock otimista continua
+        // correto), o aviso e o que se perderia. (achado 1 da revisao de
+        // bc54df3)
+        if (!aberto && !pendente) onFechar();
       }}
     >
       <SheetContent
         className="flex flex-col gap-0 data-[side=right]:sm:max-w-md"
+        onEscapeKeyDown={(evento) => {
+          if (pendente) evento.preventDefault();
+        }}
+        onInteractOutside={(evento) => {
+          if (pendente) evento.preventDefault();
+        }}
         onCloseAutoFocus={(evento) => {
-          // Devolve o foco ao botao "Novo lancamento" — o lugar que da para
-          // continuar depois que o painel fecha, tanto no sucesso de criar
-          // quanto ao cancelar ou editar. Sem isso o foco cairia no `body`.
+          // Devolve o foco a quem abriu o painel: o botao "Novo lancamento"
+          // no modo criar, ou o lapis da linha editada no modo editar. Se
+          // essa linha nao existir mais no DOM (saiu da grade depois de
+          // salvar), `getElementById` volta null e o fallback pega o botao
+          // fixo — nunca fica sem foco nenhum. (achado 2 da revisao de
+          // bc54df3)
           evento.preventDefault();
-          document.getElementById(ID_BOTAO_NOVO_LANCAMENTO)?.focus();
+          const alvo =
+            document.getElementById(focoAoFecharRef.current) ?? document.getElementById(ID_BOTAO_NOVO_LANCAMENTO);
+          alvo?.focus();
         }}
       >
         {estado && (
-          <Formulario estado={estado} contas={contas} categorias={categorias} membros={membros} onFechar={onFechar} />
+          <Formulario
+            estado={estado}
+            contas={contas}
+            categorias={categorias}
+            membros={membros}
+            pendente={pendente}
+            iniciar={iniciar}
+            onFechar={onFechar}
+          />
         )}
       </SheetContent>
     </Sheet>

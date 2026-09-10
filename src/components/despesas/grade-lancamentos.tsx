@@ -167,17 +167,21 @@ export function GradeLancamentos({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 border-b border-borda p-3">
+      {/* Fora do cartao da grade (a borda arredondada comeca so no div de baixo)
+          — e a posicao original de ChipsConta, de antes da fusao com o painel
+          (achado 3 da revisao de bc54df3). O alinhamento vertical vem so do
+          items-center: nem o nav dos chips nem o botao levam margem propria
+          pra "combinar" um com o outro — duas margens tentando combinar por
+          coincidencia era o que deixava isso fragil. */}
+      <div className="mt-4 flex items-center justify-between gap-3">
         <ChipsConta competencia={competencia} contas={contas} contaSelecionada={contaSelecionada} />
-        {/* mt-4 acompanha o espacamento que ChipsConta ja traz de fabrica (nav.mt-4),
-            para os dois ficarem alinhados nesta barra. */}
-        <Button id={ID_BOTAO_NOVO_LANCAMENTO} type="button" className="mt-4" onClick={abrirCriacao}>
+        <Button id={ID_BOTAO_NOVO_LANCAMENTO} type="button" onClick={abrirCriacao}>
           <Plus aria-hidden="true" />
           Novo lançamento
         </Button>
       </div>
 
-      {conteudo}
+      <div className="mt-4 overflow-hidden rounded-caixa border border-borda bg-superficie">{conteudo}</div>
 
       <PainelLancamento
         estado={estado}

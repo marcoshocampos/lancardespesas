@@ -12,7 +12,7 @@ type Props = {
  */
 export function ChipsConta({ competencia, contas, contaSelecionada }: Props) {
   return (
-    <nav className="mt-4 flex gap-2">
+    <nav className="flex gap-2">
       <a
         href={`/despesas?competencia=${competencia}`}
         className={`rounded-full border px-3 py-1 text-sm ${!contaSelecionada ? 'bg-acento text-superficie' : ''}`}

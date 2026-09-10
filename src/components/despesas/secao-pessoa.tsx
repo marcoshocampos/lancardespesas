@@ -9,6 +9,7 @@ import { avancarCompetencia, formatarCompetencia } from '@/domain/competencia';
 import { formatarBRL } from '@/domain/money';
 import { acaoExcluirLancamento } from '@/server/actions/lancamento';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
+import { idBotaoEditar } from './painel-lancamento';
 
 type Categoria = { id: string; nome: string; cor: string };
 
@@ -94,7 +95,13 @@ function AcoesLinha({ linha, competencia, onEditar }: AcoesLinhaProps) {
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-        <Button type="button" variant="ghost" size="icon-sm" onClick={onEditar}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          id={idBotaoEditar(linha.parcelaId)}
+          onClick={onEditar}
+        >
           <Pencil aria-hidden="true" />
           <span className="sr-only">Editar</span>
         </Button>

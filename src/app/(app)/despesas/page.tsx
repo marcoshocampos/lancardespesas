@@ -49,16 +49,17 @@ export default async function Despesas({ searchParams }: Props) {
 
       <h1 className="mt-4 text-xl font-semibold">Despesas</h1>
 
-      <div className="mt-4 overflow-hidden rounded-caixa border border-borda bg-superficie">
-        <GradeLancamentos
-          linhas={linhas}
-          competencia={competencia}
-          contas={contas}
-          categorias={categorias}
-          membros={membros}
-          contaSelecionada={conta}
-        />
-      </div>
+      {/* Chips e cartao levam sua propria margem (mt-4) dentro de
+          GradeLancamentos — o cartao (borda arredondada) nao pode mais
+          envolver os chips tambem, ver achado 3 da revisao de bc54df3. */}
+      <GradeLancamentos
+        linhas={linhas}
+        competencia={competencia}
+        contas={contas}
+        categorias={categorias}
+        membros={membros}
+        contaSelecionada={conta}
+      />
     </div>
   );
 }
