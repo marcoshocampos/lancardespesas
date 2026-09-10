@@ -108,8 +108,14 @@ const competencia =
     : competenciaDeContaExterna(dataCompra);
 ```
 
-Texto: *"Cai na fatura de **outubro/2026** — o C6 fecha dia 4."* Para conta externa, o motivo é o
-mês do pagamento, então a segunda metade da frase muda.
+O texto usa `formatarCompetencia`, o mesmo formato do resto da tela:
+*"Cai na fatura de **outubro de 2026** — o C6 fecha dia 4."* Para conta externa, o motivo é o mês
+do pagamento, então a segunda metade da frase muda.
+
+**Nota de 2026-09-10:** o plano dizia antes "outubro/2026", com barra. A revisão da Tarefa 1 tratou
+a divergência como achado plan-mandated, corretamente — mas o texto era exemplo em prosa, não
+contrato, e reusar `formatarCompetencia` mantém a tela coerente consigo mesma. O plano foi ajustado
+ao código, não o contrário.
 
 As duas funções são puras e rodam no cliente sem problema. Recalcule a cada mudança de data ou de
 conta, e só mostre quando os dois campos tiverem valor.
