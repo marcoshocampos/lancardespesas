@@ -4,22 +4,13 @@ import { useState, useTransition } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LinhaEdicao } from '@/components/linha-edicao';
 import type { Grupo } from '@/domain/agrupamento';
 import { avancarCompetencia, formatarCompetencia } from '@/domain/competencia';
 import { formatarBRL } from '@/domain/money';
 import { acaoExcluirLancamento } from '@/server/actions/lancamento';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
 
-type Membro = { id: string; nome: string; cor: string };
 type Categoria = { id: string; nome: string; cor: string };
-type Conta = {
-  id: string;
-  nome: string;
-  tipo: 'CARTAO' | 'EXTERNA';
-  diaFechamento: number | null;
-  cor: string;
-};
 
 /** O que `agrupar` recebe e devolve: a chave da secao, mais a parcela original. */
 export type ItemDeGrupo = { chave: string; valorCentavos: number; linha: LinhaGrade };
@@ -33,12 +24,9 @@ type Props = {
   /** Quantas colunas a linha de cabecalho ocupa — mesmo numero de `CABECALHOS`. */
   colSpan: number;
   competencia: string;
-  contas: Conta[];
   categorias: Categoria[];
-  membros: Membro[];
-  editandoId: string | null;
-  onEditar: (lancamentoId: string) => void;
-  onFecharEdicao: () => void;
+  /** Abre o painel de edicao (`painel-lancamento.tsx`) para esta linha. */
+  onEditar: (linha: LinhaGrade) => void;
 };
 
 /**
@@ -145,46 +133,11 @@ type LinhaProps = {
   /** A data repete a da linha anterior, na mesma secao — esmaece para reduzir ruido. */
   esmaecida: boolean;
   categoriaCor: string | undefined;
-  colSpan: number;
   competencia: string;
-  contas: Conta[];
-  categorias: Categoria[];
-  membros: Membro[];
-  editandoId: string | null;
-  onEditar: (lancamentoId: string) => void;
-  onFecharEdicao: () => void;
+  onEditar: (linha: LinhaGrade) => void;
 };
 
-function LinhaDaSecao({
-  linha,
-  esmaecida,
-  categoriaCor,
-  colSpan,
-  competencia,
-  contas,
-  categorias,
-  membros,
-  editandoId,
-  onEditar,
-  onFecharEdicao,
-}: LinhaProps) {
-  if (linha.lancamentoId === editandoId) {
-    return (
-      <tr className="border-b border-borda-suave last:border-0">
-        <td colSpan={colSpan} className="p-0">
-          <LinhaEdicao
-            linha={linha}
-            contas={contas}
-            categorias={categorias}
-            membros={membros}
-            onCancelar={onFecharEdicao}
-            onSalvo={onFecharEdicao}
-          />
-        </td>
-      </tr>
-    );
-  }
-
+function LinhaDaSecao({ linha, esmaecida, categoriaCor, competencia, onEditar }: LinhaProps) {
   return (
     <tr className="group border-b border-borda-suave last:border-0 hover:bg-realce">
       <td className={`px-3 py-2 ${esmaecida ? 'text-tinta-apagada' : 'text-tinta-fraca'}`}>
@@ -215,7 +168,7 @@ function LinhaDaSecao({
         {formatarBRL(linha.valorCentavos)}
       </td>
       <td className="px-3 py-2 text-right align-top">
-        <AcoesLinha linha={linha} competencia={competencia} onEditar={() => onEditar(linha.lancamentoId)} />
+        <AcoesLinha linha={linha} competencia={competencia} onEditar={() => onEditar(linha)} />
       </td>
     </tr>
   );
@@ -228,19 +181,7 @@ function LinhaDaSecao({
  * estado vazio em vez das secoes e `GradeLancamentos`, olhando todos os grupos
  * de uma vez.
  */
-export function SecaoPessoa({
-  titulo,
-  cores,
-  grupo,
-  colSpan,
-  competencia,
-  contas,
-  categorias,
-  membros,
-  editandoId,
-  onEditar,
-  onFecharEdicao,
-}: Props) {
+export function SecaoPessoa({ titulo, cores, grupo, colSpan, competencia, categorias, onEditar }: Props) {
   const vazia = grupo.quantidade === 0;
 
   return (
@@ -272,14 +213,8 @@ export function SecaoPessoa({
             linha={item.linha}
             esmaecida={esmaecida}
             categoriaCor={categoriaCor}
-            colSpan={colSpan}
             competencia={competencia}
-            contas={contas}
-            categorias={categorias}
-            membros={membros}
-            editandoId={editandoId}
             onEditar={onEditar}
-            onFecharEdicao={onFecharEdicao}
           />
         );
       })}

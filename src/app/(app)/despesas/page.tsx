@@ -1,7 +1,5 @@
 import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
-import { ChipsConta } from '@/components/despesas/chips-conta';
 import { GradeLancamentos } from '@/components/despesas/grade-lancamentos';
-import { LinhaNova } from '@/components/linha-nova';
 import { COLUNA_TOTAL, calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { carregarLinhasDaGrade, carregarParcelasDaCompetencia } from '@/server/repositorios/resumo';
@@ -51,8 +49,6 @@ export default async function Despesas({ searchParams }: Props) {
 
       <h1 className="mt-4 text-xl font-semibold">Despesas</h1>
 
-      <ChipsConta competencia={competencia} contas={contas} contaSelecionada={conta} />
-
       <div className="mt-4 overflow-hidden rounded-caixa border border-borda bg-superficie">
         <GradeLancamentos
           linhas={linhas}
@@ -62,9 +58,6 @@ export default async function Despesas({ searchParams }: Props) {
           membros={membros}
           contaSelecionada={conta}
         />
-        <div id="lancar-despesa">
-          <LinhaNova contas={contas} categorias={categorias} membros={membros} />
-        </div>
       </div>
     </div>
   );

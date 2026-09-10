@@ -17,7 +17,7 @@ type Props = {
 // sem mostrar de onde esse valor viria. Sem um formulario, a unica forma de preencher o
 // extrato seria mexer direto no banco — contradiz a propria descricao da tarefa ("a pessoa
 // digita o valor que veio no extrato"). Este componente acrescenta o campo que falta,
-// reaproveitando o padrao de `LinhaNova` (useTransition + FormData + reaisParaCentavos).
+// reaproveitando o padrao de formulario de lancamento (useTransition + FormData + reaisParaCentavos).
 export function ConferenciaFatura({ contaId, competencia, nome, somado, valorReal }: Props) {
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
