@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Grupo } from '@/domain/agrupamento';
-import { avancarCompetencia, formatarCompetencia } from '@/domain/competencia';
 import { formatarBRL } from '@/domain/money';
-import { acaoExcluirLancamento } from '@/server/actions/lancamento';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
+import { DialogoExclusao } from './dialogo-exclusao';
 import { idBotaoEditar } from './painel-lancamento';
 
 type Categoria = { id: string; nome: string; cor: string };
@@ -30,28 +28,6 @@ type Props = {
   onEditar: (linha: LinhaGrade) => void;
 };
 
-/**
- * A grade mostra a PARCELA (`3/12`), mas excluir age no lancamento inteiro — as
- * doze parcelas. A pessoa que ve so a linha "3/12" nao tem como adivinhar isso,
- * entao a confirmacao precisa soletrar quantas parcelas somem e em qual faixa de
- * competencia. `linha.numero` e `linha.numeroParcelas` dizem "sou a 3a de 12"; a
- * `competenciaDaLinha` (a competencia atual da grade, onde esta parcela caiu) mais
- * `avancarCompetencia` bastam para achar a primeira e a ultima sem nova consulta.
- */
-function mensagemExclusao(linha: LinhaGrade, competenciaDaLinha: string): string {
-  if (linha.numeroParcelas <= 1) {
-    return `Excluir "${linha.descricao}"? Essa ação não pode ser desfeita por aqui.`;
-  }
-
-  const primeira = avancarCompetencia(competenciaDaLinha, -(linha.numero - 1));
-  const ultima = avancarCompetencia(competenciaDaLinha, linha.numeroParcelas - linha.numero);
-  return (
-    `Excluir "${linha.descricao}" remove as ${linha.numeroParcelas} parcelas, ` +
-    `de ${formatarCompetencia(primeira)} a ${formatarCompetencia(ultima)}. ` +
-    'Essa ação não pode ser desfeita por aqui.'
-  );
-}
-
 type AcoesLinhaProps = {
   linha: LinhaGrade;
   competencia: string;
@@ -64,57 +40,25 @@ type AcoesLinhaProps = {
  * `focus-within` no proprio wrapper cobre o Tab chegando em qualquer um dos
  * dois, sem depender do mouse estar sobre a linha.
  *
- * A mensagem de erro fica FORA desse wrapper: se a exclusao falhar (fatura
- * travada, conflito de versao), quem clicou precisa continuar vendo o motivo
- * mesmo depois de tirar o mouse ou o foco da linha.
+ * Excluir abre `DialogoExclusao` (modal, radix-ui) em vez de decidir na hora —
+ * a mensagem de erro (fatura travada, conflito de versao) mora dentro do
+ * dialogo agora, entao nao depende mais do mouse ou do foco continuarem
+ * nesta linha para seguir visivel.
  */
 function AcoesLinha({ linha, competencia, onEditar }: AcoesLinhaProps) {
-  const [erro, setErro] = useState<string | null>(null);
-  const [pendente, iniciar] = useTransition();
-
-  function excluir() {
-    setErro(null);
-    if (!window.confirm(mensagemExclusao(linha, competencia))) return;
-
-    iniciar(async () => {
-      try {
-        const resultado = await acaoExcluirLancamento(linha.lancamentoId, linha.versao);
-        if (!resultado.ok) {
-          setErro(
-            resultado.motivo === 'FATURA_TRAVADA'
-              ? 'Esse mês já está fechado. Destrave a fatura para excluir.'
-              : 'Alguém alterou esse lançamento antes. Atualize a página e tente de novo.',
-          );
-        }
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : 'Não foi possível excluir.');
-      }
-    });
-  }
-
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          id={idBotaoEditar(linha.parcelaId)}
-          onClick={onEditar}
-        >
-          <Pencil aria-hidden="true" />
-          <span className="sr-only">Editar</span>
-        </Button>
-        <Button type="button" variant="ghost" size="icon-sm" onClick={excluir} disabled={pendente}>
-          <Trash2 aria-hidden="true" />
-          <span className="sr-only">{pendente ? 'Excluindo…' : 'Excluir'}</span>
-        </Button>
-      </div>
-      {erro && (
-        <span role="alert" className="text-xs text-negativo">
-          {erro}
-        </span>
-      )}
+    <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        id={idBotaoEditar(linha.parcelaId)}
+        onClick={onEditar}
+      >
+        <Pencil aria-hidden="true" />
+        <span className="sr-only">Editar</span>
+      </Button>
+      <DialogoExclusao linha={linha} competencia={competencia} />
     </div>
   );
 }
