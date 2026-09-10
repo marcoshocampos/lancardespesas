@@ -1,6 +1,7 @@
 import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
 import { ConferenciaFatura } from '@/components/conferencia-fatura';
 import { MatrizResumo } from '@/components/matriz-resumo';
+import { CartoesResumo } from '@/components/resumo/cartoes-resumo';
 import { calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { carregarValorReal } from '@/server/repositorios/fatura';
@@ -33,6 +34,12 @@ export default async function Resumo({ searchParams }: Props) {
       <FaixaCompetencia competencia={competencia} rota="/resumo" />
 
       <h1 className="mt-4 mb-4 text-xl font-semibold">Resumo</h1>
+      <CartoesResumo
+        resumo={resumo}
+        membros={membros}
+        contasCartao={contasCartao}
+        valoresReaisPorConta={valoresReaisPorConta}
+      />
       <MatrizResumo
         resumo={resumo}
         membroIds={membroIds}
