@@ -1,6 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition, type TransitionStartFunction } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +61,24 @@ export function idBotaoEditar(parcelaId: string): string {
 }
 
 type EstadoAtual = { descricao: string; valorCentavos: number };
+
+// Formato do que `enviar` monta a partir do FormData, comum a criar e editar
+// (so `origemValor` fica de fora — cada modo o resolve do seu jeito, ver
+// `enviarEdicao` e o modo criar dentro de `enviar`). Existe como tipo nomeado
+// porque tambem e o formato do estado que segura os dados capturados
+// enquanto o AlertDialog de confirmacao espera a pessoa decidir
+// (`confirmacaoRegeracao`, dentro de `Formulario`) — precisa ser o MESMO
+// objeto que `enviar` montou, nao um recalculado depois. (comportamento 4)
+type CamposComuns = {
+  descricao: string;
+  valorCentavos: number;
+  dataCompra: string;
+  numeroParcelas: number;
+  escopo: 'CONJUNTO' | 'PESSOAL';
+  contaId: string;
+  categoriaId: string;
+  membroId?: string;
+};
 
 // `atual` chega tipado `unknown` (ResultadoGravacao) porque e o registro cru do
 // Prisma na hora do conflito. Sem `as`: so aceitamos o formato se as chaves que
@@ -119,6 +147,11 @@ type FormularioProps = {
 function Formulario({ estado, contas, categorias, membros, pendente, iniciar, onFechar }: FormularioProps) {
   const [erro, setErro] = useState<string | null>(null);
   const [conflito, setConflito] = useState<EstadoAtual | null>(null);
+  // Nao-null so enquanto o AlertDialog "vai regerar as parcelas" espera
+  // decisao — guarda o `camposComuns` exato que `enviar` capturou do
+  // FormData antes de abrir o dialogo, para `confirmarRegeracao` reenviar
+  // sem reler nem recalcular nada. (comportamento 4)
+  const [confirmacaoRegeracao, setConfirmacaoRegeracao] = useState<CamposComuns | null>(null);
 
   const editando = estado.modo === 'editar' ? estado : null;
 
@@ -151,7 +184,7 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
 
     const escopo = String(dados.get('escopo'));
     const numeroParcelas = Number(dados.get('numeroParcelas') ?? 1);
-    const camposComuns = {
+    const camposComuns: CamposComuns = {
       descricao: String(dados.get('descricao') ?? ''),
       valorCentavos,
       dataCompra: String(dados.get('dataCompra') ?? ''),
@@ -165,43 +198,20 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
     if (editando) {
       // O lancamento ja tem mais de uma parcela: editar QUALQUER campo regera
       // todas elas (`gravarFilhos` recria do zero, sem opcao de meio-termo).
-      // Avisa antes de mandar pro servidor, nao depois. (comportamento 4)
+      // Avisa antes de mandar pro servidor, nao depois — abrindo o
+      // AlertDialog abaixo em vez do antigo dialogo sincrono do navegador,
+      // que bloqueava a thread inteira. `camposComuns`, ja montado ali em
+      // cima a partir do FormData, vai pro estado exatamente como esta:
+      // `confirmarRegeracao` (mais abaixo) reenvia esse mesmo objeto, nunca
+      // um recalculado depois da decisao. Nada e enviado ao servidor daqui
+      // pra baixo — so decide esperar (`return`) ou seguir direto.
+      // (comportamento 4)
       if (editando.linha.numeroParcelas > 1) {
-        const confirmar = window.confirm(
-          `Editar "${editando.linha.descricao}" regera as ${editando.linha.numeroParcelas} parcelas deste lançamento. Continuar?`,
-        );
-        if (!confirmar) return;
+        setConfirmacaoRegeracao(camposComuns);
+        return;
       }
 
-      iniciar(async () => {
-        try {
-          const resultado = await acaoEditarLancamento(editando.linha.lancamentoId, editando.linha.versao, {
-            ...camposComuns,
-            // origemValor viaja escondido, igual ao que ja estava gravado — o
-            // formulario nao oferece troca-lo. (comportamento 5)
-            origemValor: editando.linha.origemValor,
-          });
-
-          if (!resultado.ok) {
-            // Em caso de recusa o formulario nunca reseta — so a mensagem
-            // (e o conflito, se for o caso) aparecem. (comportamento 1)
-            if (resultado.motivo === 'FATURA_TRAVADA') {
-              setErro('Esse mês já está fechado. Destrave a fatura para editar.');
-            } else {
-              setErro(
-                'Alguém salvou uma mudança nesse lançamento enquanto você editava. ' +
-                  'Confira o estado atual abaixo e tente de novo.',
-              );
-              setConflito(extrairAtual(resultado.atual));
-            }
-            return;
-          }
-
-          onFechar();
-        } catch (e) {
-          setErro(e instanceof Error ? e.message : 'Não foi possível salvar.');
-        }
-      });
+      enviarEdicao(camposComuns);
       return;
     }
 
@@ -222,6 +232,69 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
         setErro(e instanceof Error ? e.message : 'Não foi possível salvar.');
       }
     });
+  }
+
+  // O envio de fato de uma edicao — extraida de `enviar` porque agora tem
+  // dois jeitos de chegar aqui: direto (uma parcela so) ou so depois que
+  // `confirmarRegeracao` recebe o aceite do AlertDialog (mais de uma). Em
+  // qualquer um dos dois `campos` e o mesmo objeto que `enviar` capturou do
+  // FormData — esta funcao nunca le o formulario de novo.
+  function enviarEdicao(campos: CamposComuns) {
+    if (!editando) return;
+
+    iniciar(async () => {
+      try {
+        const resultado = await acaoEditarLancamento(editando.linha.lancamentoId, editando.linha.versao, {
+          ...campos,
+          // origemValor viaja escondido, igual ao que ja estava gravado — o
+          // formulario nao oferece troca-lo. (comportamento 5)
+          origemValor: editando.linha.origemValor,
+        });
+
+        if (!resultado.ok) {
+          // Em caso de recusa o formulario nunca reseta — so a mensagem
+          // (e o conflito, se for o caso) aparecem. (comportamento 1)
+          if (resultado.motivo === 'FATURA_TRAVADA') {
+            setErro('Esse mês já está fechado. Destrave a fatura para editar.');
+          } else {
+            setErro(
+              'Alguém salvou uma mudança nesse lançamento enquanto você editava. ' +
+                'Confira o estado atual abaixo e tente de novo.',
+            );
+            setConflito(extrairAtual(resultado.atual));
+          }
+          return;
+        }
+
+        onFechar();
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : 'Não foi possível salvar.');
+      }
+    });
+  }
+
+  // A pessoa aceitou no AlertDialog: fecha a confirmacao e manda pro
+  // servidor o MESMO `campos` que estava guardado — nao le o formulario de
+  // novo. (comportamento 4)
+  function confirmarRegeracao() {
+    if (!confirmacaoRegeracao) return;
+    const campos = confirmacaoRegeracao;
+    setConfirmacaoRegeracao(null);
+    enviarEdicao(campos);
+  }
+
+  // Mesmo padrao de guarda de `PainelLancamento` (achado 1 da revisao de
+  // bc54df3) e de `DialogoExclusao`: Esc e o Cancelar pedem fechar via
+  // `onOpenChange` direto (clique fora o proprio AlertDialogContent do
+  // radix-ui ja recusa sozinho, incondicionalmente). Na pratica esse dialogo
+  // nunca chega a ficar aberto com `pendente` verdadeiro — ele fecha antes
+  // de `confirmarRegeracao` chamar `enviarEdicao`/`iniciar`, do mesmo jeito
+  // que o antigo dialogo sincrono do navegador ja tinha retornado antes do
+  // `iniciar` original rodar — mas a guarda fica, pelo mesmo motivo do resto
+  // do arquivo: nunca fechar em cima de uma gravacao em voo.
+  function aoMudarConfirmacao(aberto: boolean) {
+    if (!aberto && pendente) return;
+    if (!aberto) setConfirmacaoRegeracao(null);
   }
 
   return (
@@ -362,6 +435,52 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
           </Button>
         </div>
       </SheetFooter>
+
+      {/* Confirmacao de que editar regera as parcelas (comportamento 4). So
+         existe no modo editar — `confirmacaoRegeracao` nunca fica setado no
+         modo criar. Fica dentro do <form> na leitura do codigo, mas o
+         AlertDialog em si nao desenha nada na propria posicao (so contexto)
+         e o AlertDialogContent e portalizado pelo radix-ui: nada disto
+         aninha elemento nenhum dentro do <form> no DOM real. */}
+      {editando && (
+        <AlertDialog open={confirmacaoRegeracao !== null} onOpenChange={aoMudarConfirmacao}>
+          <AlertDialogContent
+            onEscapeKeyDown={(evento) => {
+              if (pendente) evento.preventDefault();
+            }}
+            onCloseAutoFocus={(evento) => {
+              // Sem AlertDialogTrigger (o dialogo abre por causa do submit
+              // do formulario, nao de um clique num gatilho fixo), o
+              // fallback padrao do radix-ui — focar quem abriu — nao acha
+              // nada pra focar. Devolve pro primeiro campo do formulario,
+              // que continua montado e habilitado tanto na recusa quanto na
+              // aceitacao. (a armadilha de foco de dialogo dentro de
+              // dialogo avisada para esta tarefa)
+              evento.preventDefault();
+              document.getElementById('campo-descricao')?.focus();
+            }}
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>Editar lançamento parcelado</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`Editar "${editando.linha.descricao}" regera as ${editando.linha.numeroParcelas} parcelas deste lançamento. Continuar?`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={pendente}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={pendente}
+                onClick={(evento) => {
+                  evento.preventDefault();
+                  confirmarRegeracao();
+                }}
+              >
+                Continuar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </form>
   );
 }
