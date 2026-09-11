@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../db';
 import { criarLancamento, editarLancamento, type EntradaLancamento } from './lancamento';
 
@@ -11,7 +11,18 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
   let categoriaId: string;
   let membroId: string;
 
-  async function limparBanco(): Promise<void> {
+  // Conferir e limpar sao duas coisas, e mante-las na mesma funcao era o
+  // defeito. "Este banco tem dado que nao e meu?" so faz sentido UMA vez,
+  // antes de a suite gravar qualquer coisa: dali em diante todo lancamento no
+  // banco foi ela que criou, e reavaliar a guarda a cada caso derruba a suite
+  // no primeiro beforeEach depois de um caso que cria lancamento. Limpar, ao
+  // contrario, tem que acontecer SEMPRE — antes de cada caso e no fim. Por
+  // isso a conferencia fica no beforeAll e a limpeza no beforeEach; juntar as
+  // duas de novo, em nome de simplificar, e reintroduzir o bug.
+  let bancoLiberado = false;
+
+  /** Recusa banco com dado real. Roda uma vez, antes da primeira gravacao. */
+  async function exigirBancoLivre(): Promise<void> {
     // A trava TESTE_DESTRUTIVO foi pensada para banco vazio. Depois da
     // importacao da planilha, o mesmo comando apagaria os 35 lancamentos
     // reais do casal sem aviso. A guarda reage ao que existe no banco, nao a
@@ -24,6 +35,16 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
           'Aponte DATABASE_URL para um banco vazio.',
       );
     }
+    bancoLiberado = true;
+  }
+
+  /** Apaga o que a suite escreveu; so roda depois da conferencia ter passado. */
+  async function limpar(): Promise<void> {
+    // Sem esta exigencia, um refactor que mova a ordem das hooks — ou que
+    // perca o beforeAll — volta a apagar banco nao conferido, em silencio.
+    if (!bancoLiberado) {
+      throw new Error('limpar() chamada sem exigirBancoLivre() ter passado — nao apago nada.');
+    }
 
     await prisma.parcela.deleteMany();
     await prisma.rateio.deleteMany();
@@ -34,10 +55,23 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     await prisma.fatura.deleteMany();
   }
 
-  beforeEach(async () => {
-    await limparBanco();
+  beforeAll(async () => {
+    // A conferencia vem antes de tudo, e no mesmo hook das leituras de
+    // fixture: assim a ordem nao depende de como o vitest sequencia hooks
+    // irmaos. O que vem depois dela e so leitura.
+    await exigirBancoLivre();
+
+    // Categoria e membro sao do seed, e `limpar()` nao toca em nenhum dos
+    // dois: reler a cada caso so gastava ida e volta ao Neon e sugeria uma
+    // instabilidade que nao existe. Lidos uma vez, sao fixture — e o mesmo
+    // registro vale para a suite inteira, sem depender do que o
+    // findFirstOrThrow sem orderBy devolveria na proxima chamada.
     categoriaId = (await prisma.categoria.findFirstOrThrow()).id;
     membroId = (await prisma.membro.findFirstOrThrow()).id;
+  });
+
+  beforeEach(async () => {
+    await limpar();
   });
 
   // O beforeEach so limpa ANTES de cada caso: sem isto, o ultimo caso da suite
@@ -45,7 +79,7 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
   // casal — um lancamento fantasma aqui desloca o total que a importacao da
   // planilha confere contra o extrato.
   afterAll(async () => {
-    await limparBanco();
+    await limpar();
   });
 
   const entrada = (): EntradaLancamento => ({
