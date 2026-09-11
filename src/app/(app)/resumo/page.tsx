@@ -1,10 +1,10 @@
 import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
-import { ConferenciaFatura } from '@/components/conferencia-fatura';
 import { CartoesResumo } from '@/components/resumo/cartoes-resumo';
+import { ConferenciaFatura } from '@/components/resumo/conferencia-fatura';
 import { MatrizResumo } from '@/components/resumo/matriz-resumo';
 import { calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
-import { carregarValorReal } from '@/server/repositorios/fatura';
+import { carregarFatura } from '@/server/repositorios/fatura';
 import { carregarParcelasDaCompetencia } from '@/server/repositorios/resumo';
 import { competenciaAtual } from '@/app/competencia-atual';
 
@@ -23,10 +23,16 @@ export default async function Resumo({ searchParams }: Props) {
   const resumo = calcularResumo(parcelas, membroIds, contas.map((c) => c.id));
 
   const contasCartao = contas.filter((c) => c.tipo === 'CARTAO');
-  const valoresReaisPorConta = Object.fromEntries(
+  const faturasPorConta = Object.fromEntries(
     await Promise.all(
-      contasCartao.map(async (c) => [c.id, await carregarValorReal(c.id, competencia)] as const),
+      contasCartao.map(async (c) => [c.id, await carregarFatura(c.id, competencia)] as const),
     ),
+  );
+
+  // Os cartoes so precisam do numero do extrato; a faixa de conferencia
+  // tambem precisa do status. Uma consulta so, lida de dois jeitos.
+  const valoresReaisPorConta = Object.fromEntries(
+    contasCartao.map((c) => [c.id, faturasPorConta[c.id]?.valorRealCentavos ?? null] as const),
   );
 
   return (
@@ -46,16 +52,21 @@ export default async function Resumo({ searchParams }: Props) {
         membros={membros}
         nomesDeConta={Object.fromEntries(contas.map((c) => [c.id, c.nome]))}
       />
-      {contasCartao.map((c) => (
-        <ConferenciaFatura
-          key={c.id}
-          contaId={c.id}
-          competencia={competencia}
-          nome={c.nome}
-          somado={resumo.somado[c.id] ?? 0}
-          valorReal={valoresReaisPorConta[c.id] ?? null}
-        />
-      ))}
+      <div className="mt-4 space-y-3">
+        {contasCartao.map((c) => (
+          <ConferenciaFatura
+            key={c.id}
+            contaId={c.id}
+            competencia={competencia}
+            nome={c.nome}
+            somado={resumo.somado[c.id] ?? 0}
+            valorReal={faturasPorConta[c.id]?.valorRealCentavos ?? null}
+            // Fatura sem linha na tabela ainda esta ABERTA: nao ha registro
+            // porque ninguem conferiu, nao porque o mes fechou.
+            status={faturasPorConta[c.id]?.status ?? 'ABERTA'}
+          />
+        ))}
+      </div>
     </div>
   );
 }

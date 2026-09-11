@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
-import { conferir, type SituacaoConferencia } from '@/domain/conferencia';
+import { SeloConferencia } from '@/components/resumo/selo-conferencia';
+import { conferir } from '@/domain/conferencia';
 import { formatarBRL } from '@/domain/money';
 import { COLUNA_TOTAL, type ResumoMes } from '@/domain/totais';
 
@@ -14,29 +14,6 @@ type Props = {
 };
 
 const CLASSE_CARTAO = 'rounded-caixa border border-borda bg-superficie px-5 py-4';
-
-/**
- * Texto e cor do selo para cada situacao que `conferir` devolve. `diferenca`
- * so e lido, nunca recalculado — BATE e SEM_EXTRATO nem o usam.
- */
-function selo(situacao: SituacaoConferencia, diferenca: number | null): { texto: string; classe: string } {
-  switch (situacao) {
-    case 'BATE':
-      return { texto: 'bate com o extrato', classe: 'bg-positivo-fundo text-positivo' };
-    case 'FALTA_LANCAR':
-      return {
-        texto: `falta lançar ${formatarBRL(diferenca ?? 0)}`,
-        classe: 'bg-atencao-fundo text-atencao',
-      };
-    case 'SOBRA_LANCAMENTO':
-      return {
-        texto: `${formatarBRL(Math.abs(diferenca ?? 0))} a mais que o extrato`,
-        classe: 'bg-atencao-fundo text-atencao',
-      };
-    case 'SEM_EXTRATO':
-      return { texto: 'aguardando o extrato', classe: 'text-tinta-fraca' };
-  }
-}
 
 function CartaoMembro({ membro, resumo }: { membro: Membro; resumo: ResumoMes }) {
   const total = resumo.totalGeral[membro.id]?.[COLUNA_TOTAL] ?? 0;
@@ -73,7 +50,6 @@ function CartaoFatura({
   valorReal: number | null;
 }) {
   const resultado = conferir(somado, valorReal);
-  const { texto, classe } = selo(resultado.situacao, resultado.diferenca);
 
   return (
     <div className={CLASSE_CARTAO}>
@@ -82,9 +58,7 @@ function CartaoFatura({
         {formatarBRL(somado)}
       </p>
       <div className="mt-1 flex justify-end">
-        <Badge variant="secondary" className={classe}>
-          {texto}
-        </Badge>
+        <SeloConferencia situacao={resultado.situacao} diferenca={resultado.diferenca} />
       </div>
     </div>
   );

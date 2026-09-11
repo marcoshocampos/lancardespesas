@@ -1,3 +1,4 @@
+import type { StatusFatura } from '@prisma/client';
 import { diaClampeado } from '@/domain/data';
 import { prisma } from '../db';
 
@@ -59,12 +60,21 @@ export async function registrarValorReal(
   return { ok: true };
 }
 
-export async function carregarValorReal(
+/**
+ * O valor do extrato e o `status` numa consulta so. A faixa de conferencia
+ * precisa dos dois — o numero para preencher o campo, o status para saber se
+ * a fatura travada desabilita esse campo — e duas funcoes lado a lado
+ * custariam duas leituras da mesma linha.
+ *
+ * `null` quando nao existe linha de fatura na competencia: ninguem conferiu
+ * ainda. Quem le trata essa ausencia como fatura `ABERTA`.
+ */
+export async function carregarFatura(
   contaId: string,
   competencia: string,
-): Promise<number | null> {
-  const fatura = await prisma.fatura.findUnique({
+): Promise<{ valorRealCentavos: number | null; status: StatusFatura } | null> {
+  return prisma.fatura.findUnique({
     where: { contaId_competencia: { contaId, competencia } },
+    select: { valorRealCentavos: true, status: true },
   });
-  return fatura?.valorRealCentavos ?? null;
 }
