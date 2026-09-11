@@ -1,7 +1,7 @@
 import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
 import { ConferenciaFatura } from '@/components/conferencia-fatura';
-import { MatrizResumo } from '@/components/matriz-resumo';
 import { CartoesResumo } from '@/components/resumo/cartoes-resumo';
+import { MatrizResumo } from '@/components/resumo/matriz-resumo';
 import { calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { carregarValorReal } from '@/server/repositorios/fatura';
@@ -42,9 +42,9 @@ export default async function Resumo({ searchParams }: Props) {
       />
       <MatrizResumo
         resumo={resumo}
-        membroIds={membroIds}
+        competencia={competencia}
+        membros={membros}
         nomesDeConta={Object.fromEntries(contas.map((c) => [c.id, c.nome]))}
-        nomesDeMembro={Object.fromEntries(membros.map((m) => [m.id, m.nome]))}
       />
       {contasCartao.map((c) => (
         <ConferenciaFatura
