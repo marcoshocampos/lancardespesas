@@ -213,6 +213,34 @@ git commit -m "Valida e protege as gravacoes de configuracao"
 - Cria: `src/components/configuracoes/lista-membros.tsx`
 - Modifica: `src/components/casco/barra-lateral.tsx`
 
+**Esta tarefa é grande demais para uma sessão só.** Vai em duas:
+
+- **4a** — a página, a lista de categorias, e os padrões que as outras duas seguem
+- **4b** — contas, membros, e o destino na barra lateral
+
+A 4a estabelece a forma (como o erro aparece, como a cor é escolhida, como o formulário
+bloqueia o inválido); a 4b repete. Há revisão entre as duas.
+
+- [ ] **Passo 0: o formulário é a última linha, e precisa segurar — obrigatório**
+
+**Achado da revisão da Tarefa 3.** As actions validam com Zod, mas só a regra do cartão volta
+como recusa legível. `nome` vazio e `cor` malformada **lançam**, e o Next redige a mensagem de
+erro de server action em produção: a tela receberia um digest opaco e mostraria "erro", sem
+dizer o quê.
+
+Para o cartão isso foi resolvido na Tarefa 3, porque dia nulo é valor legítimo numa conta
+externa e não dá para exigir no campo. Para nome e cor, **a solução é o formulário**:
+
+- `nome` em campo `required`, dentro de um `<form>` de verdade — o navegador barra o envio
+- `cor` em `<input type="color">`, que estruturalmente não produz valor fora de `#rrggbb`
+
+**Não basta parecer obrigatório.** Um asterisco no rótulo, ou um botão desabilitado por estado
+de React sem `required` no campo, deixa o caminho opaco alcançável. A revisão foi explícita:
+tem que ser bloqueio real.
+
+Isso vale para as três listas — categorias, contas e membros usam o mesmo `nome` e a mesma
+`cor`.
+
 - [ ] **Passo 1: a página**
 
 Servidor. Carrega categorias (**incluindo as arquivadas**, ao contrário das outras telas), contas e
