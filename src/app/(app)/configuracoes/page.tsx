@@ -1,4 +1,6 @@
 import { ListaCategorias } from '@/components/configuracoes/lista-categorias';
+import { ListaContas } from '@/components/configuracoes/lista-contas';
+import { ListaMembros } from '@/components/configuracoes/lista-membros';
 import { prisma } from '@/server/db';
 
 /**
@@ -15,9 +17,19 @@ import { prisma } from '@/server/db';
 export const dynamic = 'force-dynamic';
 
 export default async function Configuracoes() {
-  // Sem `where`: esta e a unica tela que mostra categoria arquivada, e a unica
-  // de onde se desarquiva. `/despesas` continua filtrando `arquivada: false`.
-  const categorias = await prisma.categoria.findMany({ orderBy: { nome: 'asc' } });
+  // Nenhuma das tres leituras tem `where`: esta e a unica tela que mostra
+  // categoria arquivada, conta inativa e pessoa inativa, e a unica de onde se
+  // volta atras. `/despesas` e `/resumo` continuam filtrando `arquivada: false`,
+  // `ativa: true` e `ativo: true`.
+  //
+  // A ordem de cada lista e a mesma das outras telas, para a pessoa reencontrar
+  // aqui o que viu la: categoria por nome, conta pela `ordem` (que e a ordem das
+  // colunas da matriz do Resumo, e nao se edita), pessoa por `criadoEm`.
+  const [categorias, contas, membros] = await Promise.all([
+    prisma.categoria.findMany({ orderBy: { nome: 'asc' } }),
+    prisma.conta.findMany({ orderBy: { ordem: 'asc' } }),
+    prisma.membro.findMany({ orderBy: { criadoEm: 'asc' } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -28,14 +40,8 @@ export default async function Configuracoes() {
 
       <div className="mt-6 space-y-4">
         <ListaCategorias categorias={categorias} />
-
-        {/* Contas (`lista-contas.tsx`) e membros (`lista-membros.tsx`) entram
-            aqui, nesta ordem, na Tarefa 4b — com as leituras de `prisma.conta`
-            (`orderBy: { ordem: 'asc' }`) e `prisma.membro`
-            (`orderBy: { criadoEm: 'asc' }`) juntando-se a de cima num
-            `Promise.all`, como em `/despesas`. As duas listas tambem carregam
-            registro inativo: e desta tela que se reativa. A barra lateral so
-            ganha o destino "Configuracoes" depois delas. */}
+        <ListaContas contas={contas} />
+        <ListaMembros membros={membros} />
       </div>
     </div>
   );

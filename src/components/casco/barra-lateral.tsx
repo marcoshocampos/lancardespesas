@@ -15,16 +15,22 @@ type Destino = {
 
 /**
  * Destinos da barra, nesta ordem exata. Graficos e Lixeira nao existem no
- * sistema ainda; Configuracoes so nasce na Etapa 06. `docs/arquitetura.md` e
- * explicito: um destino so entra na navegacao depois que a pagina existir —
- * por isso Configuracoes tambem fica desabilitada por enquanto, com os
- * outros dois.
+ * sistema ainda e por isso seguem desabilitados: `docs/arquitetura.md` e
+ * explicito em que um destino so entra na navegacao depois que a pagina
+ * existir. Configuracoes passou a existir na Etapa 06 e entrou.
+ *
+ * Configuracoes nao tem filtro de competencia, e ainda assim recebe o
+ * `?competencia=` que o link monta logo abaixo — a pagina ignora o parametro
+ * (ver o comentario em `configuracoes/page.tsx`). E de proposito: e desta
+ * mesma query string que a barra le a competencia para o proximo destino, e
+ * derruba-la aqui faria a volta para Despesas cair no mes corrente em vez do
+ * mes que a pessoa estava olhando.
  */
 const DESTINOS: Destino[] = [
   { rotulo: 'Despesas', rota: '/despesas', Icone: Receipt },
   { rotulo: 'Resumo', rota: '/resumo', Icone: ClipboardList },
   { rotulo: 'Gráficos', rota: null, Icone: BarChart3 },
-  { rotulo: 'Configurações', rota: null, Icone: Settings },
+  { rotulo: 'Configurações', rota: '/configuracoes', Icone: Settings },
   { rotulo: 'Lixeira', rota: null, Icone: Trash2 },
 ];
 
