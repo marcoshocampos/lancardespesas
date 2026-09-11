@@ -103,7 +103,36 @@ executado, e não o marque como verde. Teste que ninguém rodou não é prova de
 3. **Arquivar não some com lançamento**: arquive uma categoria em uso e confira que os lançamentos
    que a referenciam continuam lá
 
+- [ ] **Passo 2b: os dois casos que a revisão da Tarefa 1 pediu**
+
+A revisão da Tarefa 1 entregou a lista do que **não dá para verificar sem banco**. Estes dois
+saíram dela, e são justamente os que provam as afirmações que hoje só existem em comentário:
+
+4. **`P2025` vira `NAO_ENCONTRADO`**: `editarCategoria` com um id que não existe volta
+   `{ ok: false, motivo: 'NAO_ENCONTRADO' }`, e **não** lança. É a outra metade da tradução de
+   erro; a Tarefa 1 só pôde afirmá-la pela documentação do Prisma.
+
+5. **A transação reverte de verdade** — o caso mais valioso desta tarefa. Chame
+   `definirQuemAbsorveSobra` com um `membroId` inexistente e confira **as duas coisas**:
+   - o resultado é `{ ok: false, motivo: 'NAO_ENCONTRADO' }`
+   - **quem tinha `absorveSobra: true` antes continua tendo**
+
+   Sem a transação, o `updateMany` já teria desmarcado todo mundo antes de o `update` falhar, e
+   o banco ficaria com **zero** membros absorvendo a sobra — o estado que a função existe para
+   impedir. Este caso é a única prova de que o `$transaction` em forma de array faz o que o
+   comentário diz.
+
 - [ ] **Passo 3: rodar e commitar**
+
+**O banco vazio precisa de schema e seed antes de rodar.** Criar o banco no Neon não basta:
+
+```bash
+npx prisma migrate deploy
+npm run db:seed
+```
+
+Sem isso o teste quebra no `findFirstOrThrow` de categoria e membro, como o de lançamento já
+quebraria.
 
 ```bash
 TESTE_DESTRUTIVO=1 npx vitest run src/server/repositorios/configuracao.test.ts
