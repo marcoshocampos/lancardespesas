@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition, type TransitionStartFunction } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+  type TransitionStartFunction,
+} from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -170,7 +177,30 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
       : (editando.linha.membroId ?? membros[0]?.id ?? 'CONJUNTO')
     : (membros[0]?.id ?? 'CONJUNTO');
 
-  function enviar(dados: FormData) {
+  /**
+   * `onSubmit` com `preventDefault`, e NAO `action={enviar}`: com `action`, o
+   * React 19 reseta os campos nao controlados assim que a transicao do envio
+   * termina. Medido numa reproducao com este mesmo arranjo (`action={fn}`,
+   * funcao sincrona delegando a um `useTransition` interno): o campo voltou ao
+   * valor gravado em t=806ms, no MESMO instante em que a mensagem de recusa
+   * apareceu; o caso de controle com `onSubmit` + `preventDefault` preservou o
+   * que estava digitado ate o fim da amostragem (t=2001ms). Ou seja, com
+   * `action` a pessoa perde o que digitou justamente em CONFLITO e
+   * FATURA_TRAVADA — as recusas em que a tela manda tentar de novo — e perde
+   * tudo no modo criar. Mesma forma e mesmo motivo de `lista-categorias.tsx`.
+   * Nao "simplifique" de volta para `action={}`. (comportamento 1)
+   *
+   * A validacao do navegador nao muda com isso: `required`, `min` e `max`
+   * barram o envio antes de este handler existir.
+   */
+  function enviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    // O FormData sai do formulario AGORA, sincronamente: `currentTarget` e nulo
+    // depois que o handler retorna, e o que vale e o que estava digitado no
+    // momento do envio — nada aqui para baixo le o formulario de novo.
+    // (comportamento 2, e a captura unica de que o comportamento 4 depende)
+    const dados = new FormData(evento.currentTarget);
+
     setErro(null);
     setConflito(null);
 
@@ -253,7 +283,10 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
 
         if (!resultado.ok) {
           // Em caso de recusa o formulario nunca reseta — so a mensagem
-          // (e o conflito, se for o caso) aparecem. (comportamento 1)
+          // (e o conflito, se for o caso) aparecem. Quem garante isso e o
+          // `onSubmit` la em cima: com `action={}` o React reseta os campos
+          // ao fim da transicao e a recusa chegava com o formulario ja em
+          // branco (ver o comentario de `enviar`). (comportamento 1)
           if (resultado.motivo === 'FATURA_TRAVADA') {
             setErro('Esse mês já está fechado. Destrave a fatura para editar.');
           } else {
@@ -298,7 +331,7 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
   }
 
   return (
-    <form action={enviar} className="flex h-full flex-col overflow-hidden">
+    <form onSubmit={enviar} className="flex h-full flex-col overflow-hidden">
       <SheetHeader>
         <SheetTitle>{editando ? 'Editar lançamento' : 'Novo lançamento'}</SheetTitle>
         <SheetDescription>

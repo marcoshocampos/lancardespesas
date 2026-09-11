@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type FormEvent } from 'react';
 import type { StatusFatura } from '@prisma/client';
 import { toast } from 'sonner';
 import { SeloConferencia } from '@/components/resumo/selo-conferencia';
@@ -74,7 +74,26 @@ export function ConferenciaFatura({
   const idCampo = `extrato-${contaId}`;
   const idEstado = `estado-fatura-${contaId}`;
 
-  function enviar(dados: FormData) {
+  /**
+   * `onSubmit` com `preventDefault`, e NAO `action={enviar}`: com `action`, o
+   * React 19 reseta os campos nao controlados assim que a transicao do envio
+   * termina. Medido numa reproducao com este mesmo arranjo: o campo voltou ao
+   * valor gravado em t=806ms, no MESMO instante em que a mensagem de recusa
+   * apareceu; o caso de controle com `onSubmit` + `preventDefault` preservou o
+   * digitado ate o fim da amostragem (t=2001ms). Aqui isso apagaria o valor do
+   * extrato recem-digitado justo quando o servidor recusa por fatura travada —
+   * a unica recusa que esta faixa existe para mostrar. Mesma forma de
+   * `lista-categorias.tsx` e de `painel-lancamento.tsx`. Nao "simplifique" de
+   * volta para `action={}`.
+   *
+   * Isto nao conflita com o `key` do campo logo abaixo: quem remonta o campo
+   * com o valor novo depois de salvar e a troca de `key`, nao o reset do React.
+   */
+  function enviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    // Lido agora, sincronamente: `currentTarget` e nulo depois que o handler retorna.
+    const dados = new FormData(evento.currentTarget);
+
     setErro(null);
 
     let valorCentavos: number;
@@ -118,7 +137,7 @@ export function ConferenciaFatura({
           </p>
         </div>
 
-        <form action={enviar} className="flex items-end gap-2">
+        <form onSubmit={enviar} className="flex items-end gap-2">
           <div className="space-y-1.5">
             <Label htmlFor={idCampo} className="text-xs font-normal text-tinta-fraca">
               Valor do extrato
