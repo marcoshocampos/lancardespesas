@@ -42,7 +42,9 @@ import { acaoCriarLancamento, acaoEditarLancamento } from '@/server/actions/lanc
 import type { LinhaGrade } from '@/server/repositorios/resumo';
 
 type Membro = { id: string; nome: string; cor: string };
-type Categoria = { id: string; nome: string; cor: string };
+// `arquivada` viaja junto porque quem decide oferecer ou nao a categoria e este
+// componente, que e o unico que sabe o modo do painel — ver `categoriasOferecidas`.
+type Categoria = { id: string; nome: string; cor: string; arquivada: boolean };
 type Conta = {
   id: string;
   nome: string;
@@ -196,6 +198,28 @@ function Formulario({
     ? contasDoMes.filter((c) => idsAtivas.has(c.id) || c.id === editando.linha.contaId)
     : contasAtivas;
 
+  /**
+   * Mesma regra, mesma forma, pelo mesmo motivo — so que para categoria:
+   * criar oferece so categoria NAO arquivada (e o proprio significado de
+   * arquivar), e editar oferece essas MAIS a categoria do proprio lancamento,
+   * ainda que arquivada.
+   *
+   * A armadilha e a descrita acima, no `<select>` escondido: `defaultValue`
+   * que nao casa com nenhuma `<option>` cai na PRIMEIRA, sem o `required`
+   * reclamar. Sem esta lista, abrir uma compra de categoria arquivada so para
+   * corrigir a descricao gravaria o lancamento na primeira categoria em ordem
+   * alfabetica, em silencio — o unico sinal seria o gatilho aparecer vazio.
+   *
+   * Aqui basta uma lista, e nao duas como nas contas: a pagina manda as
+   * categorias inteiras (arquivadas incluidas, ver o comentario da consulta em
+   * `despesas/page.tsx`) e `arquivada` vem no proprio registro. Nas contas as
+   * duas listas existem porque `contasDoMes` tem outro consumidor — ela
+   * alimenta `calcularResumo`, as colunas e os chips.
+   */
+  const categoriasOferecidas = editando
+    ? categorias.filter((c) => !c.arquivada || c.id === editando.linha.categoriaId)
+    : categorias.filter((c) => !c.arquivada);
+
   // Rastreiam data e conta so para recalcular a dica de competencia a cada
   // mudanca — os proprios campos continuam nao controlados (defaultValue),
   // comportamento 2: um re-render vindo do `revalidatePath` do server action
@@ -205,6 +229,17 @@ function Formulario({
 
   const dica = calcularDica(dataCompra, contaId, contasOferecidas);
 
+  // ATENCAO, terceiro caso da mesma familia, hoje inalcancavel: `membros` chega
+  // so com os ativos (`where: { ativo: true }` em `despesas/page.tsx`), e
+  // `editando.linha.membroId` pode apontar para alguem fora dessa lista. Se um
+  // dia existir "desativar pessoa", este select precisa do mesmo tratamento de
+  // `contasOferecidas` e `categoriasOferecidas` — no modo editar, os ativos MAIS
+  // o membro do proprio lancamento —, senao editar um lancamento antigo troca o
+  // escopo dele para a primeira pessoa da lista, em silencio. Nao e alcancavel
+  // agora porque desativar pessoa nao existe: `editarMembro` grava so `nome` e
+  // `cor`, e `Membro.ativo` e apenas rotulo na lista de Configuracoes. Fica
+  // anotado porque foi a falta desta anotacao que deixou o caso da conta passar
+  // despercebido enquanto ainda era teorico.
   const escopoPadrao = editando
     ? editando.linha.escopo === 'CONJUNTO'
       ? 'CONJUNTO'
@@ -464,12 +499,16 @@ function Formulario({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="campo-categoria">Categoria</Label>
-            <Select name="categoriaId" required defaultValue={editando?.linha.categoriaId ?? categorias[0]?.id ?? ''}>
+            <Select
+              name="categoriaId"
+              required
+              defaultValue={editando?.linha.categoriaId ?? categoriasOferecidas[0]?.id ?? ''}
+            >
               <SelectTrigger id="campo-categoria" className="w-full">
                 <SelectValue placeholder="Selecionar" />
               </SelectTrigger>
               <SelectContent>
-                {categorias.map((c) => (
+                {categoriasOferecidas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
                   </SelectItem>

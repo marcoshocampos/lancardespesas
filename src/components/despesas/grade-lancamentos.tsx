@@ -12,7 +12,7 @@ import { ID_BOTAO_NOVO_LANCAMENTO, PainelLancamento, type ModoPainel } from './p
 import { SecaoPessoa } from './secao-pessoa';
 
 type Membro = { id: string; nome: string; cor: string };
-type Categoria = { id: string; nome: string; cor: string };
+type Categoria = { id: string; nome: string; cor: string; arquivada: boolean };
 type Conta = {
   id: string;
   nome: string;
@@ -33,6 +33,11 @@ type Props = {
    * painel de lancamento e mais nada: conta aposentada nunca pode ser oferecida
    * para um lancamento novo. Nao juntar com a lista de cima (ver `page.tsx`). */
   contasAtivas: Conta[];
+  /** TODAS as categorias, arquivadas incluidas — uma lista so, porque
+   * `arquivada` vem no proprio registro. Serve a bolinha de cor de cada linha
+   * (`secao-pessoa.tsx`, que procura por id) e ao select do painel, que e quem
+   * recusa a arquivada no modo criar (ver `categoriasOferecidas` em
+   * `painel-lancamento.tsx`). */
   categorias: Categoria[];
   membros: Membro[];
   /** Id da conta filtrada na URL, se houver — decide qual estado vazio mostrar. */

@@ -18,7 +18,16 @@ export default async function Despesas({ searchParams }: Props) {
     // montadas logo abaixo saem desta mesma consulta — a tabela de contas tem
     // um punhado de linhas, e uma consulta continua sendo uma consulta.
     prisma.conta.findMany({ orderBy: { ordem: 'asc' } }),
-    prisma.categoria.findMany({ where: { arquivada: false }, orderBy: { nome: 'asc' } }),
+    // Sem `where: { arquivada: false }`, pelo mesmo motivo da consulta acima:
+    // `arquivada` quer dizer "nao ofereca esta categoria para lancamento novo",
+    // e nunca "esconda o historico". Esta lista tem dois consumidores que
+    // precisam da categoria arquivada — a bolinha de cor de cada linha da grade
+    // (`secao-pessoa.tsx`, que a procura por id e ficava sem cor) e o select do
+    // painel no modo EDITAR (`categoriasOferecidas` em `painel-lancamento.tsx`,
+    // que sem ela recategorizava o lancamento em silencio ao salvar). Quem
+    // recusa a categoria arquivada para lancamento NOVO e o painel, no modo
+    // criar. Continua uma consulta so: o `where` saiu, nenhuma irma entrou.
+    prisma.categoria.findMany({ orderBy: { nome: 'asc' } }),
     prisma.membro.findMany({ where: { ativo: true }, orderBy: { criadoEm: 'asc' } }),
     carregarLinhasDaGrade(competencia, conta),
     carregarParcelasDaCompetencia(competencia),
