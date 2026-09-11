@@ -132,6 +132,35 @@ const nome = z.string().trim().min(1).max(40);
 const diaDoMes = z.number().int().min(1).max(31).nullable();
 ```
 
+- [ ] **Passo 1b: cartão sem dia de fechamento não pode ser gravado — obrigatório**
+
+**Achado da revisão da Tarefa 1, e o conserto mora aqui.** `editarConta` aceita
+`diaFechamento` e `diaVencimento` nulos e grava o que vier, sem olhar o `tipo` — que nem
+está no objeto de dados. Só que uma conta `CARTAO` sem esses dias **quebra duro** em dois
+lugares, os dois com `throw new Error` cru, não com recusa tratável:
+
+| Onde | O que estoura |
+|---|---|
+| `lancamento.ts:30`, em `competenciaBaseDe` | criar **e** editar qualquer lançamento naquele cartão |
+| `fatura.ts:34`, em `registrarValorReal` | conferir a fatura daquele cartão |
+
+`competenciaBaseDe` é chamada por `criarLancamento` **e** por `editarLancamento`. Ou seja:
+um campo deixado em branco nesta tela de configuração derruba o fluxo principal do sistema,
+e o erro aparece longe da causa — a pessoa mexe em Configurações e a exceção estoura depois,
+quando alguém tenta lançar uma compra.
+
+Antes desta etapa esse estado só era alcançável pelo `prisma studio`. A tela o põe ao alcance
+de um campo vazio.
+
+**A validação vai na action**, com `superRefine` condicionado ao `tipo` **atual** da conta —
+a tela de edição já carrega a conta para preencher o formulário, então o `tipo` está à mão.
+Recuse `diaFechamento` ou `diaVencimento` nulos quando `tipo === 'CARTAO'`, com mensagem que
+diga qual campo falta.
+
+Por que na action e não no repositório: `docs/arquitetura.md` põe validação de payload na
+fronteira, e o repositório não recebe `tipo`. Se um segundo chamador aparecer e pular o Zod,
+aí o repositório ganha a defesa — hoje há um chamador só, que é a tela desta etapa.
+
 - [ ] **Passo 2: revalidar o que muda**
 
 Categoria e membro aparecem na grade e no resumo; conta aparece nos chips, na grade e no resumo.
