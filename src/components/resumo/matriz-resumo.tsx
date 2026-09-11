@@ -101,8 +101,8 @@ export function MatrizResumo({ resumo, competencia, membros, nomesDeConta }: Pro
     <div className="overflow-x-auto rounded-caixa border border-borda">
       <table className="w-full text-sm tabular-nums">
         <caption className="sr-only">
-          Resumo de {formatarCompetencia(competencia)} por pessoa e por conta, em tres blocos: gastos
-          do mes, rateio do conjunto e resultado.
+          Resumo de {formatarCompetencia(competencia)} por pessoa e por conta, em três blocos: gastos
+          do mês, rateio do conjunto e resultado.
         </caption>
         <thead>
           <tr className="border-b border-borda text-xs tracking-wide text-tinta-fraca uppercase">
