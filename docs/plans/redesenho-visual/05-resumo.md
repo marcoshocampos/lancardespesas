@@ -219,9 +219,27 @@ honesta, e o erro continua chegando ao log do servidor.
 
 - [ ] **Passo 2: escrever**
 
-`'use client'`, recebendo `{ error, reset }`. Texto que diga que **há dado inconsistente e alguém
-precisa olhar** — não "algo deu errado, tente de novo", que sugere falsamente que insistir resolve.
-Botão de tentar de novo chamando `reset()`, e um caminho de volta para `/despesas`.
+`'use client'`, recebendo `{ error, reset }`. Botão de tentar de novo chamando `reset()`.
+
+**Sobre o texto.** A versão anterior deste passo mandava afirmar que **há dado inconsistente**. Isso
+erra para o outro lado: a fronteira pega *qualquer* erro do segmento, não só os que `calcularResumo`
+lança. Um tropeço de rede no Neon cairia aqui também, e num sistema de dinheiro dizer "seus dados
+estão incoerentes" quando o banco só piscou é pior que não dizer nada.
+
+O texto honesto diz o que se sabe, e só:
+
+- a tela não pôde ser montada, e o erro **ficou registrado no servidor**
+- tentar de novo resolve **se** foi coisa passageira
+- **se repetir, é dado que precisa ser olhado** — e aí não adianta insistir
+
+Mostre o `error.digest` quando ele existir: é por ele que se acha a ocorrência no log.
+
+Continua valendo o que o passo original protegia: **não** escrever "algo deu errado, tente de novo"
+e parar por aí, que sugere que insistir sempre resolve.
+
+Um caminho de volta não precisa ser construído: a fronteira renderiza dentro do casco, e a barra
+lateral já está na tela. Um link extra para `/despesas` só duplicaria a navegação — e some para
+quem já está em `/despesas`.
 
 - [ ] **Passo 3: verificar — e não é pelo banco**
 
