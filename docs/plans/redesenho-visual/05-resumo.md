@@ -197,8 +197,16 @@ git commit -m "Da forma propria a conferencia contra o extrato"
 ## Tarefa 4 — Fronteira de erro
 
 **Arquivos:**
-- Cria: `src/app/(app)/resumo/error.tsx`
-- Cria: `src/app/(app)/despesas/error.tsx`
+- Cria: `src/app/(app)/error.tsx`
+
+**Uma fronteira, não duas.** A versão anterior deste passo pedia um `error.tsx` em `despesas/` e
+outro em `resumo/`, com a mesma mensagem nos dois. Grupo de rota é segmento comum para as
+convenções de arquivo — só não entra na URL —, então um `error.tsx` em `(app)/` cobre as duas
+telas, renderiza dentro do casco (a barra lateral continua na tela, e com ela o caminho de volta) e
+existe em um lugar só. Duas cópias do mesmo texto é como elas passam a divergir.
+
+Ela **não** pega erro lançado pelo próprio `(app)/layout.tsx` — nenhuma das duas formas pegaria;
+para isso a fronteira teria que estar no segmento acima.
 
 - [ ] **Passo 1: entender o que ela NÃO faz**
 
@@ -228,7 +236,7 @@ operação que não pode falhar pela metade.
 - [ ] **Passo 4: commitar**
 
 ```bash
-git add -A "src/app/(app)"
+git add "src/app/(app)/error.tsx"
 git commit -m "Troca a tela branca por um aviso de dado inconsistente"
 ```
 
