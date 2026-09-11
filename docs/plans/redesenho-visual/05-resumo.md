@@ -131,10 +131,54 @@ situação como selo, e o estado da fatura em texto.
 Mantenha o `key={valorReal ?? 'vazio'}` do original — é o que faz o campo reler o valor gravado
 depois de salvar.
 
+- [ ] **Passo 1b: o selo é o mesmo dos cartões, e precisa ser o mesmo objeto**
+
+A Tarefa 1 já escreveu a função `selo()` dentro de `cartoes-resumo.tsx`, com os quatro textos e as
+quatro classes. A faixa mostra exatamente o mesmo selo. **Extraia para
+`src/components/resumo/selo-conferencia.tsx` e faça os dois consumirem de lá** — duas cópias da
+mesma tabela de situações é como elas passam a discordar. A extração é movimento puro: mesmos
+textos, mesmas classes, mesmo `variant` do `Badge`.
+
+Sim, a situação vai aparecer duas vezes na tela, no cartão e na faixa. É proposital: o cartão
+responde de longe, a faixa fica ao lado do campo onde se digita o extrato.
+
 - [ ] **Passo 2: o estado da fatura é somente leitura**
 
-Mostre "Fatura aberta" ou "Fatura travada" como texto. **Não construa botão de travar ou
-destravar.** Está fora do escopo (§12 da spec), e um botão que não funciona é pior que ausência.
+Mostre o estado como texto. **Não construa botão de travar ou destravar.** Está fora do escopo
+(§12 da spec), e um botão que não funciona é pior que ausência.
+
+**São três estados, não dois.** `StatusFatura` em `prisma/schema.prisma:33` tem `ABERTA`,
+`CONFERIDA` e `TRAVADA`. Hoje nada no sistema escreve `CONFERIDA` — só o schema a conhece — mas
+ela existe no banco e um dia alguém a escreve por SQL. Trate as três num `switch` exaustivo, sem
+`default`, do mesmo jeito que `selo()` trata as quatro situações: assim, no dia em que o enum
+ganhar um valor, o TypeScript avisa em vez de a tela mentir.
+
+Fatura sem linha na tabela nenhuma ainda é `ABERTA` — não há registro porque ninguém conferiu.
+
+- [ ] **Passo 2b: travada desabilita o campo, mas quem recusa continua sendo o servidor**
+
+Sabendo que a fatura está travada, a faixa desabilita o campo e o botão e diz por quê. Deixar
+alguém digitar num campo que sempre vai recusar é armadilha.
+
+**O pré-check do servidor em `registrarValorReal` não sai.** O cliente desabilitar é cortesia; a
+regra mora no servidor, e a mensagem de recusa ("Essa fatura está travada. Destrave para registrar
+um novo valor do extrato.") continua existindo para o caso de a fatura travar entre o carregamento
+da página e o envio.
+
+- [ ] **Passo 2c: de onde vem o estado**
+
+`carregarValorReal` devolve só o número e não serve. **Autorizado**, em exceção consciente à
+restrição 3: substituí-la por
+
+```ts
+export async function carregarFatura(contaId: string, competencia: string):
+  Promise<{ valorRealCentavos: number | null; status: StatusFatura } | null>;
+```
+
+no mesmo arquivo, atualizando o único chamador (`src/app/(app)/resumo/page.tsx`) no mesmo commit e
+apagando a antiga. A restrição existe para impedir que uma assinatura mude e deixe chamador
+quebrado atrás; aqui há um chamador só, ele muda junto, e o `npm run build` prova. Uma função nova
+ao lado da velha custaria duas consultas à mesma linha e deixaria código morto.
 
 - [ ] **Passo 3: acrescentar o aviso de sucesso**
 
@@ -171,11 +215,15 @@ honesta, e o erro continua chegando ao log do servidor.
 precisa olhar** — não "algo deu errado, tente de novo", que sugere falsamente que insistir resolve.
 Botão de tentar de novo chamando `reset()`, e um caminho de volta para `/despesas`.
 
-- [ ] **Passo 3: verificar**
+- [ ] **Passo 3: verificar — e não é pelo banco**
 
-Provoque de propósito: pelo `prisma studio`, deixe uma parcela de escopo `PESSOAL` com `membroId`
-nulo, abra `/resumo`, confirme a mensagem, e **desfaça em seguida**. O banco é o de produção do
-casal.
+A versão anterior deste passo mandava corromper uma parcela pelo `prisma studio` e desfazer em
+seguida. **Não faça isso.** O banco é o de produção do casal, e "desfaço depois" depende de nada
+interromper quem está no meio do caminho.
+
+Provoque pelo código: um `throw new Error('teste da fronteira')` temporário no corpo da página,
+abra a tela, confirme a mensagem, e reverta com `git checkout`. Mesmo efeito, e o desfazer é uma
+operação que não pode falhar pela metade.
 
 - [ ] **Passo 4: commitar**
 
