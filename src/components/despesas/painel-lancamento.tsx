@@ -132,7 +132,11 @@ function calcularDica(dataCompra: string, contaId: string, contas: readonly Cont
 
 type FormularioProps = {
   estado: ModoPainel;
-  contas: Conta[];
+  /** So as contas ativas: e o que se pode escolher para um lancamento NOVO. */
+  contasAtivas: Conta[];
+  /** Ativas mais as que tem parcela no mes aberto. Serve so ao modo editar —
+   * ver `contasOferecidas` dentro de `Formulario`. */
+  contasDoMes: Conta[];
   categorias: Categoria[];
   membros: Membro[];
   /** Levantados para `PainelLancamento`: o `Sheet` precisa saber se ha uma
@@ -151,7 +155,16 @@ type FormularioProps = {
  * painel para uma linha diferente mostraria dado da linha anterior, porque campo
  * nao controlado (`defaultValue`) so le a prop uma vez, no mount.
  */
-function Formulario({ estado, contas, categorias, membros, pendente, iniciar, onFechar }: FormularioProps) {
+function Formulario({
+  estado,
+  contasAtivas,
+  contasDoMes,
+  categorias,
+  membros,
+  pendente,
+  iniciar,
+  onFechar,
+}: FormularioProps) {
   const [erro, setErro] = useState<string | null>(null);
   const [conflito, setConflito] = useState<EstadoAtual | null>(null);
   // Nao-null so enquanto o AlertDialog "vai regerar as parcelas" espera
@@ -162,14 +175,35 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
 
   const editando = estado.modo === 'editar' ? estado : null;
 
+  /**
+   * O que o select de conta oferece. Criar so pode escolher conta ATIVA — e o
+   * proprio significado de `ativa`. Editar precisa da lista de ativas MAIS a
+   * conta do proprio lancamento, mesmo que ela ja tenha sido aposentada.
+   *
+   * Nao e cosmetico: o `Select` do radix-ui manda o valor no FormData por um
+   * `<select>` escondido que recebe `defaultValue` com o id da conta e monta as
+   * `<option>` a partir dos `SelectItem` renderizados. `<select>` nativo cujo
+   * `defaultValue` nao casa com nenhuma option cai na PRIMEIRA — entao, sem
+   * esta linha, corrigir a descricao de uma compra numa conta aposentada
+   * gravaria o lancamento na primeira conta ativa da lista, em silencio.
+   *
+   * A conta do lancamento editado sempre esta em `contasDoMes`: a linha so
+   * aparece na grade porque tem parcela nesta competencia, que e exatamente o
+   * criterio de entrada daquela lista.
+   */
+  const idsAtivas = new Set(contasAtivas.map((c) => c.id));
+  const contasOferecidas = editando
+    ? contasDoMes.filter((c) => idsAtivas.has(c.id) || c.id === editando.linha.contaId)
+    : contasAtivas;
+
   // Rastreiam data e conta so para recalcular a dica de competencia a cada
   // mudanca — os proprios campos continuam nao controlados (defaultValue),
   // comportamento 2: um re-render vindo do `revalidatePath` do server action
   // nao apaga o que a pessoa digitou.
   const [dataCompra, setDataCompra] = useState(editando?.linha.dataCompra ?? '');
-  const [contaId, setContaId] = useState(editando?.linha.contaId ?? contas[0]?.id ?? '');
+  const [contaId, setContaId] = useState(editando?.linha.contaId ?? contasOferecidas[0]?.id ?? '');
 
-  const dica = calcularDica(dataCompra, contaId, contas);
+  const dica = calcularDica(dataCompra, contaId, contasOferecidas);
 
   const escopoPadrao = editando
     ? editando.linha.escopo === 'CONJUNTO'
@@ -413,14 +447,14 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
             <Select
               name="contaId"
               required
-              defaultValue={editando?.linha.contaId ?? contas[0]?.id ?? ''}
+              defaultValue={editando?.linha.contaId ?? contasOferecidas[0]?.id ?? ''}
               onValueChange={setContaId}
             >
               <SelectTrigger id="campo-conta" className="w-full">
                 <SelectValue placeholder="Selecionar" />
               </SelectTrigger>
               <SelectContent>
-                {contas.map((c) => (
+                {contasOferecidas.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
                   </SelectItem>
@@ -520,7 +554,10 @@ function Formulario({ estado, contas, categorias, membros, pendente, iniciar, on
 
 type Props = {
   estado: ModoPainel | null;
-  contas: Conta[];
+  /** As duas listas vem da pagina e chegam aqui sem se misturar: quem decide
+   * qual delas o select usa e o modo do painel (`contasOferecidas`). */
+  contasAtivas: Conta[];
+  contasDoMes: Conta[];
   categorias: Categoria[];
   membros: Membro[];
   onFechar: () => void;
@@ -535,7 +572,14 @@ type Props = {
  * `estado`; o `Sheet` em si fica sempre presente, para a animacao de fechar tocar
  * por inteiro antes do conteudo sumir.
  */
-export function PainelLancamento({ estado, contas, categorias, membros, onFechar }: Props) {
+export function PainelLancamento({
+  estado,
+  contasAtivas,
+  contasDoMes,
+  categorias,
+  membros,
+  onFechar,
+}: Props) {
   const [pendente, iniciar] = useTransition();
 
   // Guarda o ALVO do foco no momento em que o painel ABRE, nao no momento em
@@ -591,7 +635,8 @@ export function PainelLancamento({ estado, contas, categorias, membros, onFechar
         {estado && (
           <Formulario
             estado={estado}
-            contas={contas}
+            contasAtivas={contasAtivas}
+            contasDoMes={contasDoMes}
             categorias={categorias}
             membros={membros}
             pendente={pendente}

@@ -24,7 +24,15 @@ type Conta = {
 type Props = {
   linhas: LinhaGrade[];
   competencia: string;
-  contas: Conta[];
+  /** Contas ativas MAIS as que tem parcela nesta competencia — o que o mes
+   * contem. Descreve: chips de filtro e o nome da conta no estado vazio. Uma
+   * conta desativada com historico no mes esta aqui, e tem que estar: e a
+   * mesma lista que alimenta `calcularResumo` na pagina. */
+  contasDoMes: Conta[];
+  /** So as ativas — o que se pode fazer agora. Alimenta o select de conta do
+   * painel de lancamento e mais nada: conta aposentada nunca pode ser oferecida
+   * para um lancamento novo. Nao juntar com a lista de cima (ver `page.tsx`). */
+  contasAtivas: Conta[];
   categorias: Categoria[];
   membros: Membro[];
   /** Id da conta filtrada na URL, se houver — decide qual estado vazio mostrar. */
@@ -86,7 +94,8 @@ function EstadoVazio({ competencia, contaSelecionada, nomeDaConta, onNovo }: Est
 export function GradeLancamentos({
   linhas,
   competencia,
-  contas,
+  contasDoMes,
+  contasAtivas,
   categorias,
   membros,
   contaSelecionada,
@@ -97,7 +106,9 @@ export function GradeLancamentos({
 
   const conteudo = (() => {
     if (linhas.length === 0) {
-      const nomeDaConta = contas.find((c) => c.id === contaSelecionada)?.nome;
+      // Pela lista do mes: quem filtrou por uma conta desativada que tem
+      // historico aqui merece ver o nome dela na mensagem, nao "desta conta".
+      const nomeDaConta = contasDoMes.find((c) => c.id === contaSelecionada)?.nome;
       return (
         <EstadoVazio
           competencia={competencia}
@@ -174,7 +185,13 @@ export function GradeLancamentos({
           pra "combinar" um com o outro — duas margens tentando combinar por
           coincidencia era o que deixava isso fragil. */}
       <div className="mt-4 flex items-center justify-between gap-3">
-        <ChipsConta competencia={competencia} contas={contas} contaSelecionada={contaSelecionada} />
+        {/* Chips pela lista do mes: filtrar por uma conta aposentada e a unica
+            forma de olhar so o que ela ainda tem neste mes. */}
+        <ChipsConta
+          competencia={competencia}
+          contas={contasDoMes}
+          contaSelecionada={contaSelecionada}
+        />
         <Button id={ID_BOTAO_NOVO_LANCAMENTO} type="button" onClick={abrirCriacao}>
           <Plus aria-hidden="true" />
           Novo lançamento
@@ -183,9 +200,14 @@ export function GradeLancamentos({
 
       <div className="mt-4 overflow-hidden rounded-caixa border border-borda bg-superficie">{conteudo}</div>
 
+      {/* As duas listas, porque o painel tem dois modos: criar so oferece conta
+          ATIVA, editar tambem precisa da conta do proprio lancamento, ainda que
+          aposentada, para nao troca-la em silencio ao salvar (ver
+          `contasOferecidas` em `painel-lancamento.tsx`). */}
       <PainelLancamento
         estado={estado}
-        contas={contas}
+        contasAtivas={contasAtivas}
+        contasDoMes={contasDoMes}
         categorias={categorias}
         membros={membros}
         onFechar={() => setEstado(null)}
