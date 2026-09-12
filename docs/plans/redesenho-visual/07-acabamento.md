@@ -14,9 +14,19 @@ verdade para a próxima sessão.
 - [ ] **Passo 1: rodar a varredura**
 
 ```bash
-grep -rn "neutral-\|zinc-\|gray-\|slate-\|stone-" src/ --include=*.tsx --include=*.ts
+grep -rnE "(neutral|zinc|gray|slate|stone|red|green|blue|amber|yellow|orange|indigo|purple|pink|rose|teal|cyan|sky|lime|emerald|violet|fuchsia)-[0-9]{2,3}" src/ --include=*.tsx --include=*.ts
 grep -rn "#[0-9a-fA-F]\{6\}" src/components src/app --include=*.tsx
 ```
+
+**O primeiro comando já esteve errado aqui, e o erro enganou três leitores.** A versão
+anterior era `grep -rn "neutral-\|zinc-\|gray-\|slate-\|stone-"`, sem exigir dígito depois
+do hífen — e `slate-` casa dentro de **`translate-`**. As primitivas do shadcn usam
+`translate-x-*` e `translate-y-*` à vontade, então a varredura voltava com onze linhas em
+quatro arquivos, todas falso positivo, **mesmo com o código limpo**.
+
+Uma verificação que grita sempre é pior que nenhuma: ensina quem a roda a ignorá-la. O `E`
+com `[0-9]{2,3}` exige o número da paleta, e a lista de cores foi completada — a versão
+antiga não olhava para `red-700` nem `amber-700`, que **existiam** no código da Fase 1.
 
 - [ ] **Passo 2: julgar cada ocorrência**
 
