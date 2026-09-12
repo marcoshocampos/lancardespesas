@@ -1,33 +1,55 @@
 # Estado do projeto
 
-Atualizado em 2026-08-13. Este arquivo responde "onde paramos" para quem chega agora —
+Atualizado em 2026-09-11. Este arquivo responde "onde paramos" para quem chega agora —
 inclusive uma sessão nova de agente, que não tem memória da conversa anterior.
 
 ## Onde estamos
 
-**Fase 1 concluída, 15 tarefas, aguardando merge.** Todas passaram por revisão própria, e a
-branch inteira passou por uma revisão final que encontrou um bug crítico e quatro importantes,
-todos corrigidos e re-revisados.
+**Fase 1 está em `main`.** A `main` está em `1942e56` e já foi enviada ao GitHub — as 15
+tarefas da Fase 1, mais oito commits posteriores: o importador colunar e a escolha explícita de
+quem absorve a sobra de centavos.
 
-O trabalho está na branch **`fase-1`**, que ainda **não foi mesclada em `main`** nem enviada
-ao GitHub. A `main` continua em `0ba0a6e`, só com a documentação de design.
+**O redesenho visual está na branch `navegacao`, com 52 commits à frente de `main`, e ainda
+não foi mesclado nem enviado.** É o trabalho do plano
+[`plans/redesenho-visual/`](plans/redesenho-visual/README.md): a camada visual que a Fase 1 não
+construiu. As sete etapas estão concluídas, cada tarefa com revisão própria.
 
-| Etapa | Tarefas | Situação |
+| Etapa | Entrega | Situação |
 |---|---|---|
-| [01 — Fundação](plans/fase-1/01-fundacao.md) | 1, 2 | Concluída |
-| [02 — Domínio](plans/fase-1/02-dominio.md) | 3, 4, 5, 6 | Concluída |
-| [03 — Persistência e acesso](plans/fase-1/03-persistencia.md) | 7, 8, 9 | Concluída |
-| [04 — Telas](plans/fase-1/04-telas.md) | 10, 11, 12, 13, 15 | Concluída |
-| [05 — Migração](plans/fase-1/05-migracao.md) | 14 | Concluída |
+| [01 — Fundação](plans/redesenho-visual/01-fundacao.md) | Tokens, tipografia, shadcn revestido, login | Concluída |
+| [02 — Casco](plans/redesenho-visual/02-casco.md) | Grupo `(app)/`, barra lateral, faixa de competência | Concluída |
+| [03 — Grade](plans/redesenho-visual/03-grade.md) | `agrupamento.ts`, seções por pessoa, chips, estados vazios | Concluída |
+| [04 — Painel](plans/redesenho-visual/04-painel.md) | Criar e editar fundidos, dica de competência, diálogo de exclusão | Concluída |
+| [05 — Resumo](plans/redesenho-visual/05-resumo.md) | Cartões, matriz em bandas, conferência, fronteira de erro | Concluída |
+| [06 — Configurações](plans/redesenho-visual/06-configuracoes.md) | Repositório, actions e as três listas | Concluída |
+| [07 — Acabamento](plans/redesenho-visual/07-acabamento.md) | Varredura de cor, verificação guiada, documentação, fechamento | T1 e T3 feitas; **T2 não**; T4 depende da T2 |
 
-A tarefa 15 não estava no plano original: nasceu da revisão final, que notou que as ações de
-editar e excluir existiam desde a tarefa 9 **sem nenhum chamador**. Dava para lançar e não
-dava para corrigir.
+**A Tarefa 2 da Etapa 07 — a conferência visual tela a tela — não foi feita por ninguém**, e a
+razão é simples: tudo da Etapa 02 em diante está atrás do login com Google, e nenhum agente
+conseguiu entrar. É a dívida 2 mais abaixo, e é ela que segura a Tarefa 4, o fechamento.
+
+**Nada foi mesclado em `main` e nada foi enviado.** É o que o plano manda: a faixa de commits
+se apresenta e se espera a palavra do usuário — o commit que ele revisa é o merge.
+
+Três consertos nasceram fora do plano, de revisão, e estão na branch: conta inativa com
+histórico derrubando o mês (`9232252`), categoria arquivada sendo trocada em silêncio ao editar
+(`29d7538`), e o reset de formulário do React 19 apagando o que foi digitado (`35ba027`). Os
+três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**96 testes passando**, mais 6 de banco atrás de `TESTE_DESTRUTIVO=1` e 1 de Playwright
-pulado por exigir login.
+**`npm test` hoje: 109 passando e 12 pulados, em 10 arquivos passando e 3 pulados.** Medido em
+`966a6a0`; a contagem "96" que este arquivo trazia estava desatualizada. Saída literal:
+
+```
+ Test Files  10 passed | 3 skipped (13)
+      Tests  109 passed | 12 skipped (121)
+```
+
+Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
+arquivos: `repositorios/configuracao.test.ts` (5), `repositorios/lancamento.test.ts` (6) e
+`repositorios/resumo.test.ts` (1). **Nenhum deles jamais rodou** — ver a dívida 1 mais abaixo.
+O Playwright de `e2e/` é pulado à parte e **não** entra no `npm test`, que é `vitest run`.
 
 O domínio de cálculo, puro e sem I/O:
 
@@ -40,15 +62,42 @@ O domínio de cálculo, puro e sem I/O:
 - Rateio do conjunto, com a sobra de centavos em destino determinístico
 - **A matriz de totais reproduzindo a planilha de agosto** — é a prova de paridade
 - Conferência do somado contra o valor real do extrato
+- Agrupamento com subtotal e contagem, que lança para chave desconhecida ou repetida em vez de
+  descartar ou duplicar em silêncio
 
 O produto, ponta a ponta:
 
 - Login com Google restrito à allowlist, com `email_verified` exigido e middleware protegendo
   todas as rotas, inclusive as que ainda não existem
-- Grade do mês em `/despesas`, com filtro por conta, digitação inline, e editar e excluir
+- Grade do mês em `/despesas`, com filtro por conta, e editar e excluir
 - Resumo em `/resumo`, com a matriz de pessoas por contas e a conferência da fatura
 - Gravação com lock otimista e barreira de fatura travada em criar, editar e excluir
 - Importador da planilha, que aborta alto em vez de descartar linha em silêncio
+
+O que a branch `navegacao` acrescentou — **camada visual, sem tocar em nenhum cálculo**:
+
+- **Um casco comum** às telas com sessão, no grupo de rota `(app)/`: barra lateral com os
+  destinos, identidade de quem está logado e botão de sair — que até então não existia em
+  lugar nenhum do sistema. As URLs não mudaram
+- **Navegação que preserva contexto:** trocar de tela preserva o mês, trocar de mês preserva o
+  filtro de conta. Gráficos e Lixeira aparecem desabilitados, porque as páginas não existem
+- **Faixa de competência** com o mês, as setas de mês, e os totais do mês por membro e por
+  fatura de cartão — pelo mesmo `calcularResumo` que o Resumo usa, então as duas telas não
+  divergem
+- **Grade em seções por pessoa**, com cabeçalho, subtotal por seção e dois estados vazios
+  distintos (mês sem lançamento × filtro que não bateu)
+- **Painel único de lançamento:** criar e editar no mesmo lugar, com a dica dizendo em qual
+  fatura a compra vai cair, aviso antes de regerar parcelas, e exclusão numa caixa desenhada
+  em vez do `window.confirm` do navegador
+- **Resumo com cartões no topo**, matriz em bandas e o selo de conferência nas quatro situações
+- **Tela de Configurações** (`/configuracoes`), nova: criar, editar e arquivar categoria;
+  editar conta, inclusive os dias de cartão e o `ativa`; editar nome e cor de pessoa e escolher
+  quem absorve a sobra de centavos. **Nada disso precisa mais do `prisma studio`**
+- **Fronteira de erro** para as três telas: tela branca virou aviso que não chuta a causa, com
+  botão que de fato tenta de novo no servidor
+- **Nenhuma cor literal em `src/`.** A varredura da Etapa 07 volta vazia; a única cor escrita à
+  mão é `COR_INICIAL` em `lista-categorias.tsx`, que é **dado** (vai para `Categoria.cor`), não
+  estilo
 
 ## O que ainda não existe
 
@@ -56,26 +105,125 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 
 - **Não há tela para travar ou destravar fatura.** Toda a maquinaria existe e é respeitada
   pelas gravações, mas só é acionável por SQL direto. A mensagem "destrave a fatura" que
-  aparece na interface, portanto, aponta para algo que ainda não dá para fazer pela tela
-- **Não há tela de cadastro de categoria.** O seed cria as oito; categoria nova sai pelo
-  `prisma studio`
+  aparece na interface, portanto, aponta para algo que ainda não dá para fazer pela tela. A
+  spec do redesenho manteve isso como lacuna conhecida: não invente a tela, não suma com a
+  mensagem
 - **Não há tela de lixeira.** A exclusão marca `deletadoEm` e não apaga, mas para o casal o
   efeito é definitivo até a Fase 3
 - **Não há tela de resolução de conflito.** A proteção contra sobrescrita existe e a recusa
-  aparece, mas sem o comparativo lado a lado
+  aparece — e desde `35ba027` a recusa não apaga mais o que foi digitado —, mas sem o
+  comparativo lado a lado
 - **Não há tela para marcar reembolso como recebido**, e a regra de negócio diz que reembolso
   sai dos relatórios de gasto do casal, o que o cálculo ainda não faz
 - **O status `CONFERIDA` nunca é gravado** — toda fatura permanece `ABERTA`
-- **`Recorrente` e `Preferencia` não existem no banco**, por serem de Fase 2
+- **Não há tema escuro.** Os tokens estão prontos para receber um, o bloco escuro não foi
+  escrito, e o `@media (prefers-color-scheme: dark)` do template do Next foi **removido de
+  propósito**. Ver [`decisoes.md`](decisoes.md) antes de achar que é regressão
+- **Não há gráficos.** O destino existe na barra lateral, desabilitado. Precisa de Recharts,
+  consultas que atravessam meses e decisões de regra em aberto
+- **Não há criar conta pela tela.** Configurações edita as contas que existem; conta nova
+  continua sendo trabalho de banco
+- **Não há desativar pessoa.** `editarMembro` grava só `nome` e `cor`; `Membro.ativo` é rótulo
+  na lista. **Quando essa tela existir, leia antes a armadilha 12 de
+  [`arquitetura.md`](arquitetura.md)** — há três pontos que precisam ser consertados juntos
+- **`Categoria.icone` existe no schema e não é usado em lugar nenhum**
+- **`Recorrente` e `Preferencia` não existem no banco**, por serem de Fase 2. É a `Preferencia`
+  que segura o tema escuro por pessoa e o layout A da grade
+- **O layout A da grade — painéis lado a lado — continua adiado.** As seções por pessoa **não**
+  são ele: é um renderizador só. Ver [`decisoes.md`](decisoes.md)
+
+A tela de cadastro de categoria, que constava aqui como ausente, **passou a existir** com a
+Etapa 06 — junto com a de contas e a de pessoas.
+
+## As três dívidas que dependem do usuário
+
+**Leia esta seção antes de qualquer outra coisa.** Nenhuma das três pode ser resolvida por um
+agente sozinho, e todas as três ficam abertas entre uma sessão e a seguinte.
+
+### 1. Os 12 testes de banco nunca foram executados
+
+`repositorios/configuracao.test.ts` (5 casos), `repositorios/lancamento.test.ts` (6) e
+`repositorios/resumo.test.ts` (1) exigem `TESTE_DESTRUTIVO=1`. **Não há banco de teste
+configurado** — as chaves do `.env` são `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`,
+`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` e `EMAILS_AUTORIZADOS`, e nenhuma aponta para banco
+vazio. Os 12 casos estão escritos, revisados e **nunca rodaram**. Teste que ninguém rodou não
+é prova de nada.
+
+**Nunca aponte `TESTE_DESTRUTIVO=1` para o `DATABASE_URL` atual: ele é o banco de produção do
+casal** — a planilha já foi importada, e durante a Etapa 06 foram contados 35 lançamentos
+reais ali. Os dois primeiros arquivos apagam lançamento, e se recusam a rodar se houver
+algum — mas essa recusa é a última linha de defesa, não a primeira. (O terceiro, o de
+`resumo.test.ts`, é mais brando: cria um único lançamento em `2099-01` e apaga só o que
+criou. Mesma variável, mesmo cuidado.)
+
+Quando o usuário criar o banco vazio no Neon e puser a conexão no ambiente:
+
+```bash
+npx prisma migrate deploy && npm run db:seed
+# e só então, apontando para o banco vazio:
+TESTE_DESTRUTIVO=1 npm test
+```
+
+O `db:seed` não é opcional: sem ele os testes quebram no `findFirstOrThrow` de categoria e de
+membro.
+
+### 2. A conferência visual da camada nova não foi feita por ninguém
+
+Tudo da Etapa 02 em diante — casco, grade, painel, resumo, configurações — está atrás do login
+com Google, e **nenhum agente conseguiu entrar**. Nada da camada visual foi visto numa tela de
+verdade. Não há teste automatizado dela: o projeto não tem teste de componente, e o único
+Playwright está pulado por exigir login.
+
+A lista tela a tela, escrita para não depender de memória, está na **Tarefa 2 de
+[`plans/redesenho-visual/07-acabamento.md`](plans/redesenho-visual/07-acabamento.md)** — sete
+passos, incluindo a prova de paridade de agosto (`R$ 1.025,51`, `R$ 474,25`, `R$ 551,26`).
+
+Para ver as telas com conteúdo sem tocar em dado real:
+
+```bash
+npx tsx scripts/dados-ficticios.ts criar
+npm run dev
+# ao terminar
+npx tsx scripts/dados-ficticios.ts limpar
+```
+
+### 3. As cores dos membros colidem com as de categoria
+
+`prisma/seed.ts` dá aos dois membros exatamente as cores de duas categorias:
+
+| Quem | Cor | Colide com |
+|---|---|---|
+| Nardy | `#A8710F` | categoria **Compra Online** |
+| Nick | `#9C4275` | categoria **Beleza** |
+
+Na grade, a faixa do cabeçalho de uma pessoa pode ficar idêntica à bolinha de categoria de um
+lançamento dela. Ficou decidido trocar a cor dos **membros**, e não a das categorias — são dois
+registros contra oito, e a cor de membro aparece em menos lugares.
+
+**A proposta em aberto é `#6D3551` para Nardy e `#2E4A63` para Nick.** São dois `UPDATE` na
+tabela `Membro`, contra o banco de produção do casal, e **ninguém deve rodá-los sem a palavra
+do usuário**. Até lá o código lê `Membro.cor` normalmente e nada precisa mudar.
+
+## Uma divergência de apresentação, que não é erro
+
+[`docs/regras-de-negocio.md`](regras-de-negocio.md), seção 4, mostra a linha única **"Metade
+cada"**, herdada da planilha. A matriz da tela mostra **as duas metades separadas**, uma linha
+por pessoa: *Metade de Nardy*, *Metade de Nick*.
+
+**Não é divergência de cálculo, e nenhum dos dois está errado.** Aquele documento descreve a
+conta — e a conta é a mesma, `ratear` sobre o `TOTAL Conjunto` da coluna. A tela abre o
+resultado por pessoa porque é o que se lê olhando para a coluna de alguém. Fica registrado
+aqui porque quem ler os dois documentos lado a lado vai estranhar.
 
 ## Serviços externos
 
 | Serviço | Situação |
 |---|---|
-| Neon (Postgres) | Criado, migration aplicada, seed rodado |
+| Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha importada**. É o banco de produção do casal, com dado financeiro real |
+| Neon — banco de teste | **Não criado.** É o que falta para os 12 testes de banco rodarem (dívida 1) |
 | Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo |
 | Vercel | **Não criado.** Só é necessário para publicar |
-| GitHub | Repositório privado `marcoshocampos/lancardespesas` |
+| GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada; `navegacao` **não** |
 
 Os segredos moram em `.env`, na raiz, a partir do `.env.example`. **`.env`, e não
 `.env.local`** — o CLI do Prisma lê o primeiro nativamente e não lê o segundo, então
@@ -85,33 +233,38 @@ commit, o que foi verificado na árvore inteira.
 ## Como retomar
 
 ```bash
-git switch fase-1
+git switch navegacao
 npm install
-npm test
+npm test          # esperado: 109 passando, 12 pulados
 ```
 
-O banco está **zerado de propósito**: zero lançamentos, com o seed intacto. É assim que ele
-deve estar antes da importação da planilha.
+O `DATABASE_URL` aponta para o **banco de produção do casal**, com a planilha já importada.
+Nada de `TESTE_DESTRUTIVO=1` aqui, e nenhum `UPDATE` sem a palavra do usuário.
 
 Para ver as telas com conteúdo, `npx tsx scripts/dados-ficticios.ts criar` insere dez
 lançamentos inventados e `... limpar` os remove — ele só apaga o que ele mesmo criou.
 
-Leia [`docs/decisoes.md`](decisoes.md) antes de mudar qualquer escolha estrutural.
+Leia [`docs/decisoes.md`](decisoes.md) antes de mudar qualquer escolha estrutural, e as
+armadilhas de [`docs/arquitetura.md`](arquitetura.md) antes de mexer no casco, no painel de
+lançamento ou em qualquer consulta que filtre por `ativa`/`arquivada`/`ativo`.
 
 ## Antes de usar de verdade
 
-1. **Testar o login no navegador**, com um e-mail da allowlist e um de fora. É o único teste
-   que nenhum agente conseguiu fazer
-2. **Importar a planilha.** O leitor foi validado contra o arquivo real de agosto: lê o
-   formato colunar da exportação do Sheets, confere a soma do cartão contra a linha
-   `FATURA:` e desfaz tudo se não bater. O comando está no cabeçalho do script
-3. **Publicar na Vercel**, se quiserem acessar de fora de casa
+1. **Fazer a conferência visual da Tarefa 2** (dívida 2 acima). É o que separa "está bonito"
+   de afirmação verificável
+2. **Testar o login no navegador**, com um e-mail da allowlist e um de fora. Continua sendo o
+   teste que nenhum agente conseguiu fazer
+3. **Decidir as cores dos membros** (dívida 3 acima)
+4. **Publicar na Vercel**, se quiserem acessar de fora de casa
+
+A importação da planilha, que constava aqui como pendente, **já foi feita**.
 
 ## Pendências menores para triar
 
-Sobraram seis, todas triadas na revisão final como não bloqueantes. As duas que bloqueavam
-— o parser de dinheiro aceitando entrada ambígua e a suíte destrutiva deixando lançamento no
-banco — já foram corrigidas.
+Sobraram **cinco**, todas triadas na revisão final da Fase 1 como não bloqueantes. As duas que
+bloqueavam — o parser de dinheiro aceitando entrada ambígua e a suíte destrutiva deixando
+lançamento no banco — já foram corrigidas. Estas são de baixo nível e nenhuma ficou pior com o
+redesenho visual; as pendências que importam agora são as três dívidas lá em cima.
 
 1. **`avancarCompetencia` quebra antes do ano `0000`**, porque o `%` do JavaScript preserva o
    sinal do dividendo. Só alcançável com um delta na casa de -24000 meses
@@ -120,14 +273,21 @@ banco — já foram corrigidas.
 3. **`ratear` produz `-0`** quando uma cota trunca para zero num valor negativo
 4. **O middleware não exclui `public/`**, então asset estático também redireciona. Proteção a
    mais, nunca a menos; vai incomodar quando entrar `robots.txt` ou manifest
-5. **A mensagem de recusa em `linha-nova.tsx` ignora o `motivo`.** Hoje só existe um
-6. **`docs/regras-de-negocio.md` descreve "editar uma parcela" sem redistribuir as demais**,
+5. **`docs/regras-de-negocio.md` descreve "editar uma parcela" sem redistribuir as demais**,
    enquanto `editarLancamento` sempre regera todas. Divergência entre documento e código
+
+O item que era o 5 — *"a mensagem de recusa em `linha-nova.tsx` ignora o `motivo`"* — saiu de
+pauta com o arquivo: `linha-nova.tsx` e `linha-edicao.tsx` não existem mais, e o painel que os
+substituiu trata os motivos um a um.
 
 Também sem transação: `gravarFilhos` faz `deleteMany` e `createMany` separados, então uma
 falha entre os dois deixaria lançamento sem parcela.
 
 ## Histórico de commits da Fase 1
+
+Já em `main`, mais oito commits que vieram depois dela — o importador colunar e a sobra de
+centavos explícita. Os 52 commits do redesenho visual estão em `navegacao` e saem de
+`git log --oneline main..HEAD`.
 
 ```
 157afc4 Liga editar e excluir lancamento na grade de despesas
