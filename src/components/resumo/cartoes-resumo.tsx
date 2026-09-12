@@ -15,6 +15,27 @@ type Props = {
 
 const CLASSE_CARTAO = 'rounded-caixa border border-borda bg-superficie px-5 py-4';
 
+/**
+ * Por que o nome do membro e o "Fatura X" sao `span`, e nao heading.
+ *
+ * Foi avaliado na Etapa 07 e recusado. Nenhum nivel serve:
+ *
+ * - `h2` poria "Nardy", "Nick" e "Fatura Nubank" no mesmo degrau do `h2` que
+ *   a faixa de conferencia ja usa para "Nubank" — o mesmo cartao apareceria
+ *   duas vezes no sumario, e tres numeros soltos viariam secoes da pagina ao
+ *   lado da matriz e da conferencia, que sao secoes de verdade.
+ * - `h3` pularia nivel: acima destes cartoes nao ha `h2` nenhum. O que nomeia
+ *   o grupo e o `aria-label` da `section` logo abaixo, e troca-lo por um
+ *   heading `sr-only` seria redesenhar como a secao se apresenta, nao acabar
+ *   o que ela ja e.
+ *
+ * E nao ha o que ganhar. A `section` com `aria-label` ja e um landmark
+ * `region`, entao o grupo se alcanca pelo rotor sem heading nenhum. E o que
+ * esta no cartao nao e uma secao de conteudo, e um rotulo grudado num numero:
+ * como `span`, o cartao inteiro e lido de uma vez — "Nardy, R$ 551,26,
+ * R$ 539,34 proprio mais R$ 474,25 da metade". Como heading, a navegacao por
+ * H entrega "Nardy" e deixa o numero para tras.
+ */
 function CartaoMembro({ membro, resumo }: { membro: Membro; resumo: ResumoMes }) {
   const total = resumo.totalGeral[membro.id]?.[COLUNA_TOTAL] ?? 0;
   const proprio = resumo.pessoal[membro.id]?.[COLUNA_TOTAL] ?? 0;
