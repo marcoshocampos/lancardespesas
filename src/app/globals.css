@@ -1,4 +1,21 @@
-@import "tailwindcss";
+/*
+ * `source("../")` prende a deteccao automatica de classes a `src/`.
+ *
+ * Sem isso o Tailwind varre o projeto inteiro a partir da raiz, inclusive
+ * `docs/**.md` — e os documentos do plano CITAM cor literal para proibi-la
+ * (`text-neutral-500`, `bg-zinc-900` no README e na spec), alem de guardarem o
+ * codigo antigo da Fase 1 em `plans/fase-1/04-telas.md`. O resultado eram
+ * `.bg-zinc-900`, `.bg-neutral-900`, `.bg-neutral-50`, `.border-neutral-300`,
+ * `.text-neutral-500` e `.text-neutral-600` no CSS de producao, sem nenhuma
+ * delas existir em `src/`: o texto que proibia a cor literal era o que a
+ * injetava no bundle. Enquanto durasse, "essa classe esta no CSS?" nao servia
+ * de teste da varredura de cor.
+ *
+ * O caminho e relativo a ESTE arquivo (`src/app/globals.css`), entao `../` e
+ * `src/`. Nada fora de `src/` tem classe do Tailwind: `public/` so tem SVG, e
+ * `e2e/` e `scripts/` sao codigo sem tela.
+ */
+@import "tailwindcss" source("../");
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
