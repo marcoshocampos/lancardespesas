@@ -22,7 +22,7 @@ const CLASSE_CARTAO = 'rounded-caixa border border-borda bg-superficie px-5 py-4
  *
  * - `h2` poria "Nardy", "Nick" e "Fatura Nubank" no mesmo degrau do `h2` que
  *   a faixa de conferencia ja usa para "Nubank" — o mesmo cartao apareceria
- *   duas vezes no sumario, e tres numeros soltos viariam secoes da pagina ao
+ *   duas vezes no sumario, e tres numeros soltos virariam secoes da pagina ao
  *   lado da matriz e da conferencia, que sao secoes de verdade.
  * - `h3` pularia nivel: acima destes cartoes nao ha `h2` nenhum. O que nomeia
  *   o grupo e o `aria-label` da `section` logo abaixo, e troca-lo por um
