@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type FormEvent } from 'react';
 import { Pencil } from 'lucide-react';
+import { CampoCor, CampoNome } from '@/components/configuracoes/campos-nome-e-cor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,24 +45,6 @@ type CampoDeConta = 'nome' | CampoDeCartao;
 
 /** Mensagem de recusa, mais em quais campos ela se ancora. */
 type ErroDeFormulario = { mensagem: string; campos: readonly CampoDeConta[] };
-
-/** O mesmo teto do `nome` em `actions/configuracao.ts` (`.max(40)`). */
-const MAXIMO_DO_NOME = 40;
-
-/**
- * Pelo menos um caractere que nao seja espaco, em qualquer posicao. Mesma
- * constante de `lista-categorias.tsx`, e pelo mesmo motivo: `required` sozinho
- * aceita "   ", o `nome` da action e `z.string().trim().min(1)`, a string vira
- * vazia no trim, o `parse` LANCA, e o Next entrega ao cliente so um digest — a
- * tela mostraria "erro" sem dizer o que houve. Junto com `maxLength` e com
- * `type="color"`, fecha esse caminho no navegador.
- *
- * A constante esta repetida aqui, e nao importada da lista de categorias,
- * porque as tres listas sao irmas e nenhuma e dona das outras. Se um dia virar
- * um `campos-nome-e-cor.tsx` comum, as tres mudam juntas — e essa e a hora de
- * conferir que as quatro restricoes seguem lado a lado.
- */
-const PADRAO_ALEM_DE_ESPACO = '.*\\S.*';
 
 /** Menor e maior dia do mes aceitos pela action (`z.number().int().min(1).max(31)`). */
 const PRIMEIRO_DIA = 1;
@@ -240,27 +223,16 @@ function FormularioConta({ conta, onFechar }: { conta: Conta; onFechar: () => vo
         <Label htmlFor={idCor} className={CLASSE_ROTULO}>
           Cor
         </Label>
-        <Input
-          id={idCor}
-          name="cor"
-          type="color"
-          defaultValue={conta.cor}
-          className="size-8 shrink-0 cursor-pointer p-1"
-        />
+        <CampoCor id={idCor} defaultValue={conta.cor} />
       </div>
 
       <div className="min-w-0 flex-1 space-y-1.5">
         <Label htmlFor={idNome} className={CLASSE_ROTULO}>
           Nome
         </Label>
-        <Input
+        <CampoNome
           id={idNome}
-          name="nome"
           defaultValue={conta.nome}
-          required
-          maxLength={MAXIMO_DO_NOME}
-          pattern={PADRAO_ALEM_DE_ESPACO}
-          title="Use ao menos um caractere que não seja espaço."
           autoFocus
           {...marcacaoDoCampo('nome', erro, idErro)}
         />

@@ -2,8 +2,8 @@
 
 import { useEffect, useOptimistic, useRef, useState, useTransition, type FormEvent } from 'react';
 import { Pencil } from 'lucide-react';
+import { CampoCor, CampoNome } from '@/components/configuracoes/campos-nome-e-cor';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { acaoDefinirQuemAbsorveSobra, acaoEditarMembro } from '@/server/actions/configuracao';
 import type { ResultadoConfiguracao } from '@/server/repositorios/configuracao';
@@ -24,20 +24,6 @@ type MotivoDeRecusa = Extract<ResultadoConfiguracao<unknown>, { ok: false }>['mo
 
 /** Mensagem de recusa, mais se ela se ancora no campo de nome. */
 type ErroDeFormulario = { mensagem: string; noCampoNome: boolean };
-
-/** O mesmo teto do `nome` em `actions/configuracao.ts` (`.max(40)`). */
-const MAXIMO_DO_NOME = 40;
-
-/**
- * Pelo menos um caractere que nao seja espaco, em qualquer posicao. Mesma
- * constante de `lista-categorias.tsx` e de `lista-contas.tsx`, e pelo mesmo
- * motivo: `required` sozinho aceita "   ", o `nome` da action e
- * `z.string().trim().min(1)`, a string vira vazia no trim, o `parse` LANCA, e o
- * Next entrega ao cliente so um digest — a tela mostraria "erro" sem dizer o
- * que houve. Junto com `maxLength` e com `type="color"`, fecha esse caminho no
- * navegador.
- */
-const PADRAO_ALEM_DE_ESPACO = '.*\\S.*';
 
 /**
  * Mensagem de cada recusa. `switch` sem `default`: motivo novo quebra a
@@ -141,27 +127,16 @@ function FormularioMembro({ membro, onFechar }: { membro: Membro; onFechar: () =
         <Label htmlFor={idCor} className="sr-only">
           {`Cor de ${membro.nome}`}
         </Label>
-        <Input
-          id={idCor}
-          name="cor"
-          type="color"
-          defaultValue={membro.cor}
-          className="size-8 shrink-0 cursor-pointer p-1"
-        />
+        <CampoCor id={idCor} defaultValue={membro.cor} />
       </div>
 
       <div className="min-w-0 flex-1">
         <Label htmlFor={idNome} className="sr-only">
           {`Nome de ${membro.nome}`}
         </Label>
-        <Input
+        <CampoNome
           id={idNome}
-          name="nome"
           defaultValue={membro.nome}
-          required
-          maxLength={MAXIMO_DO_NOME}
-          pattern={PADRAO_ALEM_DE_ESPACO}
-          title="Use ao menos um caractere que não seja espaço."
           autoFocus
           aria-invalid={erro?.noCampoNome ? true : undefined}
           aria-describedby={erro ? idErro : undefined}

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition, type FormEvent } from 'react';
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
+import { CampoCor, CampoNome } from '@/components/configuracoes/campos-nome-e-cor';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   acaoArquivarCategoria,
@@ -35,22 +35,6 @@ type ErroDeFormulario = { mensagem: string; noCampoNome: boolean };
  * discreto o bastante para ninguem confundir com escolha deliberada.
  */
 const COR_INICIAL = '#7A7A7A';
-
-/** O mesmo teto do `nome` em `actions/configuracao.ts` (`.max(40)`). */
-const MAXIMO_DO_NOME = 40;
-
-/**
- * Pelo menos um caractere que nao seja espaco, em qualquer posicao.
- *
- * `required` sozinho nao basta: ele aceita "   ", e o `nome` da action e
- * `z.string().trim().min(1)` — a string vira vazia no trim, o `parse` LANCA, e
- * o Next entrega ao cliente so um digest. A tela mostraria "erro" sem dizer o
- * que houve. `pattern` fecha esse caminho no navegador, junto com `maxLength`
- * (o `.max(40)`) e com `type="color"`, que estruturalmente nao produz valor
- * fora de #rrggbb. Nenhuma entrada possivel deste formulario chega ao `parse`
- * como excecao.
- */
-const PADRAO_ALEM_DE_ESPACO = '.*\\S.*';
 
 /**
  * Mensagem de cada recusa. `switch` sem `default`, como `textoDoEstado` em
@@ -105,9 +89,12 @@ type PropsCampos = {
 
 /**
  * Os dois campos que criar e editar tem em comum, num lugar so — nao por
- * economia de linhas, mas porque as restricoes do Passo 0 (`required`,
- * `pattern`, `maxLength`, `type="color"`) sao a ultima linha de defesa: em dois
- * lugares, uma delas cai fora de sincronia e o caminho opaco reabre.
+ * economia de linhas, mas porque os dois modos precisam sair identicos.
+ *
+ * As travas dos campos (`required`, `pattern`, `maxLength`, `type="color"`)
+ * nao estao aqui: moram em `campos-nome-e-cor.tsx`, que e o mesmo modulo que
+ * contas e pessoas usam. Este componente cuida so do rotulo e do arranjo, que
+ * e o que varia entre criar e editar.
  */
 function CamposNomeECor({
   idNome,
@@ -132,27 +119,16 @@ function CamposNomeECor({
         <Label htmlFor={idCor} className={classeRotulo}>
           {rotuloCor}
         </Label>
-        <Input
-          id={idCor}
-          name="cor"
-          type="color"
-          defaultValue={cor}
-          className="size-8 shrink-0 cursor-pointer p-1"
-        />
+        <CampoCor id={idCor} defaultValue={cor} />
       </div>
 
       <div className={`min-w-0 flex-1 ${classeGrupo}`}>
         <Label htmlFor={idNome} className={classeRotulo}>
           {rotuloNome}
         </Label>
-        <Input
+        <CampoNome
           id={idNome}
-          name="nome"
           defaultValue={nome}
-          required
-          maxLength={MAXIMO_DO_NOME}
-          pattern={PADRAO_ALEM_DE_ESPACO}
-          title="Use ao menos um caractere que não seja espaço."
           autoFocus={focoAoMontar}
           placeholder="Ex.: Mercado"
           aria-invalid={erro?.noCampoNome ? true : undefined}
