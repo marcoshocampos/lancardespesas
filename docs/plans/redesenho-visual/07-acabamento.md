@@ -52,8 +52,15 @@ git commit -m "Tira as ultimas cores soltas do caminho dos tokens"
 
 Não há teste automatizado desta camada, então a conferência é escrita para não depender de memória.
 
+> **O roteiro para executar esta tarefa mora em [`docs/verificacao-visual.md`](../../verificacao-visual.md).**
+> A lista abaixo é o que a tarefa exige; o roteiro é como fazer, tela por tela.
+>
+> **Não rode mais o `dados-ficticios.ts criar` daqui.** Isto foi escrito com o banco vazio. Hoje
+> ele tem a importação real de agosto, e os fictícios caem nas mesmas competências — a tela
+> misturaria invenção com finança de verdade. O script não detecta dado real, só a própria
+> bagunça anterior.
+
 ```bash
-npx tsx scripts/dados-ficticios.ts criar
 npm run dev
 ```
 
@@ -99,8 +106,12 @@ npm run dev
 
 - [ ] **Passo 6: a prova de paridade**
 
-Com os dados de agosto, `/resumo` mostra `R$ 1.025,51` de fatura, `R$ 474,25` e `R$ 551,26` de
-total geral na coluna C6. **Se não bater, pare** — é o `CLAUDE.md` dizendo que o cálculo quebrou.
+**Estes três números estão sob suspeita e a conferência agora é contra a planilha, não contra
+eles.** O apêndice da spec registra `R$ 1.025,51` de fatura, `R$ 474,25` e `R$ 551,26` de
+total geral — vieram da captura de tela do começo do projeto. A importação do CSV real de agosto
+fecha em outro valor, batendo com a própria linha `FATURA:` do arquivo. Enquanto ninguém decidir
+qual é a referência, seguir o número antigo faz o sistema parecer quebrado quando não está.
+Confira contra a planilha, como manda o [roteiro](../../verificacao-visual.md).
 
 - [ ] **Passo 7: limpar**
 

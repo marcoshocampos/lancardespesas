@@ -20,6 +20,7 @@ onde paramos, o que já funciona e qual é a próxima tarefa.
 | [`docs/specs/2026-09-07-redesenho-visual-e-navegacao-design.md`](docs/specs/2026-09-07-redesenho-visual-e-navegacao-design.md) | Design da camada visual: navegação, telas, tokens, e o que ficou de fora |
 | [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
 | [`docs/arquitetura.md`](docs/arquitetura.md) | Onde cada coisa mora no código, camada por camada, e as armadilhas já conhecidas |
+| [`docs/verificacao-visual.md`](docs/verificacao-visual.md) | O roteiro da conferência tela a tela, que só o usuário consegue fazer |
 | [`docs/plans/fase-1/`](docs/plans/fase-1/README.md) | O plano de execução da Fase 1, uma etapa por arquivo |
 
 A spec é a fonte da verdade para **o que** o sistema é. As regras de negócio são a fonte da

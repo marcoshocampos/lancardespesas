@@ -43,7 +43,7 @@ Thumbs.db
 !.vscode/extensions.json
 
 # ferramentas locais
-.claude/settings.local.json
+.claude/
 .superpowers/
 
 # dados reais exportados da planilha — nunca versionar

@@ -9,8 +9,10 @@ que uma aba por mês não consegue fazer.
 
 ## Situação
 
-Fase 1 em execução, na branch `fase-1`. O domínio de cálculo está pronto e testado; faltam
-autenticação, gravação e as telas.
+Fase 1 concluída e o redesenho visual também: o sistema autentica, lança, parcela, rateia,
+confere a fatura contra o extrato e tem tela para cadastrar conta, categoria e membro. Falta a
+conferência visual tela a tela — ela está atrás do login e só o usuário consegue fazer, pelo
+[roteiro](docs/verificacao-visual.md) — e publicar na Vercel.
 
 | Documento | Para quê |
 |---|---|
@@ -20,6 +22,7 @@ autenticação, gravação e as telas.
 | [docs/specs/](docs/specs/2026-08-08-sistema-despesas-casal-design.md) | O design: modelo, arquitetura, fases |
 | [docs/regras-de-negocio.md](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
 | [docs/arquitetura.md](docs/arquitetura.md) | Onde cada coisa mora no código, camada por camada |
+| [docs/verificacao-visual.md](docs/verificacao-visual.md) | O roteiro da conferência visual, tela a tela |
 | [CLAUDE.md](CLAUDE.md) | Orientação para sessões do Claude Code |
 
 Os mockups da proposta original estão publicados em
