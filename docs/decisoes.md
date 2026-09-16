@@ -130,8 +130,13 @@ Postgres, que foi um bug já corrigido nesta base. `ratear`, no domínio, contin
 nada disso: só usa a ordem da lista que recebe.
 
 A ordem de **exibição** das colunas na grade e no resumo (`criadoEm asc`, em
-`src/app/despesas/page.tsx` e `src/app/resumo/page.tsx`) é outra coisa e não muda com isto —
-o casal não pediu para inverter quem aparece primeiro na tela.
+`src/app/(app)/despesas/page.tsx` e `src/app/(app)/resumo/page.tsx`) é outra coisa e não muda
+com isto — o casal não pediu para inverter quem aparece primeiro na tela.
+
+Desde a Etapa 06 há tela para trocar quem absorve: `definirQuemAbsorveSobra`, na lista de
+pessoas de Configurações. Ela é **transacional**, e isso não é zelo: sem a transação, uma
+falha entre desmarcar os outros e marcar o novo deixaria zero ou dois membros com `true`, e a
+sobra voltaria a depender do desempate por `criadoEm`.
 
 ## O rateio é calculado sobre o valor da parcela
 
@@ -155,6 +160,79 @@ Fase 1 entrega só o **B**, de lista única.
 
 Construir dois renderizadores de grade antes de alguém ter usado o sistema é pagar caro por
 uma preferência que ninguém testou. Os dois continuam no escopo — só não no primeiro dia.
+
+## Seções por pessoa não são o layout A
+
+A entrada acima vai **parecer contrariada** pelo redesenho visual: a grade do mês passou a ter
+cabeçalho de grupo por pessoa, com subtotal em cada seção, e isso lembra muito o layout A de
+painéis lado a lado. Não é ele.
+
+O que existe continua sendo **um renderizador só**, de lista única: `grade-lancamentos.tsx`
+monta a tabela, e `secao-pessoa.tsx` desenha um grupo dentro dela — a mesma tabela, com
+cabeçalhos no meio. Não há segundo componente de grade, não há seletor entre layouts, e a
+tabela `Preferencia` continua sem existir no banco.
+
+O agrupamento em si nem é da tela: `agrupar`, em `src/domain/agrupamento.ts`, devolve grupos
+com subtotal e contagem, e o componente só desenha o que recebeu.
+
+**O layout A, em painéis lado a lado, segue adiado**, pelo motivo original: é o segundo
+renderizador, e ele custa caro antes de alguém ter usado o sistema. Ver a §2.1 da
+[spec do redesenho](specs/2026-09-07-redesenho-visual-e-navegacao-design.md), que decidiu isso
+explicitamente para o caso não ser reaberto por engano.
+
+## O escuro não foi construído, e o `prefers-color-scheme` foi removido de propósito
+
+O `globals.css` que veio do template do Next tinha um `@media (prefers-color-scheme: dark)`
+trocando `--background` e `--foreground`. Ele foi **removido** (commit `8933f6f`), e a
+ausência dele não é regressão — é a decisão.
+
+O tema alvo desta camada é o **claro**. Os tokens nascem prontos para receber um bloco escuro
+depois: cada cor é uma variável em `@theme`, e nenhum componente escreve cor literal. Mas o
+bloco escuro não foi escrito, e Configurações não ganhou seletor de tema.
+
+O motivo é que a preferência por pessoa depende da tabela `Preferencia`, que é de Fase 2. Um
+tema escuro sem onde guardar a escolha — ou guardado só no navegador de um dos dois — é
+meio-recurso, e meio-tema é pior que tema nenhum, porque cria a expectativa de que funciona.
+
+Manter o `prefers-color-scheme` antigo junto dos tokens novos seria exatamente isso: um escuro
+pela metade, herdado de um CSS de exemplo, decidindo sozinho a aparência do sistema conforme o
+ajuste do sistema operacional de quem abrisse. **Não recoloque o bloco achando que sumiu sem
+querer.** Ver §2.2 da [spec do redesenho](specs/2026-09-07-redesenho-visual-e-navegacao-design.md).
+
+## A varredura de cor exige dígito, e o Tailwind é preso a `src/`
+
+Duas coisas que parecem detalhe de configuração e têm o mesmo motivo: **manter honesta a
+verificação que proíbe cor literal**. Nenhuma das duas foi decidida por opinião; as duas foram
+medidas.
+
+**A varredura exige o número da paleta.** A restrição global 1 do plano visual proíbe cor
+literal, e a Etapa 07 a verifica por `grep`. A versão antiga do comando era
+`grep -rn "neutral-\|zinc-\|gray-\|slate-\|stone-"`, sem exigir dígito depois do hífen — e
+`slate-` **casa dentro de `translate-`**. As primitivas do shadcn usam `translate-x-*` e
+`translate-y-*` à vontade, então a varredura voltava cheia de falso positivo **com o código
+limpo**. Medido hoje, em `966a6a0`: a versão antiga acha **11 ocorrências, todas `slate-`,
+em 4 arquivos** (`ui/alert-dialog.tsx`, `ui/button.tsx`, `ui/select.tsx`, `ui/switch.tsx`) —
+todas dentro de `translate-`. A versão de hoje, no mesmo código, volta **vazia**. A versão
+corrigida é `-E` com
+`(neutral|zinc|...)-[0-9]{2,3}`, e a lista de cores foi completada: a antiga não olhava para
+`red-700` nem `amber-700`, que existiam no código da Fase 1.
+
+Uma verificação que grita sempre é pior que nenhuma — ensina quem a roda a ignorá-la.
+
+**O `globals.css` importa o Tailwind com escopo:** `@import "tailwindcss" source("../")`, onde
+`../` é `src/`. Sem isso, a detecção automática de classes varre o projeto inteiro a partir da
+raiz, **inclusive `docs/`** — e os documentos do plano *citam* cor literal justamente para
+proibi-la, além de `plans/fase-1/04-telas.md` guardar o código antigo por inteiro. O texto que
+proibia a cor literal era o que a injetava no bundle.
+
+**Medido por diff dos dois CSS compilados** (commit `6a9c8cb`): saíam **21 seletores**, entrava
+nenhum, e os 21 tinham **zero uso em `src/`**, conferidos um a um. Entre eles `bg-zinc-900`,
+`bg-neutral-900`, `bg-neutral-50`, `border-neutral-300`, `text-neutral-500` e
+`text-neutral-600`.
+
+Enquanto durasse, "essa classe está no CSS?" não servia de teste da varredura de cor — que é
+justamente o teste que a Etapa 07 existe para ter. Nada fora de `src/` tem classe do Tailwind:
+`public/` só tem SVG, e `e2e/` e `scripts/` são código sem tela.
 
 ## Commits durante execução de plano
 
