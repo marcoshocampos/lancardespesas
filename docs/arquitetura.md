@@ -84,6 +84,15 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `registrarValorReal`, `carregarFatura` |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 
+**As três gravações de lançamento rodam dentro de `prisma.$transaction`**, e todo helper do
+módulo recebe um `ClienteBanco` em vez de fechar sobre o `prisma` global — é o que permite a
+mesma função servir dentro e fora da transação. Quem acrescentar gravação ali **tem que passar
+o `tx` adiante**; usar o `prisma` global dentro da transação escreve por fora dela, e o
+rollback não alcança o que foi escrito assim. A verificação da fatura travada também ficou
+dentro: conferir fora deixava uma janela entre a conferência e a escrita em que a outra pessoa
+travava a fatura.
+
+
 `carregarFatura` devolve **valor e status na mesma consulta** (`{ valorRealCentavos, status }`,
 ou `null` quando ninguém conferiu ainda). A faixa de conferência precisa dos dois — o número
 para preencher o campo, o status para saber se a fatura travada desabilita o campo — e duas

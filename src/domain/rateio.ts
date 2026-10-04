@@ -3,8 +3,19 @@ import type { Centavos } from './money';
 export type PesoRateio = { membroId: string; percentual: number };
 export type Cota = { membroId: string; valorCentavos: Centavos };
 
-/** Divisao igual entre os membros informados, na ordem em que vierem. */
+/**
+ * Divisao igual entre os membros informados, na ordem em que vierem.
+ *
+ * Recusa lista vazia pelo mesmo motivo que `ratear`, e com a mesma mensagem.
+ * Sem a recusa, `map` sobre lista vazia devolvia `[]` em silencio: um
+ * lancamento de escopo CONJUNTO era gravado com ZERO rateios, e dali em diante
+ * `calcularResumo` lancava "Parcela de conjunto sem rateio" e o mes inteiro
+ * deixava de abrir. O erro aparecia na leitura, longe da gravacao que o
+ * causou. E alcancavel no dia em que existir acao de desativar pessoa — ver a
+ * armadilha 12 em docs/arquitetura.md.
+ */
 export function pesosMeioAMeio(membroIds: string[]): PesoRateio[] {
+  if (membroIds.length === 0) throw new Error('Rateio exige ao menos um membro');
   const percentual = 100 / membroIds.length;
   return membroIds.map((membroId) => ({ membroId, percentual }));
 }
