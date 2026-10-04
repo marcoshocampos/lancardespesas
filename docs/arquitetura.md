@@ -175,6 +175,12 @@ As **duas** linhas de metade aparecem separadas (`Metade de Nardy`, `Metade de N
 membro. `docs/regras-de-negocio.md` §4 mostra uma linha só, "Metade cada" — ver o aviso no fim
 de `estado.md`.
 
+`ResumoMes.reembolso` é a linha *A receber*, por pessoa: **fora** de `pessoal`, `conjunto`,
+`metade` e `totalGeral`, **dentro** de `somado`. Por isso a identidade da planilha não vale
+mais como estava — `somado = soma dos totalGeral + soma dos reembolso`. Quem escrever
+asserção de total precisa somar as duas parcelas, ou o teste passa a acusar erro onde não há.
+A matriz só desenha essas linhas no mês que tem reembolso.
+
 Cartões e matriz leem o **mesmo** `ResumoMes`; nenhum dos dois refaz conta. `selo-conferencia`
 só lê a `diferenca` que `conferir` devolveu, nunca recalcula.
 

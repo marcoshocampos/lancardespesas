@@ -69,6 +69,15 @@ Abra `http://localhost:3000`. Deve cair em `/despesas` sozinho.
 - [ ] Zero aparece como `—`, não como `R$ 0,00`.
 - [ ] Digite no campo de extrato um valor diferente do somado: o selo da conferência tem que
       mudar de forma, não só de cor.
+- [ ] **Sem reembolso no mês, não existe linha "A receber"** — e o `Somado` fecha com a soma
+      dos dois `Cabe a`.
+- [ ] Marque um lançamento como reembolso de terceiro e volte ao Resumo. Agora: duas linhas
+      **A receber** aparecem entre os `Cabe a` e o `Somado`; o `Somado` **não muda** (continua
+      sendo a fatura); o `Cabe a` da pessoa cai exatamente o valor do reembolso; e
+      `Cabe a` + `A receber` dos dois volta a dar o `Somado`. Desmarque depois.
+
+      Este é o único passo que verifica a linha nova. O cálculo está testado, a renderização
+      **não** — nenhum agente consegue passar do login para olhar.
 
 ## Passo 5 — Configurações
 

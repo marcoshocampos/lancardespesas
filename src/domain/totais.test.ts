@@ -43,11 +43,18 @@ describe('calcularResumo, com o mes de referencia', () => {
     expect(resumo.somado[COLUNA_TOTAL]).toBe(110551);
   });
 
-  it('mantem a identidade contabil: somado e a soma dos dois totais gerais', () => {
+  it('mantem a identidade contabil: somado e a soma dos totais gerais mais o a receber', () => {
     const soma =
       (resumo.totalGeral[NARDY]?.[COLUNA_TOTAL] ?? 0) +
-      (resumo.totalGeral[NICK]?.[COLUNA_TOTAL] ?? 0);
+      (resumo.totalGeral[NICK]?.[COLUNA_TOTAL] ?? 0) +
+      (resumo.reembolso[NARDY]?.[COLUNA_TOTAL] ?? 0) +
+      (resumo.reembolso[NICK]?.[COLUNA_TOTAL] ?? 0);
     expect(soma).toBe(resumo.somado[COLUNA_TOTAL]);
+  });
+
+  it('nao tem nada a receber, porque o mes de referencia nao tem reembolso', () => {
+    expect(resumo.reembolso[NARDY]?.[COLUNA_TOTAL]).toBe(0);
+    expect(resumo.reembolso[NICK]?.[COLUNA_TOTAL]).toBe(0);
   });
 
   it('expoe as contas na ordem pedida, para as colunas da tela', () => {
@@ -156,5 +163,111 @@ describe('calcularResumo, casos de borda', () => {
     const soma =
       (resumo.totalGeral[NARDY]?.[COLUNA_TOTAL] ?? 0) + (resumo.totalGeral[NICK]?.[COLUNA_TOTAL] ?? 0);
     expect(soma).toBe(resumo.somado[COLUNA_TOTAL]);
+  });
+});
+
+describe('calcularResumo, reembolso de terceiro', () => {
+  // A regra: entra na fatura, porque o dinheiro saiu da conta; sai do gasto
+  // do casal, porque nao e gasto deles. Ver regras-de-negocio.md, secao 6.
+  const pessoalDeNick = { contaId: C6, escopo: 'PESSOAL' as const, membroId: NICK };
+
+  it('tira o reembolso do gasto da pessoa e poe no a receber dela', () => {
+    const resumo = calcularResumo(
+      [
+        { ...pessoalDeNick, valorCentavos: 30000 },
+        { ...pessoalDeNick, valorCentavos: 21000, ehReembolso: true },
+      ],
+      MEMBROS,
+      CONTAS,
+    );
+    expect(resumo.pessoal[NICK]?.[C6]).toBe(30000);
+    expect(resumo.reembolso[NICK]?.[C6]).toBe(21000);
+    expect(resumo.totalGeral[NICK]?.[C6]).toBe(30000);
+  });
+
+  it('mantem o reembolso na fatura, que e o somado da coluna', () => {
+    const resumo = calcularResumo(
+      [
+        { ...pessoalDeNick, valorCentavos: 30000 },
+        { ...pessoalDeNick, valorCentavos: 21000, ehReembolso: true },
+      ],
+      MEMBROS,
+      CONTAS,
+    );
+    expect(resumo.somado[C6]).toBe(51000);
+  });
+
+  it('obedece a identidade nova: somado e totais gerais mais a receber', () => {
+    const resumo = calcularResumo(
+      [
+        { ...pessoalDeNick, valorCentavos: 30000 },
+        { ...pessoalDeNick, valorCentavos: 21000, ehReembolso: true },
+        { contaId: C6, escopo: 'PESSOAL', membroId: NARDY, valorCentavos: 10000 },
+      ],
+      MEMBROS,
+      CONTAS,
+    );
+    const soma =
+      (resumo.totalGeral[NARDY]?.[COLUNA_TOTAL] ?? 0) +
+      (resumo.totalGeral[NICK]?.[COLUNA_TOTAL] ?? 0) +
+      (resumo.reembolso[NARDY]?.[COLUNA_TOTAL] ?? 0) +
+      (resumo.reembolso[NICK]?.[COLUNA_TOTAL] ?? 0);
+    expect(soma).toBe(resumo.somado[COLUNA_TOTAL]);
+  });
+
+  it('tira o reembolso de conjunto do conjunto e da metade, cota por cota', () => {
+    const resumo = calcularResumo(
+      [
+        {
+          contaId: C6,
+          escopo: 'CONJUNTO',
+          valorCentavos: 10101,
+          ehReembolso: true,
+          cotas: [
+            { membroId: NARDY, valorCentavos: 5050 },
+            { membroId: NICK, valorCentavos: 5051 },
+          ],
+        },
+      ],
+      MEMBROS,
+      CONTAS,
+    );
+    expect(resumo.conjunto[C6]).toBe(0);
+    expect(resumo.metade[NARDY]?.[C6]).toBe(0);
+    expect(resumo.metade[NICK]?.[C6]).toBe(0);
+    expect(resumo.reembolso[NARDY]?.[C6]).toBe(5050);
+    expect(resumo.reembolso[NICK]?.[C6]).toBe(5051);
+    expect(resumo.somado[C6]).toBe(10101);
+  });
+
+  it('continua exigindo membro, mesmo sendo reembolso', () => {
+    expect(() =>
+      calcularResumo(
+        [{ contaId: C6, escopo: 'PESSOAL', valorCentavos: 100, ehReembolso: true }],
+        MEMBROS,
+        CONTAS,
+      ),
+    ).toThrow('Parcela pessoal sem membro');
+  });
+
+  it('continua exigindo rateio que fecha, mesmo sendo reembolso', () => {
+    expect(() =>
+      calcularResumo(
+        [
+          {
+            contaId: C6,
+            escopo: 'CONJUNTO',
+            valorCentavos: 10000,
+            ehReembolso: true,
+            cotas: [
+              { membroId: NARDY, valorCentavos: 4000 },
+              { membroId: NICK, valorCentavos: 5000 },
+            ],
+          },
+        ],
+        MEMBROS,
+        CONTAS,
+      ),
+    ).toThrow('Rateio nao fecha com o valor da parcela');
   });
 });
