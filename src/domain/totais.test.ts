@@ -1,30 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { C6, EXTERNA, NARDY, NICK, PARCELAS_AGOSTO_2026 } from './fixtures/agosto-2026';
+import { C6, EXTERNA, NARDY, NICK, PARCELAS_DO_MES } from './fixtures/mes-de-referencia';
 import { COLUNA_TOTAL, calcularResumo } from './totais';
 
 const MEMBROS = [NARDY, NICK];
 const CONTAS = [C6, EXTERNA];
 
-describe('calcularResumo, com os dados reais de agosto de 2026', () => {
-  const resumo = calcularResumo(PARCELAS_AGOSTO_2026, MEMBROS, CONTAS);
+describe('calcularResumo, com o mes de referencia', () => {
+  const resumo = calcularResumo(PARCELAS_DO_MES, MEMBROS, CONTAS);
 
-  it('reproduz os totais pessoais da planilha na coluna do C6', () => {
+  it('soma os totais pessoais na coluna do cartao', () => {
     expect(resumo.pessoal[NARDY]?.[C6]).toBe(42375);
     expect(resumo.pessoal[NICK]?.[C6]).toBe(50075);
   });
 
-  it('reproduz o total do conjunto e a metade', () => {
+  it('da a sobra do conjunto impar a quem absorve, sem perder o centavo', () => {
     expect(resumo.conjunto[C6]).toBe(10101);
     expect(resumo.metade[NARDY]?.[C6]).toBe(5050);
-    expect(resumo.metade[NICK]?.[C6]).toBe(5050);
+    expect(resumo.metade[NICK]?.[C6]).toBe(5051);
+    const metades = (resumo.metade[NARDY]?.[C6] ?? 0) + (resumo.metade[NICK]?.[C6] ?? 0);
+    expect(metades).toBe(resumo.conjunto[C6]);
   });
 
-  it('reproduz o TOTAL GERAL de cada pessoa no C6', () => {
+  it('soma o TOTAL GERAL de cada pessoa no cartao', () => {
     expect(resumo.totalGeral[NARDY]?.[C6]).toBe(47425);
     expect(resumo.totalGeral[NICK]?.[C6]).toBe(55126);
   });
 
-  it('reproduz a fatura do C6, que e o somado daquela coluna', () => {
+  it('da a fatura do cartao, que e o somado daquela coluna', () => {
     expect(resumo.somado[C6]).toBe(102551);
   });
 

@@ -54,10 +54,11 @@ Valem para todas as tarefas, sem exceção.
 - **Nunca commitar sem autorização.** Exceção vigente: durante a execução deste plano, em
   branch de trabalho, os agentes commitam livremente; a consulta é obrigatória para `main` e
   para qualquer `push`.
-- **Fixture obrigatória:** os números reais de agosto, em
-  [`docs/regras-de-negocio.md`](../../regras-de-negocio.md#4-totais-do-mês). Se os totais não
-  reproduzirem `R$ 1.025,51` de fatura, `R$ 474,25` e `R$ 551,26` de total geral, o
-  cálculo está errado.
+- **Fixture obrigatória:** [`src/domain/fixtures/mes-de-referencia.ts`](../../../src/domain/fixtures/mes-de-referencia.ts),
+  com números **inventados** — o repositório não recebe dado financeiro. Se os totais não
+  reproduzirem `R$ 1.025,51` de fatura, `R$ 474,25` e `R$ 551,26` de total geral, o cálculo
+  está errado. A conferência contra a planilha de verdade é na tela, por
+  [`verificacao-visual.md`](../../verificacao-visual.md).
 - **Segredos** vêm do `.env`, a partir do `.env.example`. Nunca escreva um valor real em
   arquivo versionado, em log ou em conversa.
 
@@ -72,7 +73,7 @@ src/domain/            regras puras, zero I/O — um .test.ts irmão por arquivo
   rateio.ts            divisão do conjunto e resto de centavos
   totais.ts            matriz pessoas × contas
   conferencia.ts       somado contra o valor real do extrato
-  fixtures/            dados reais de agosto, usados nos testes
+  fixtures/            mes inventado, usado nos testes de total
 src/server/
   db.ts                cliente Prisma singleton
   auth.ts              Auth.js v5, provider Google

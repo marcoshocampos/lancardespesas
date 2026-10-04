@@ -4,10 +4,10 @@ export type Centavos = number;
 const FORA_DO_FORMATO = /[^\d,.-]/g;
 
 /**
- * Converte texto no formato brasileiro ("474,25", "R$ 65", "-100,00") em centavos.
+ * Converte texto no formato brasileiro ("1.025,51", "R$ 65", "-100,00") em centavos.
  *
  * A virgula, quando presente, e sempre o decimal — e os pontos, se houver, sao
- * separador de milhar ("474,25"). Sem virgula, um ponto e ambiguo ("1.234" e mil
+ * separador de milhar ("1.025,51"). Sem virgula, um ponto e ambiguo ("1.234" e mil
  * duzentos e trinta e quatro, ou um e vinte e tres?) e por isso e recusado em vez de
  * adivinhado: um ponto de decimal digitado por habito (teclado numerico, valor colado
  * de extrato) nao pode virar silenciosamente um valor 100x maior.

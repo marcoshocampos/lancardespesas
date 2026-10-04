@@ -20,7 +20,7 @@ describe('agrupar', () => {
     expect(grupos[0]).toEqual({
       chave: NARDY,
       itens: [item(NARDY, 10000), item(NARDY, 4951)],
-      subtotalCentavos: 17905,
+      subtotalCentavos: 14951,
       quantidade: 2,
     });
     expect(grupos[1]?.subtotalCentavos).toBe(30000);
@@ -55,7 +55,7 @@ describe('agrupar', () => {
   });
 
   it('a soma dos subtotais fecha com o total dos itens', () => {
-    const itens = [item(NARDY, 10000), item(NICK, 30000), item(CONJUNTO, 10101), item(NICK, -500)];
+    const itens = [item(NARDY, 10000), item(NICK, 30000), item(CONJUNTO, 10100), item(NICK, -500)];
     const grupos = agrupar(itens, ORDEM);
 
     const somaDosSubtotais = grupos.reduce((a, g) => a + g.subtotalCentavos, 0);

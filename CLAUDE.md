@@ -104,9 +104,15 @@ segundo dono da identidade e um schema `neon_auth` no meio das migrations do Pri
 
 ## Dados de referência
 
-O apêndice da spec traz os números reais de agosto. **Use-os como fixture nos testes de
-cálculo** — se os totais do sistema não reproduzirem `R$ 1.025,51` de fatura, `R$ 474,25` e
-`R$ 551,26` de total geral, o cálculo está errado.
+A fixture dos testes de cálculo é [`src/domain/fixtures/mes-de-referencia.ts`](src/domain/fixtures/mes-de-referencia.ts),
+e os números dela são **inventados** — o repositório não recebe dado financeiro, nem como
+fixture. Ela exercita o que importa: pessoal de cada um, conjunto de valor ímpar para a sobra
+de centavos aparecer, e uma despesa fora do cartão.
+
+**A conferência contra a planilha real é feita na tela, não em teste**, pelo roteiro em
+[`docs/verificacao-visual.md`](docs/verificacao-visual.md). Se o `Somado` da coluna do cartão
+não bater com a linha `FATURA:` da planilha, o cálculo está errado — mas o número que prova
+isso mora na planilha do casal, e não aqui.
 
 ## Ambiente
 

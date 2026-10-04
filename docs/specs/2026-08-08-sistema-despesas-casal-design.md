@@ -346,18 +346,20 @@ Decididos e descartados; todos podem voltar se virarem dor real:
 A proposta visual publicada reflete a primeira versão e ainda mostra a tela de saldo e a
 pergunta sobre etiquetas.
 
-## Apêndice — dados de referência (agosto)
+## Apêndice — dados de referência
 
-Números reais da planilha, usados para validar os cálculos na implementação.
+**Este apêndice tinha os números reais da planilha de agosto e foi removido.** Eram os totais
+do casal, a quebra por categoria e a projeção das parcelas futuras — finança real num
+repositório, o que o `CLAUDE.md` proíbe na seção Convenções. A remoção veio depois, não na
+redação original: a spec foi escrita quando os números pareciam só dado de teste.
 
-**Totais:** Nardy `R$ 423,75` · Nick `R$ 500,75` · Conjunto `R$ 101,01` ·
-Metade `R$ 50,50` · Total geral Nardy `R$ 474,25` · Total geral Nick `R$ 551,26` ·
-Fatura `R$ 1.025,51`
+O que ocupava o lugar dele:
 
-**Por categoria:** Veículo `R$ 900,00` · Compra Online `R$ 300,00` · Terceiros `R$ 120,00` ·
-Medicação `R$ 110,00` · Beleza `R$ 95,00` · Presente `R$ 90,00` · Assinatura `R$ 88,00` ·
-Jogo `R$ 60,00` — soma `R$ 1.025,51`, igual à fatura.
+- **Para testar cálculo**, a fixture [`mes-de-referencia.ts`](../../src/domain/fixtures/mes-de-referencia.ts),
+  com números inventados. Ela cobre os mesmos casos, e o conjunto é ímpar de propósito para a
+  sobra de centavos aparecer — coisa que o apêndice real nunca exercitou, porque o conjunto
+  dele dividia exato.
+- **Para conferir contra a planilha**, o roteiro [`verificacao-visual.md`](../verificacao-visual.md),
+  que compara na tela e não guarda número nenhum.
 
-**Parcelas em aberto após agosto:** setembro `R$ 1.100,00` · outubro a fevereiro
-`R$ 600,00`/mês · março `R$ 432,10`. O parcelamento do moto responde por `R$ 432,10`
-mensais até junho de 2027.
+A planilha do casal é a referência, e ela vive em `dados-privados/`, fora do git.

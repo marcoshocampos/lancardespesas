@@ -46,7 +46,7 @@ Funções puras. Argumentos entram, valor sai. **Nada de Prisma, `fetch`, `Date.
 | `totais.ts` | A matriz de pessoas por contas, reproduzindo a planilha | `COLUNA_TOTAL`, `ParcelaResumo`, `LinhaMatriz`, `ResumoMes`, `calcularResumo` |
 | `conferencia.ts` | O somado contra o valor real do extrato | `SituacaoConferencia`, `Conferencia`, `conferir` |
 | `agrupamento.ts` | Agrupa e soma por chave, para a tela não precisar contar | `ItemAgrupavel`, `Grupo`, `agrupar` |
-| `fixtures/agosto-2026.ts` | Os números reais de agosto, congelados | `PARCELAS_AGOSTO_2026` |
+| `fixtures/mes-de-referencia.ts` | Mês inventado para os testes de total, com conjunto ímpar | `PARCELAS_DO_MES` |
 
 **A fixture é a prova de paridade.** Se os totais dela deixarem de bater, o cálculo quebrou —
 não conserte o teste.
@@ -402,3 +402,29 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     um deixa o buraco aberto nos outros dois. Há um comentário marcando o ponto em
     `painel-lancamento.tsx`, logo acima de `escopoPadrao` ("ATENCAO, terceiro caso da mesma
     familia, hoje inalcancavel").
+
+13. **Competência é o mês do vencimento, não o nome da aba da planilha.** A aba chamada
+    "AGOSTO" é paga em setembro, logo é competência `2026-09`. A primeira importação passou
+    `2026-08` na linha de comando e ficou um mês inteira deslocada — contra a definição que o
+    próprio `CLAUDE.md` documenta no vocabulário. O importador aceita a competência como
+    argumento e **não tem como saber que você errou**: ele grava onde você mandar. Consequência
+    aceita: os rótulos do sistema ficam um mês à frente dos nomes das abas, para sempre.
+
+14. **O importador não tem trava contra dado preexistente.** Rodar duas vezes soma em cima, não
+    substitui — 35 lançamentos viram 70, e os totais dobram sem nenhum erro. O rollback
+    compensatório que ele tem só desfaz **a própria rodada** quando ela falha no meio. Antes de
+    reimportar, apague o lote anterior, e confira pelo minuto de criação se não há lançamento
+    feito pela tela misturado no meio.
+
+15. **A planilha arredonda as duas metades para cima, e o sistema não.** Num conjunto de
+    R$ 101,01 a planilha dá R$ 50,50 a cada um, e os dois totais gerais somam um centavo
+    **mais** do que a fatura que se paga. O sistema dá a sobra a quem tem `absorveSobra` e
+    fecha exato. Na conferência, **essa divergência é a planilha errando** — e cresce com o
+    número de lançamentos conjuntos ímpares, um centavo cada, não um centavo no total.
+
+16. **Número financeiro real não entra em fixture nem em documento.** A fixture dos testes de
+    total guardou por meses a lista de compras do casal, item a item, e os totais de agosto
+    estavam espalhados por 22 arquivos — incluindo valores de compras individuais
+    reaproveitados como dado de teste em `agrupamento.test.ts`. O substituto é
+    `fixtures/mes-de-referencia.ts`, inventado. **Ao escrever teste de cálculo, invente o
+    número**; a conferência contra o real é na tela, por `verificacao-visual.md`.

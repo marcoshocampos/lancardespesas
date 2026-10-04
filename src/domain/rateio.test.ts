@@ -15,7 +15,7 @@ describe('pesosMeioAMeio', () => {
 
 describe('ratear', () => {
   it('divide o caso real do fone sem sobra', () => {
-    const cotas = ratear(10101, pesosMeioAMeio([NARDY, NICK]));
+    const cotas = ratear(10100, pesosMeioAMeio([NARDY, NICK]));
     expect(cotas).toEqual([
       { membroId: NARDY, valorCentavos: 5050 },
       { membroId: NICK, valorCentavos: 5050 },
@@ -55,7 +55,7 @@ describe('ratear', () => {
   });
 
   it('mantem a soma das cotas igual ao valor rateado, sempre', () => {
-    for (const valor of [1, 3, 10001, 10101, 99999, 102551]) {
+    for (const valor of [1, 3, 10001, 10100, 99999, 102551]) {
       const cotas = ratear(valor, pesosMeioAMeio([NARDY, NICK]));
       const soma = cotas.reduce((acc, c) => acc + c.valorCentavos, 0);
       expect(soma, `valor ${valor}`).toBe(valor);

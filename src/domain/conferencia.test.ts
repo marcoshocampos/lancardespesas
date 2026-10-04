@@ -18,14 +18,14 @@ describe('conferir', () => {
   });
 
   it('aponta que falta lancar quando o extrato e maior', () => {
-    const resultado = conferir(250000, 102551);
-    expect(resultado.diferenca).toBe(6062);
+    const resultado = conferir(100000, 102551);
+    expect(resultado.diferenca).toBe(2551);
     expect(resultado.situacao).toBe('FALTA_LANCAR');
   });
 
   it('aponta lancamento sobrando quando o extrato e menor', () => {
-    const resultado = conferir(102551, 250000);
-    expect(resultado.diferenca).toBe(-6062);
+    const resultado = conferir(102551, 100000);
+    expect(resultado.diferenca).toBe(-2551);
     expect(resultado.situacao).toBe('SOBRA_LANCAMENTO');
   });
 

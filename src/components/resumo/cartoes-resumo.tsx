@@ -32,8 +32,8 @@ const CLASSE_CARTAO = 'rounded-caixa border border-borda bg-superficie px-5 py-4
  * E nao ha o que ganhar. A `section` com `aria-label` ja e um landmark
  * `region`, entao o grupo se alcanca pelo rotor sem heading nenhum. E o que
  * esta no cartao nao e uma secao de conteudo, e um rotulo grudado num numero:
- * como `span`, o cartao inteiro e lido de uma vez — "Nardy, R$ 551,26,
- * R$ 539,34 proprio mais R$ 474,25 da metade". Como heading, a navegacao por
+ * como `span`, o cartao inteiro e lido de uma vez — "Nardy, R$ 474,25,
+ * R$ 423,75 proprio mais R$ 50,50 da metade". Como heading, a navegacao por
  * H entrega "Nardy" e deixa o numero para tras.
  */
 function CartaoMembro({ membro, resumo }: { membro: Membro; resumo: ResumoMes }) {

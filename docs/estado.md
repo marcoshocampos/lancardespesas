@@ -1,16 +1,19 @@
 # Estado do projeto
 
-Atualizado em 2026-09-11. Este arquivo responde "onde paramos" para quem chega agora —
+Atualizado em 2026-10-04. Este arquivo responde "onde paramos" para quem chega agora —
 inclusive uma sessão nova de agente, que não tem memória da conversa anterior.
 
 ## Onde estamos
 
-**Fase 1 está em `main`.** A `main` está em `1942e56` e já foi enviada ao GitHub — as 15
-tarefas da Fase 1, mais oito commits posteriores: o importador colunar e a escolha explícita de
-quem absorve a sobra de centavos.
+**Fase 1 e o redesenho visual estão os dois em `main`, enviados ao GitHub, e o sistema está
+publicado em https://lancardespesas.vercel.app.** O merge do redesenho é o `39bb8e4`, com 61
+commits. As branches de trabalho foram apagadas; só existe `main`.
 
-**O redesenho visual está na branch `navegacao`, com 52 commits à frente de `main`, e ainda
-não foi mesclado nem enviado.** É o trabalho do plano
+Da Vercel já se sabe que a tela de login responde e que `/despesas` e `/configuracoes`
+redirecionam para `/entrar` preservando o `callbackUrl` — **o middleware funciona em
+produção**. O que ainda não foi testado lá é a allowlist, que exige login de verdade.
+
+O redesenho visual é o trabalho do plano
 [`plans/redesenho-visual/`](plans/redesenho-visual/README.md): a camada visual que a Fase 1 não
 construiu. As sete etapas estão concluídas, cada tarefa com revisão própria.
 
@@ -28,10 +31,7 @@ construiu. As sete etapas estão concluídas, cada tarefa com revisão própria.
 razão é simples: tudo da Etapa 02 em diante está atrás do login com Google, e nenhum agente
 conseguiu entrar. É a dívida 2 mais abaixo, e é ela que segura a Tarefa 4, o fechamento.
 
-**Nada foi mesclado em `main` e nada foi enviado.** É o que o plano manda: a faixa de commits
-se apresenta e se espera a palavra do usuário — o commit que ele revisa é o merge.
-
-Três consertos nasceram fora do plano, de revisão, e estão na branch: conta inativa com
+Três consertos nasceram fora do plano, de revisão, e entraram junto: conta inativa com
 histórico derrubando o mês (`9232252`), categoria arquivada sendo trocada em silêncio ao editar
 (`29d7538`), e o reset de formulário do React 19 apagando o que foi digitado (`35ba027`). Os
 três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
@@ -174,9 +174,9 @@ com Google, e **nenhum agente conseguiu entrar**. Nada da camada visual foi vist
 verdade. Não há teste automatizado dela: o projeto não tem teste de componente, e o único
 Playwright está pulado por exigir login.
 
-A lista tela a tela, escrita para não depender de memória, está na **Tarefa 2 de
-[`plans/redesenho-visual/07-acabamento.md`](plans/redesenho-visual/07-acabamento.md)** — sete
-passos, incluindo a prova de paridade de agosto (`R$ 1.025,51`, `R$ 474,25`, `R$ 551,26`).
+O roteiro operacional, escrito para não depender de memória, está em
+[`verificacao-visual.md`](verificacao-visual.md) — sete passos, incluindo a prova de paridade,
+que é conferida contra a planilha do casal e não contra número escrito aqui.
 
 Para ver as telas com conteúdo sem tocar em dado real:
 
@@ -204,26 +204,40 @@ registros contra oito, e a cor de membro aparece em menos lugares.
 tabela `Membro`, contra o banco de produção do casal, e **ninguém deve rodá-los sem a palavra
 do usuário**. Até lá o código lê `Membro.cor` normalmente e nada precisa mudar.
 
-## Uma divergência de apresentação, que não é erro
+## O centavo em que a planilha e o sistema discordam
 
-[`docs/regras-de-negocio.md`](regras-de-negocio.md), seção 4, mostra a linha única **"Metade
-cada"**, herdada da planilha. A matriz da tela mostra **as duas metades separadas**, uma linha
-por pessoa: *Metade de Nardy*, *Metade de Nick*.
+**O sistema está certo e a planilha erra**, e vale saber disso antes da conferência.
 
-**Não é divergência de cálculo, e nenhum dos dois está errado.** Aquele documento descreve a
-conta — e a conta é a mesma, `ratear` sobre o `TOTAL Conjunto` da coluna. A tela abre o
-resultado por pessoa porque é o que se lê olhando para a coluna de alguém. Fica registrado
-aqui porque quem ler os dois documentos lado a lado vai estranhar.
+Num conjunto de valor ímpar a metade não existe em centavos. A planilha arredonda as duas para
+cima: em R$ 101,01 ela dá R$ 50,50 a cada um, e os dois totais gerais passam a somar um
+centavo **mais** do que a fatura que se paga de fato. O sistema dá a sobra a quem tem
+`absorveSobra` — Nick — e fecha exato.
+
+Na importação de setembro isso aparece assim, com nove lançamentos conjuntos:
+
+| | planilha | sistema |
+|---|---|---|
+| Total geral Nardy | R$ 474,25 | R$ 474,25 |
+| Total geral Nick | R$ 551,26 | R$ 551,26 |
+| Soma | R$ 1.025,52 | **R$ 1.025,51**, igual à fatura |
+
+A diferença **não é de um centavo no total**: é de um centavo por lançamento conjunto ímpar, e
+toda ela recai sobre a mesma pessoa. Com nove lançamentos deu dois centavos. Está registrado
+como armadilha 15 em [`arquitetura.md`](arquitetura.md).
+
+A seção 4 de [`regras-de-negocio.md`](regras-de-negocio.md) mostra as duas metades em linhas
+separadas justamente por isso — a linha única "Metade cada" da planilha não tem como ser
+verdadeira quando o conjunto é ímpar.
 
 ## Serviços externos
 
 | Serviço | Situação |
 |---|---|
-| Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha importada**. É o banco de produção do casal, com dado financeiro real |
+| Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha reimportada como `2026-09`** (58 lançamentos, fatura conferida contra a linha `FATURA:`). É o banco de produção do casal, com dado financeiro real |
 | Neon — banco de teste | **Não criado.** É o que falta para os 12 testes de banco rodarem (dívida 1) |
 | Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo |
-| Vercel | **Não criado.** Só é necessário para publicar |
-| GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada; `navegacao` **não** |
+| Vercel | **Publicado** em https://lancardespesas.vercel.app. Middleware verificado em produção; allowlist ainda não |
+| GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada e única; branches de trabalho apagadas |
 
 Os segredos moram em `.env`, na raiz, a partir do `.env.example`. **`.env`, e não
 `.env.local`** — o CLI do Prisma lê o primeiro nativamente e não lê o segundo, então

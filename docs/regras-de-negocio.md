@@ -130,20 +130,28 @@ SOMADO           = TOTAL Nardy + TOTAL Nick + TOTAL Conjunto
 Cada uma dessas linhas é calculada **por conta** e depois somada na coluna de total. Para uma
 conta de cartão, o `SOMADO` daquela coluna é a `FATURA` da competência.
 
-Com os dados reais de agosto, e o `manutenção da moto` de R$ 80,00 como despesa externa de Nick:
+Com a fixture [`mes-de-referencia.ts`](../src/domain/fixtures/mes-de-referencia.ts), cujos
+números são **inventados** de propósito — o repositório não recebe dado financeiro real:
 
-|  | C6 | Externa | Total |
+|  | Cartão | Externa | Total |
 |---|---:|---:|---:|
 | Nardy | 423,75 | 0,00 | 423,75 |
 | Nick | 500,75 | 80,00 | 580,75 |
 | Conjunto | 101,01 | 0,00 | 101,01 |
-| Metade cada | 50,50 | 0,00 | 50,50 |
+| Metade Nardy | 50,50 | 0,00 | 50,50 |
+| Metade Nick | 50,51 | 0,00 | 50,51 |
 | Nardy total | 474,25 | 0,00 | 474,25 |
 | Nick total | 551,26 | 80,00 | 631,26 |
 | Somado | 1.025,51 | 80,00 | 1.105,51 |
 
-A coluna do C6 reproduz exatamente a planilha, e é ela que os testes devem validar. A leitura
-horizontal responde quanto cada pessoa gastou no mês inteiro, dentro e fora da fatura.
+O conjunto é ímpar de propósito: R$ 101,01 não divide ao meio, e a sobra de um centavo vai
+para quem tem `absorveSobra`. **As duas metades diferem entre si, e isso é correto** — é o
+único jeito de os dois totais somarem exatamente o `Somado`. Uma planilha que arredonda as
+duas metades para cima cria um centavo que ninguém paga.
+
+A leitura horizontal responde quanto cada pessoa gastou no mês inteiro, dentro e fora da
+fatura. A conferência contra a planilha real é na tela, por
+[`verificacao-visual.md`](verificacao-visual.md).
 
 **Nenhum rótulo muda de significado** em relação à planilha: `TOTAL GERAL` continua sendo
 pessoal mais metade do conjunto, agora por conta. O número que soma tudo é a célula onde a
