@@ -153,6 +153,9 @@ A leitura horizontal responde quanto cada pessoa gastou no mês inteiro, dentro 
 fatura. A conferência contra a planilha real é na tela, por
 [`verificacao-visual.md`](verificacao-visual.md).
 
+**Com reembolso no mês, o `Somado` deixa de fechar com a soma dos totais** — e isso é correto.
+A identidade completa é `somado = soma dos totalGeral + soma dos reembolso`; ver a seção 6.
+
 **Nenhum rótulo muda de significado** em relação à planilha: `TOTAL GERAL` continua sendo
 pessoal mais metade do conjunto, agora por conta. O número que soma tudo é a célula onde a
 linha `TOTAL GERAL` cruza a coluna `Total`.
@@ -205,12 +208,32 @@ status.
 - **Sai dos relatórios de gasto do casal.** Não é gasto de vocês.
 - Aparece em "A receber" enquanto estiver pendente.
 
+### Onde ele aparece no Resumo
+
+Numa linha própria, **A receber por ‹pessoa›**, dentro da banda *Resultado* — entre os
+*Cabe a* e o *Somado*, que é a posição em que ela explica a diferença entre os dois. Fica fora
+de `pessoal`, `conjunto`, `metade` e `totalGeral`, e dentro de `somado`.
+
+Isso **muda a identidade contábil** herdada da planilha, onde o `SOMADO` fechava com a soma dos
+`TOTAL GERAL` porque reembolso não existia lá:
+
+```
+somado = soma dos totalGeral + soma dos reembolso
+```
+
+As linhas só aparecem no mês que tem reembolso. Sem reembolso as duas somas coincidem, e duas
+linhas vazias permanentes sugeririam uma lacuna que não existe.
+
 ### Parcelado
 
-O status é **por parcela**, não por lançamento. O caso real é o `aparelho`, R$ 100,00 em 6/12:
-a pessoa devolve mês a mês, então cada parcela tem seu próprio pendente ou recebido. **[a confirmar]**
+O status é **por lançamento**, não por parcela — decidido, e o schema já era assim
+(`Lancamento.statusReembolso`). Um reembolso parcelado é reembolso em todas as parcelas dele,
+de uma vez; não há como marcar recebida a parcela 3 e pendente a 4. Ver
+[`decisoes.md`](decisoes.md).
 
-Marcar como recebido registra a data e não altera valor nenhum na fatura.
+Marcar como recebido registra a data e não altera valor nenhum na fatura. **Qualquer status
+tira do gasto do casal, `PENDENTE` ou `RECEBIDO`** — receber encerra a cobrança, não
+transforma a despesa em gasto deles.
 
 ---
 

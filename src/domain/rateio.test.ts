@@ -81,3 +81,18 @@ describe('ratear', () => {
     expect(() => ratear(10000, [])).toThrow('Rateio exige ao menos um membro');
   });
 });
+
+describe('pesosMeioAMeio', () => {
+  it('divide igual entre os membros, na ordem recebida', () => {
+    expect(pesosMeioAMeio(['a', 'b'])).toEqual([
+      { membroId: 'a', percentual: 50 },
+      { membroId: 'b', percentual: 50 },
+    ]);
+  });
+
+  it('recusa lista vazia em vez de devolver rateio nenhum', () => {
+    // Devolver [] aqui gravava lancamento de conjunto sem rateio, e o erro
+    // so aparecia depois, na leitura do mes inteiro.
+    expect(() => pesosMeioAMeio([])).toThrow('Rateio exige ao menos um membro');
+  });
+});

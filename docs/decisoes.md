@@ -242,3 +242,46 @@ compara faixas de commit e o registro de progresso guarda os hashes.
 
 A consulta continua obrigatória para `main` e para qualquer `push`. O commit que o usuário
 revisa é o merge.
+
+## O reembolso sai do gasto e fica na fatura, numa linha própria
+
+**Onde:** `ResumoMes.reembolso` em `src/domain/totais.ts`, a banda *Resultado* em
+`matriz-resumo.tsx`, e `statusReembolso` em `prisma/schema.prisma`.
+
+A regra sempre disse as duas coisas (`regras-de-negocio.md`, seção 6): reembolso **entra na
+fatura**, porque o dinheiro saiu da conta e ignorar isso quebraria a conferência contra o
+extrato; e **sai do gasto do casal**, porque não é gasto deles. O cálculo não fazia nem um
+nem outro — `ParcelaResumo` não tinha campo de reembolso, então `calcularResumo` não tinha
+como saber. O selo existia só na grade, decorativo.
+
+Cumprir a regra **quebra a identidade contábil herdada da planilha**. Na planilha o `SOMADO`
+fechava com a soma dos `TOTAL GERAL`, porque lá não havia reembolso em lugar nenhum. Aqui a
+identidade passa a ser:
+
+```
+somado = soma dos totalGeral + soma dos reembolso
+```
+
+Foi escolha explícita do usuário entre duas opções: linha nova no Resumo, ou deixar o Resumo
+como está e excluir reembolso só nos Gráficos quando existirem. **Escolheu a linha nova** — a
+alternativa deixaria a mesma pergunta respondida de dois jeitos em duas telas.
+
+As linhas *A receber* aparecem só no mês que tem reembolso, e em bloco. É a única exceção à
+regra de que a matriz mostra toda linha com travessão quando zero, e tem motivo: sem
+reembolso o `Somado` fecha com a soma dos *Cabe a*, e duas linhas vazias permanentes
+sugeririam uma lacuna inexistente.
+
+### O status é por lançamento, não por parcela
+
+A seção 6 descrevia status **por parcela**, marcado `[a confirmar]`, com o argumento de um
+parcelado que a pessoa devolve mês a mês. O schema sempre teve `statusReembolso` em
+`Lancamento`. **O usuário confirmou por lançamento**, e a regra se ajustou ao schema em vez do
+contrário — não há migration aqui.
+
+Consequência aceita: um reembolso parcelado é reembolso em **todas** as parcelas dele, de uma
+vez. Não há como marcar recebida a parcela 3 e pendente a 4. Se um dia isso incomodar, é
+migration de `statusReembolso` para `Parcela`, e aí a leitura em `carregarParcelasDaCompetencia`
+passa a vir da parcela e não do lançamento.
+
+Qualquer status tira do gasto, `PENDENTE` ou `RECEBIDO`. Receber não transforma a despesa em
+gasto do casal: só encerra a cobrança.

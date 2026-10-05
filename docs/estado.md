@@ -113,8 +113,14 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 - **Não há tela de resolução de conflito.** A proteção contra sobrescrita existe e a recusa
   aparece — e desde `35ba027` a recusa não apaga mais o que foi digitado —, mas sem o
   comparativo lado a lado
-- **Não há tela para marcar reembolso como recebido**, e a regra de negócio diz que reembolso
-  sai dos relatórios de gasto do casal, o que o cálculo ainda não faz
+- **Não há tela para marcar reembolso como recebido.** O cálculo já obedece a regra — o
+  reembolso sai do gasto do casal e continua na fatura, na linha *A receber* do Resumo —, mas
+  marcar um lançamento como reembolso ainda é trabalho de banco: o painel de lançamento não
+  tem o campo, e nem `devedorNome` nem `statusReembolso` são graváveis pela tela. **A
+  renderização da linha nova nunca foi vista por ninguém**, pelo mesmo motivo de sempre: está
+  atrás do login. É o passo novo do [roteiro](verificacao-visual.md)
+- **Não há "A receber" fora do Resumo.** A regra fala de uma visão de pendências; o que existe
+  é a linha na matriz do mês
 - **O status `CONFERIDA` nunca é gravado** — toda fatura permanece `ABERTA`
 - **Não há tema escuro.** Os tokens estão prontos para receber um, o bloco escuro não foi
   escrito, e o `@media (prefers-color-scheme: dark)` do template do Next foi **removido de

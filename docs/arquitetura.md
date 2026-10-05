@@ -84,6 +84,15 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `registrarValorReal`, `carregarFatura` |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 
+**As três gravações de lançamento rodam dentro de `prisma.$transaction`**, e todo helper do
+módulo recebe um `ClienteBanco` em vez de fechar sobre o `prisma` global — é o que permite a
+mesma função servir dentro e fora da transação. Quem acrescentar gravação ali **tem que passar
+o `tx` adiante**; usar o `prisma` global dentro da transação escreve por fora dela, e o
+rollback não alcança o que foi escrito assim. A verificação da fatura travada também ficou
+dentro: conferir fora deixava uma janela entre a conferência e a escrita em que a outra pessoa
+travava a fatura.
+
+
 `carregarFatura` devolve **valor e status na mesma consulta** (`{ valorRealCentavos, status }`,
 ou `null` quando ninguém conferiu ainda). A faixa de conferência precisa dos dois — o número
 para preencher o campo, o status para saber se a fatura travada desabilita o campo — e duas
@@ -165,6 +174,12 @@ simplificar qualquer coisa ali.
 As **duas** linhas de metade aparecem separadas (`Metade de Nardy`, `Metade de Nick`), uma por
 membro. `docs/regras-de-negocio.md` §4 mostra uma linha só, "Metade cada" — ver o aviso no fim
 de `estado.md`.
+
+`ResumoMes.reembolso` é a linha *A receber*, por pessoa: **fora** de `pessoal`, `conjunto`,
+`metade` e `totalGeral`, **dentro** de `somado`. Por isso a identidade da planilha não vale
+mais como estava — `somado = soma dos totalGeral + soma dos reembolso`. Quem escrever
+asserção de total precisa somar as duas parcelas, ou o teste passa a acusar erro onde não há.
+A matriz só desenha essas linhas no mês que tem reembolso.
 
 Cartões e matriz leem o **mesmo** `ResumoMes`; nenhum dos dois refaz conta. `selo-conferencia`
 só lê a `diferenca` que `conferir` devolveu, nunca recalcula.

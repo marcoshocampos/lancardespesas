@@ -51,14 +51,24 @@ function FaixaDeMembro({ cor }: { cor: string }) {
  * A matriz de pessoas por conta, em tres bandas: o que foi gasto, o rateio
  * calculado a partir disso, e o resultado calculado a partir dos dois.
  *
- * As mesmas oito linhas de sempre — nenhuma soma, subtracao ou ordenacao de
- * dinheiro acontece aqui. Tudo vem pronto de `resumo`, o `ResumoMes` que a
- * pagina monta com `calcularResumo`; os cartoes acima leem o mesmo objeto,
- * entao os dois so podem divergir se um deles parar de ler daqui.
+ * Nenhuma soma, subtracao ou ordenacao de dinheiro acontece aqui. Tudo vem
+ * pronto de `resumo`, o `ResumoMes` que a pagina monta com `calcularResumo`;
+ * os cartoes acima leem o mesmo objeto, entao os dois so podem divergir se um
+ * deles parar de ler daqui.
+ *
+ * As linhas "A receber" so aparecem no mes que tem reembolso, e aparecem em
+ * bloco. E a unica excecao a regra de que a matriz mostra toda linha, com
+ * travessao quando zero — e tem motivo: sem reembolso o `Somado` fecha com a
+ * soma dos "Cabe a", e duas linhas vazias permanentes sugeririam uma lacuna
+ * que nao existe. Quando ha reembolso, sao elas que explicam a diferenca.
  */
 export function MatrizResumo({ resumo, competencia, membros, nomesDeConta }: Props) {
   const colunas = [...resumo.contas, COLUNA_TOTAL];
   const totalColunas = colunas.length + 1;
+
+  const temReembolso = membros.some(
+    (membro) => (resumo.reembolso[membro.id]?.[COLUNA_TOTAL] ?? 0) !== 0,
+  );
 
   const bandas: Banda[] = [
     {
@@ -92,6 +102,16 @@ export function MatrizResumo({ resumo, competencia, membros, nomesDeConta }: Pro
           cor: membro.cor,
           forte: true,
         })),
+        // Entre os "Cabe a" e o "Somado" de proposito: e nessa posicao que a
+        // linha responde por que o Somado e maior que a soma dos dois acima.
+        ...(temReembolso
+          ? membros.map((membro) => ({
+              chave: `reembolso-${membro.id}`,
+              rotulo: `A receber por ${membro.nome}`,
+              valores: resumo.reembolso[membro.id] ?? {},
+              cor: membro.cor,
+            }))
+          : []),
         { chave: 'somado', rotulo: 'Somado', valores: resumo.somado, forte: true },
       ],
     },
@@ -103,6 +123,9 @@ export function MatrizResumo({ resumo, competencia, membros, nomesDeConta }: Pro
         <caption className="sr-only">
           Resumo de {formatarCompetencia(competencia)} por pessoa e por conta, em três blocos: gastos
           do mês, rateio do conjunto e resultado.
+          {temReembolso
+            ? ' O bloco de resultado traz o que cada pessoa tem a receber de terceiros, que está na fatura e fora do gasto do casal.'
+            : ''}
         </caption>
         <thead>
           <tr className="border-b border-borda text-xs tracking-wide text-tinta-fraca uppercase">

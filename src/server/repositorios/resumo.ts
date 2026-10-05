@@ -40,6 +40,10 @@ export async function carregarParcelasDaCompetencia(
           contaId: true,
           escopo: true,
           membroId: true,
+          // Status por LANCAMENTO, nao por parcela: um reembolso parcelado e
+          // reembolso em todas as parcelas dele. Foi decisao do usuario, contra
+          // o "[a confirmar]" da regra — ver decisoes.md.
+          statusReembolso: true,
           // ratear() joga o resto de centavos no primeiro peso da lista — quem
           // absorve a sobra e escolha explicita em Membro.absorveSobra, nao mais
           // um efeito da ordem de cadastro (ver docs/decisoes.md). O desempate
@@ -56,6 +60,9 @@ export async function carregarParcelasDaCompetencia(
 
   return parcelas.map((p) => {
     const { lancamento } = p;
+    // Qualquer status — PENDENTE ou RECEBIDO — tira do gasto do casal. Receber
+    // nao transforma em gasto deles: so muda de quem e a cobranca pendente.
+    const ehReembolso = lancamento.statusReembolso !== null;
     if (lancamento.escopo === 'PESSOAL') {
       return {
         contaId: lancamento.contaId,
@@ -64,6 +71,7 @@ export async function carregarParcelasDaCompetencia(
         // (o brief tinha `?? undefined`); a chave so pode existir se houver valor.
         ...(lancamento.membroId ? { membroId: lancamento.membroId } : {}),
         valorCentavos: p.valorCentavos,
+        ehReembolso,
       };
     }
     // O rateio e calculado sobre o valor DA PARCELA, nao do lancamento: um
@@ -73,6 +81,7 @@ export async function carregarParcelasDaCompetencia(
       escopo: 'CONJUNTO' as const,
       valorCentavos: p.valorCentavos,
       cotas: ratear(p.valorCentavos, lancamento.rateios),
+      ehReembolso,
     };
   });
 }
