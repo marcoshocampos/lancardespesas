@@ -38,12 +38,12 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 109 passando e 12 pulados, em 10 arquivos passando e 3 pulados.** Medido em
-`966a6a0`; a contagem "96" que este arquivo trazia estava desatualizada. Saída literal:
+**`npm test` hoje: 118 passando e 12 pulados, em 10 arquivos passando e 3 pulados.** Saída
+literal:
 
 ```
  Test Files  10 passed | 3 skipped (13)
-      Tests  109 passed | 12 skipped (121)
+      Tests  118 passed | 12 skipped (130)
 ```
 
 Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
@@ -61,7 +61,12 @@ O domínio de cálculo, puro e sem I/O:
 - Geração de parcelas, com a soma sempre fechando com o total
 - Rateio do conjunto, com a sobra de centavos em destino determinístico
 - **A matriz de totais reproduzindo a planilha de agosto** — é a prova de paridade
-- Conferência do somado contra o valor real do extrato
+- Conferência do somado contra o valor real do extrato, e o **fechamento do mês**: registrar o
+  extrato grava `CONFERIDA` quando bate e desfaz quando é corrigido para um valor que não bate;
+  travar exige o extrato preenchido, deixa a fatura somente-leitura e grava quem fechou na
+  tabela `Auditoria`; destravar pede confirmação e devolve o status ao que o extrato diz, não a
+  `ABERTA` por decreto. **Verificado por execução** contra o banco real, com o estado restaurado
+  depois — o ciclo inteiro, incluindo a recusa de lançar com a fatura travada
 - Agrupamento com subtotal e contagem, que lança para chave desconhecida ou repetida em vez de
   descartar ou duplicar em silêncio
 
@@ -103,11 +108,6 @@ O que a branch `navegacao` acrescentou — **camada visual, sem tocar em nenhum 
 
 Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas em revisão.
 
-- **Não há tela para travar ou destravar fatura.** Toda a maquinaria existe e é respeitada
-  pelas gravações, mas só é acionável por SQL direto. A mensagem "destrave a fatura" que
-  aparece na interface, portanto, aponta para algo que ainda não dá para fazer pela tela. A
-  spec do redesenho manteve isso como lacuna conhecida: não invente a tela, não suma com a
-  mensagem
 - **Não há tela de lixeira.** A exclusão marca `deletadoEm` e não apaga, mas para o casal o
   efeito é definitivo até a Fase 3
 - **Não há tela de resolução de conflito.** A proteção contra sobrescrita existe e a recusa
@@ -121,7 +121,8 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
   atrás do login. É o passo novo do [roteiro](verificacao-visual.md)
 - **Não há "A receber" fora do Resumo.** A regra fala de uma visão de pendências; o que existe
   é a linha na matriz do mês
-- **O status `CONFERIDA` nunca é gravado** — toda fatura permanece `ABERTA`
+- **Não há histórico de auditoria na tela.** A tabela `Auditoria` passou a receber linhas —
+  travar e destravar fatura, com quem e quando —, mas nada as mostra. Hoje só por SQL
 - **Não há tema escuro.** Os tokens estão prontos para receber um, o bloco escuro não foi
   escrito, e o `@media (prefers-color-scheme: dark)` do template do Next foi **removido de
   propósito**. Ver [`decisoes.md`](decisoes.md) antes de achar que é regressão

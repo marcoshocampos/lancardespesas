@@ -285,3 +285,67 @@ passa a vir da parcela e não do lançamento.
 
 Qualquer status tira do gasto, `PENDENTE` ou `RECEBIDO`. Receber não transforma a despesa em
 gasto do casal: só encerra a cobrança.
+
+## Travar fatura exige o extrato preenchido
+
+**Onde:** `travarFatura` em `src/server/repositorios/fatura.ts`, e o botão desabilitado em
+`trava-fatura.tsx`.
+
+Travar significa **"conferi este mês contra o extrato e fechei"** — não "não quero mais mexer
+aqui". Sem o valor do extrato registrado, `travarFatura` recusa com `SEM_EXTRATO` e o botão
+nem habilita, explicando por quê no `title`.
+
+Deixar travar sem conferir permitiria congelar um mês com erro dentro, e aí destravar viraria
+rotina em vez de exceção — o que esvazia a trava. Foi escolha explícita do usuário entre as
+duas opções.
+
+Os **dois** gestos pedem confirmação, não só o destravar. O invariante 5 exige explicitude ao
+destravar; travar também é consequente, porque deixa o mês inteiro somente-leitura, e descobrir
+isso por acidente ao tentar lançar é pior que um diálogo a mais.
+
+## `CONFERIDA` é automática, e desfeita quando o valor muda
+
+**Onde:** `statusPeloExtrato` em `src/server/repositorios/fatura.ts`.
+
+O enum `StatusFatura` sempre teve `ABERTA`, `CONFERIDA` e `TRAVADA`, e **nada escrevia
+`CONFERIDA`** — ela só chegaria por SQL. O enum mentia sobre o que o sistema fazia.
+
+Agora `registrarValorReal` grava o status junto com o valor, na mesma transação: `CONFERIDA`
+quando `conferir()` diz `BATE`, `ABERTA` quando não. O ponto que não é óbvio é o **desfazer**:
+corrigir o extrato para um número que não bate tem que voltar para `ABERTA`, senão a fatura
+fica marcada como conferida exibindo uma diferença — dois fatos contraditórios na mesma faixa.
+
+`TRAVADA` nunca sai daí: travar é gesto humano, e é a única das três que uma pessoa escolhe.
+
+Por isso `destravarFatura` **não** volta para `ABERTA` por decreto — recalcula. Um mês que
+batia continua `CONFERIDA` depois de reaberto, porque continua batendo.
+
+O somado usado na comparação é calculado **no servidor** (`somadoDaConta`), nunca recebido da
+tela: quem confere e quem grava têm que somar do mesmo lugar.
+
+## O membro que travou vem da sessão, não da tela
+
+**Onde:** `src/server/membro-da-sessao.ts`, usado pelas actions de travar e destravar.
+
+O vínculo entre a identidade do Google e o `Membro` do sistema é o e-mail — `Membro.email` é
+único no schema e o seed já gravou os dois da allowlist. A action resolve isso no servidor e
+passa o id adiante; **a tela não envia quem é**, porque o cliente não deve poder afirmar que
+foi outra pessoa que fechou o mês.
+
+Devolve `null` em vez de lançar quando não acha o membro. Travar não deve falhar por não saber
+de quem foi o gesto: a trava vale, e a auditoria fica sem o nome.
+
+## A tabela `Auditoria` começou a ser usada por travar e destravar
+
+**Onde:** `auditar` em `src/server/repositorios/fatura.ts`.
+
+A tabela existia desde a primeira migration e **nada escrevia nela**. O invariante 5 diz que
+destravar é "ação explícita e auditada", e a auditoria era a metade que faltava.
+
+Grava `tabela`, `registroId`, `acao` (`TRAVAR`/`DESTRAVAR`), `membroId` e um `diff` com o
+status de origem, o de destino e o valor do extrato no momento. Fica na mesma transação da
+mudança de status: auditoria que pode faltar quando a escrita deu certo não serve de auditoria.
+
+**Escopo deliberadamente estreito:** só fatura. Não foi construído um helper genérico de
+auditoria para todas as tabelas — seria inventar requisito. Quem precisar auditar lançamento
+depois segue esta forma.

@@ -81,7 +81,7 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 |---|---|
 | `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento` |
 | `repositorios/resumo.ts` | `LinhaGrade`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade` |
-| `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `registrarValorReal`, `carregarFatura` |
+| `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 
 **As três gravações de lançamento rodam dentro de `prisma.$transaction`**, e todo helper do
@@ -169,11 +169,16 @@ simplificar qualquer coisa ali.
 | `cartoes-resumo.tsx` | não | Os cartões do topo: total por membro e fatura por cartão |
 | `matriz-resumo.tsx` | não | A matriz de pessoas por contas, em bandas |
 | `conferencia-fatura.tsx` | **sim** | O valor do extrato e a diferença |
+| `trava-fatura.tsx` | **sim** | Fechar e reabrir o mês, com confirmação nos dois |
 | `selo-conferencia.tsx` | não | Texto e cor para cada situação que `conferir` devolve |
 
 As **duas** linhas de metade aparecem separadas (`Metade de Nardy`, `Metade de Nick`), uma por
-membro. `docs/regras-de-negocio.md` §4 mostra uma linha só, "Metade cada" — ver o aviso no fim
-de `estado.md`.
+membro, e `docs/regras-de-negocio.md` §4 acompanha.
+
+`trava-fatura.tsx` fica **fora** do `form` da conferência de propósito: dentro dele, o gatilho
+do diálogo disputaria o submit do botão "Conferir". Fechou a única ação que a interface mandava
+fazer e não oferecia — três mensagens diziam "destrave a fatura" apontando para algo que só
+existia em SQL.
 
 `ResumoMes.reembolso` é a linha *A receber*, por pessoa: **fora** de `pessoal`, `conjunto`,
 `metade` e `totalGeral`, **dentro** de `somado`. Por isso a identidade da planilha não vale

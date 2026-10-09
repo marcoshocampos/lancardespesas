@@ -185,12 +185,35 @@ está conferindo.
 ### Trava
 
 Fatura `TRAVADA` é somente-leitura: não aceita novo lançamento na competência, nem edição ou
-exclusão de parcela existente. Destravar é uma ação explícita, registrada na auditoria com
-quem destravou e quando.
+exclusão de parcela existente, nem correção do valor do extrato. Destravar é uma ação
+explícita, registrada na auditoria com quem destravou e quando.
 
-**[a confirmar]** Travar exige estar `CONFERIDA`? Proposta: **não exigir** — dá para travar um
-mês com diferença conhecida e aceita, desde que a diferença fique registrada. Exigir
-conferência perfeita transformaria a trava em algo que ninguém usa.
+**Travar exige o valor do extrato preenchido — e não exige que ele bata.** Decidido; o
+`[a confirmar]` que havia aqui propunha não exigir `CONFERIDA`, com o argumento de que exigir
+conferência perfeita transformaria a trava em algo que ninguém usa. O argumento vale e foi
+respeitado: dá para travar um mês com diferença conhecida e aceita, porque a diferença fica
+registrada no próprio valor do extrato. O que não dá é travar um mês que **ninguém olhou** —
+travar significa "conferi e fechei".
+
+Os dois gestos pedem confirmação na tela. Travar não é mais perigoso que destravar, mas é
+igualmente consequente: deixa o mês inteiro somente-leitura.
+
+**Destravar devolve o status ao que o extrato diz, não a `ABERTA`.** Um mês que batia volta a
+`CONFERIDA` ao ser reaberto, porque continua batendo. `ABERTA` significa "ninguém conferiu", e
+reabrir não apaga a conferência que houve.
+
+### Os três status, e quem os escreve
+
+| Status | Quem escreve | Quando |
+|---|---|---|
+| `ABERTA` | o sistema | não há valor de extrato, ou há e não bate com o somado |
+| `CONFERIDA` | o sistema | o valor do extrato bate com o somado, exatamente |
+| `TRAVADA` | uma pessoa | fechou o mês, com o extrato já registrado |
+
+`CONFERIDA` é automática e **reversível**: corrigir o extrato para um valor que não bate volta
+a fatura para `ABERTA`. Sem isso ela ficaria marcada como conferida exibindo uma diferença.
+
+O somado da comparação é sempre calculado no servidor, nunca recebido da tela.
 
 ### Contas externas
 

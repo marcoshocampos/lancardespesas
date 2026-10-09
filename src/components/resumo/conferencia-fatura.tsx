@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent } from 'react';
 import type { StatusFatura } from '@prisma/client';
 import { toast } from 'sonner';
 import { SeloConferencia } from '@/components/resumo/selo-conferencia';
+import { TravaFatura } from '@/components/resumo/trava-fatura';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,10 +23,12 @@ type Props = {
 
 /**
  * O estado da fatura em palavras. Sao tres, nao dois: `StatusFatura`
- * (`prisma/schema.prisma`) tem `ABERTA`, `CONFERIDA` e `TRAVADA`. Nada no
- * sistema escreve `CONFERIDA` hoje — so chegaria por SQL direto — mas ela
- * existe no banco, e sem texto a faixa ficaria muda justamente quando alguem
- * a escrevesse.
+ * (`prisma/schema.prisma`) tem `ABERTA`, `CONFERIDA` e `TRAVADA`.
+ *
+ * `CONFERIDA` passou a ser escrita de verdade: `registrarValorReal` a grava
+ * quando o extrato bate com o somado, e a desfaz quando o valor e corrigido
+ * para um que nao bate. Antes nada a escrevia e o enum mentia sobre o que o
+ * sistema fazia.
  *
  * `switch` sem `default` de proposito, como em `selo()`: no dia em que o enum
  * ganhar um valor, o TypeScript reclama aqui em vez de a tela mentir.
@@ -161,6 +164,16 @@ export function ConferenciaFatura({
             {pendente ? 'Salvando…' : 'Conferir'}
           </Button>
         </form>
+
+        {/* Fora do `form` de proposito: e um gesto proprio, com confirmacao, e
+            dentro do formulario o botao do dialogo disputaria o submit. */}
+        <TravaFatura
+          contaId={contaId}
+          competencia={competencia}
+          nome={nome}
+          travada={travada}
+          temExtrato={valorReal !== null}
+        />
       </div>
 
       {erro && (

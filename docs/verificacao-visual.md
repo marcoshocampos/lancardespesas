@@ -69,6 +69,17 @@ Abra `http://localhost:3000`. Deve cair em `/despesas` sozinho.
 - [ ] Zero aparece como `—`, não como `R$ 0,00`.
 - [ ] Digite no campo de extrato um valor diferente do somado: o selo da conferência tem que
       mudar de forma, não só de cor.
+- [ ] **Sem extrato registrado, "Fechar o mês" está desabilitado** e o `title` explica por quê.
+- [ ] Digite o valor que bate com o `Somado`: o texto de estado passa a *Fatura conferida*.
+      Troque para um valor que não bate: volta a *Fatura aberta*.
+- [ ] **Fechar o mês** pede confirmação, e a confirmação diz o que vai acontecer. Depois de
+      fechar: o campo do extrato e o botão Conferir ficam desabilitados, e o botão vira
+      *Reabrir*.
+- [ ] Com a fatura fechada, vá ao Despesas e tente lançar nesse mês. Tem que recusar com
+      *"Esse mês já está fechado. Destrave a fatura para lançar."* — **e agora existe como
+      destravar**, que era a mensagem apontando para o nada.
+- [ ] **Reabrir** pede confirmação. Depois: se o extrato batia, o estado volta a *Fatura
+      conferida* — e não a *aberta*. Lançar volta a funcionar.
 - [ ] **Sem reembolso no mês, não existe linha "A receber"** — e o `Somado` fecha com a soma
       dos dois `Cabe a`.
 - [ ] Marque um lançamento como reembolso de terceiro e volte ao Resumo. Agora: duas linhas
