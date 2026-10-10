@@ -9,9 +9,20 @@ inclusive uma sessão nova de agente, que não tem memória da conversa anterior
 publicado em https://lancardespesas.vercel.app.** O merge do redesenho é o `39bb8e4`, com 61
 commits. As branches de trabalho foram apagadas; só existe `main`.
 
-Da Vercel já se sabe que a tela de login responde e que `/despesas` e `/configuracoes`
-redirecionam para `/entrar` preservando o `callbackUrl` — **o middleware funciona em
-produção**. O que ainda não foi testado lá é a allowlist, que exige login de verdade.
+**O login em produção está quebrado: falta `AUTH_SECRET` nas variáveis de ambiente da
+Vercel.** Toda rota de `/api/auth/*` devolve 500 com `MissingSecret`, e a página mostra
+*"Server error — There is a problem with the server configuration"*. O `.env` local tem a
+variável; o ambiente de produção, não. Conserto: cadastrar no painel da Vercel, escopo
+Production, **e refazer o deploy** — variável nova não alcança deploy que já existe.
+
+Uma lição de leitura, registrada porque custou uma afirmação errada: este arquivo chegou a
+dizer que *"o middleware funciona em produção"*, com base em ver `/despesas` redirecionar
+para `/entrar`. O log mostrou que **aquele 307 vinha junto do mesmo `MissingSecret`** — o
+redirecionamento acontecia apesar da configuração quebrada, não por causa dela funcionar.
+Observar o resultado certo não prova o caminho certo. **A proteção de rota em produção
+continua não verificada**, e só pode ser dada por boa depois que o segredo existir lá.
+
+A allowlist também segue sem teste em produção, porque exige login de verdade.
 
 O redesenho visual é o trabalho do plano
 [`plans/redesenho-visual/`](plans/redesenho-visual/README.md): a camada visual que a Fase 1 não
@@ -29,7 +40,7 @@ construiu. As sete etapas estão concluídas, cada tarefa com revisão própria.
 
 **A Tarefa 2 da Etapa 07 — a conferência visual tela a tela — não foi feita por ninguém**, e a
 razão é simples: tudo da Etapa 02 em diante está atrás do login com Google, e nenhum agente
-conseguiu entrar. É a dívida 2 mais abaixo, e é ela que segura a Tarefa 4, o fechamento.
+conseguiu entrar. É a dívida 1 mais abaixo, e é ela que segura a Tarefa 4, o fechamento.
 
 Três consertos nasceram fora do plano, de revisão, e entraram junto: conta inativa com
 histórico derrubando o mês (`9232252`), categoria arquivada sendo trocada em silêncio ao editar
@@ -48,7 +59,10 @@ literal:
 
 Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
 arquivos: `repositorios/configuracao.test.ts` (5), `repositorios/lancamento.test.ts` (6) e
-`repositorios/resumo.test.ts` (1). **Nenhum deles jamais rodou** — ver a dívida 1 mais abaixo.
+`repositorios/resumo.test.ts` (1). Eles **passaram a rodar** — `npm run test:banco`, 130
+passando, nenhum pulado; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
+propósito, para que a suíte rápida continue sem rede e sem banco.
+
 O Playwright de `e2e/` é pulado à parte e **não** entra no `npm test`, que é `vitest run`.
 
 O domínio de cálculo, puro e sem I/O:
@@ -142,39 +156,46 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 A tela de cadastro de categoria, que constava aqui como ausente, **passou a existir** com a
 Etapa 06 — junto com a de contas e a de pessoas.
 
-## As três dívidas que dependem do usuário
+## As duas dívidas que dependem do usuário
 
-**Leia esta seção antes de qualquer outra coisa.** Nenhuma das três pode ser resolvida por um
-agente sozinho, e todas as três ficam abertas entre uma sessão e a seguinte.
+**Leia esta seção antes de qualquer outra coisa.** Nenhuma das duas pode ser resolvida por um
+agente sozinho, e as duas ficam abertas entre uma sessão e a seguinte.
 
-### 1. Os 12 testes de banco nunca foram executados
+A dívida 1, *"os 12 testes de banco nunca foram executados"*, **está fechada** — virou a seção
+abaixo.
 
-`repositorios/configuracao.test.ts` (5 casos), `repositorios/lancamento.test.ts` (6) e
-`repositorios/resumo.test.ts` (1) exigem `TESTE_DESTRUTIVO=1`. **Não há banco de teste
-configurado** — as chaves do `.env` são `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`,
-`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` e `EMAILS_AUTORIZADOS`, e nenhuma aponta para banco
-vazio. Os 12 casos estão escritos, revisados e **nunca rodaram**. Teste que ninguém rodou não
-é prova de nada.
-
-**Nunca aponte `TESTE_DESTRUTIVO=1` para o `DATABASE_URL` atual: ele é o banco de produção do
-casal** — a planilha já foi importada, e durante a Etapa 06 foram contados 35 lançamentos
-reais ali. Os dois primeiros arquivos apagam lançamento, e se recusam a rodar se houver
-algum — mas essa recusa é a última linha de defesa, não a primeira. (O terceiro, o de
-`resumo.test.ts`, é mais brando: cria um único lançamento em `2099-01` e apaga só o que
-criou. Mesma variável, mesmo cuidado.)
-
-Quando o usuário criar o banco vazio no Neon e puser a conexão no ambiente:
+## Os testes de banco rodam, e o que eles acharam na estreia
 
 ```bash
-npx prisma migrate deploy && npm run db:seed
-# e só então, apontando para o banco vazio:
-TESTE_DESTRUTIVO=1 npm test
+npm run test:banco
 ```
 
-O `db:seed` não é opcional: sem ele os testes quebram no `findFirstOrThrow` de categoria e de
-membro.
+**130 passando, nenhum pulado.** O usuário criou uma branch no Neon só para teste, e a conexão
+dela mora em `DATABASE_URL_TESTE` no `.env`. O `npm test` continua sem tocar banco: 118
+passando e 12 pulados, em menos de um segundo.
 
-### 2. A conferência visual da camada nova não foi feita por ninguém
+O runner é [`scripts/testar-banco.mjs`](../scripts/testar-banco.mjs) e existe para que apontar
+a suíte destrutiva para produção **deixe de ser possível**: ele lê a variável de teste, ignora
+a `DATABASE_URL` de verdade, e recusa rodar se as duas apontarem para o mesmo endpoint do
+Neon. As três recusas foram testadas com `.env` falso num diretório temporário.
+
+**Branch do Neon nasce como cópia do pai**, então a de teste veio com os 58 lançamentos reais
+dentro. Foram apagados dela — categorias, membros e contas ficaram, porque a suíte os lê como
+fixture pelo `findFirstOrThrow`. Quem criar outra branch de teste repete isso, ou a guarda da
+suíte recusa rodar.
+
+### A estreia achou duas falhas, e nenhuma era bug de produção
+
+Na primeira execução, 2 de 130 falharam: uma leitura dizendo *"No record was found"* logo
+depois de uma gravação bem-sucedida, e a sobra de centavos indo para o membro errado. As duas
+pareciam bug grave. **As duas eram os arquivos de teste atropelando um ao outro:** o Vitest roda
+arquivos em paralelo, o `limpar()` de `lancamento.test.ts` faz `deleteMany()`, e os três
+arquivos compartilham um banco só.
+
+Em série, os mesmos 130 passam. O `--no-file-parallelism` está assado no runner por isso — ver
+[`decisoes.md`](decisoes.md) antes de tirar em nome de velocidade.
+
+### 1. A conferência visual da camada nova não foi feita por ninguém
 
 Tudo da Etapa 02 em diante — casco, grade, painel, resumo, configurações — está atrás do login
 com Google, e **nenhum agente conseguiu entrar**. Nada da camada visual foi visto numa tela de
@@ -194,7 +215,7 @@ npm run dev
 npx tsx scripts/dados-ficticios.ts limpar
 ```
 
-### 3. As cores dos membros colidem com as de categoria
+### 2. As cores dos membros colidem com as de categoria
 
 `prisma/seed.ts` dá aos dois membros exatamente as cores de duas categorias:
 
@@ -241,9 +262,9 @@ verdadeira quando o conjunto é ímpar.
 | Serviço | Situação |
 |---|---|
 | Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha reimportada como `2026-09`** (58 lançamentos, fatura conferida contra a linha `FATURA:`). É o banco de produção do casal, com dado financeiro real |
-| Neon — banco de teste | **Não criado.** É o que falta para os 12 testes de banco rodarem (dívida 1) |
+| Neon — banco de teste | **Criado**, como branch do projeto. Conexão em `DATABASE_URL_TESTE`; os 130 testes rodam com `npm run test:banco` |
 | Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo |
-| Vercel | **Publicado** em https://lancardespesas.vercel.app. Middleware verificado em produção; allowlist ainda não |
+| Vercel | **Publicado** em https://lancardespesas.vercel.app, mas o **login está quebrado**: falta `AUTH_SECRET` no ambiente. Nada de `/api/auth/*` responde |
 | GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada e única; branches de trabalho apagadas |
 
 Os segredos moram em `.env`, na raiz, a partir do `.env.example`. **`.env`, e não
@@ -271,11 +292,11 @@ lançamento ou em qualquer consulta que filtre por `ativa`/`arquivada`/`ativo`.
 
 ## Antes de usar de verdade
 
-1. **Fazer a conferência visual da Tarefa 2** (dívida 2 acima). É o que separa "está bonito"
+1. **Fazer a conferência visual da Tarefa 2** (dívida 1 acima). É o que separa "está bonito"
    de afirmação verificável
 2. **Testar o login no navegador**, com um e-mail da allowlist e um de fora. Continua sendo o
    teste que nenhum agente conseguiu fazer
-3. **Decidir as cores dos membros** (dívida 3 acima)
+3. **Decidir as cores dos membros** (dívida 2 acima)
 4. **Publicar na Vercel**, se quiserem acessar de fora de casa
 
 A importação da planilha, que constava aqui como pendente, **já foi feita**.
@@ -285,7 +306,7 @@ A importação da planilha, que constava aqui como pendente, **já foi feita**.
 Sobraram **cinco**, todas triadas na revisão final da Fase 1 como não bloqueantes. As duas que
 bloqueavam — o parser de dinheiro aceitando entrada ambígua e a suíte destrutiva deixando
 lançamento no banco — já foram corrigidas. Estas são de baixo nível e nenhuma ficou pior com o
-redesenho visual; as pendências que importam agora são as três dívidas lá em cima.
+redesenho visual; as pendências que importam agora são as duas dívidas lá em cima.
 
 1. **`avancarCompetencia` quebra antes do ano `0000`**, porque o `%` do JavaScript preserva o
    sinal do dividendo. Só alcançável com um delta na casa de -24000 meses

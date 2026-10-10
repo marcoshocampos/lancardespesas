@@ -349,3 +349,48 @@ mudança de status: auditoria que pode faltar quando a escrita deu certo não se
 **Escopo deliberadamente estreito:** só fatura. Não foi construído um helper genérico de
 auditoria para todas as tabelas — seria inventar requisito. Quem precisar auditar lançamento
 depois segue esta forma.
+
+## Os testes de banco rodam em série, e isso não é desperdício
+
+**Onde:** `--no-file-parallelism`, assado em `scripts/testar-banco.mjs`.
+
+O Vitest roda **arquivos** em paralelo, e os três arquivos de teste de banco compartilham um
+banco só. O `limpar()` de `lancamento.test.ts` faz `deleteMany()` em lançamento, parcela,
+rateio e fatura — enquanto `resumo.test.ts`, noutro worker, está no meio de um caso.
+
+Não é teoria. Na **primeira** execução da suíte, 2 de 130 falharam:
+
+- uma leitura devolvendo *"No record was found"* logo depois de uma gravação que havia
+  retornado `ok`;
+- a sobra de centavos indo para o membro **errado**.
+
+As duas pareciam bug grave e gastaram investigação. Em série, os mesmos 130 passam.
+
+Onze segundos em série custam menos que uma tarde atrás de um bug que não existe. **Trocar por
+paralelismo exige dar a cada arquivo o seu próprio banco** — no Neon isso é uma branch por
+arquivo, e aí volta a valer a pena. Antes disso, não.
+
+## A suíte de banco lê `DATABASE_URL_TESTE`, nunca a `DATABASE_URL`
+
+**Onde:** `scripts/testar-banco.mjs`, e a chave nova no `.env` e no `.env.example`.
+
+Antes, ligar os testes de banco era exportar `TESTE_DESTRUTIVO=1` e trocar a `DATABASE_URL` na
+mão. A suíte apaga todo lançamento que encontra, e errar essa variável apagava a finança real
+do casal. A guarda que existia — recusar banco que já tem lançamento — protege o **conteúdo**;
+nada protegia o **endereço**.
+
+O runner inverte isso: lê `DATABASE_URL_TESTE`, **ignora** a `DATABASE_URL` de verdade, recusa
+rodar se a variável de teste não existir (em vez de cair num padrão), e recusa rodar se as duas
+apontarem para o mesmo endpoint do Neon. As três recusas foram verificadas com `.env` falso num
+diretório temporário.
+
+As duas guardas erram de formas diferentes, então as duas ficam.
+
+Sem dependência nova: `dotenv` e `cross-env` não estão no projeto, e ler uma chave de um arquivo
+de texto não justifica instalar nada. O runner também **não** usa `npx` com `shell: true` —
+monta o caminho do `vitest.mjs` e chama com o próprio Node. O Node avisa (DEP0190) que
+argumento passado com shell não é escapado, e aqui chegam argumentos da linha de comando.
+
+**Branch do Neon nasce como cópia do pai**, então a de teste vem com os dados reais dentro. Os
+lançamentos têm de ser apagados dela antes do primeiro uso; categorias, membros e contas ficam,
+porque a suíte os lê como fixture pelo `findFirstOrThrow`.

@@ -79,6 +79,10 @@ Quebrar qualquer um destes é bug, não escolha de estilo.
 - **Commits** em português, no imperativo, explicando o porquê e não o quê.
 - **Testes** com Vitest no domínio, cobrindo os casos de borda de
   [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md). Playwright só nos fluxos críticos.
+  `npm test` roda 118 sem banco nem rede; `npm run test:banco` roda os 130, contra a branch de
+  teste do Neon em `DATABASE_URL_TESTE`. **Nunca ligue `TESTE_DESTRUTIVO=1` à mão** — a suíte
+  apaga todo lançamento que encontra, e o runner existe para que apontá-la para produção não
+  seja possível.
 - **Nunca** commitar dado financeiro real: `.csv` e `/dados-privados/` estão no `.gitignore`.
 
 ## Stack

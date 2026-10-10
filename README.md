@@ -36,9 +36,18 @@ npm install
 npm test
 ```
 
-Os testes de domínio não precisam de banco nem de rede. Para subir a aplicação é preciso um
-`.env` na raiz, a partir do [`.env.example`](.env.example), com a conexão do Neon e as
-credenciais do Google.
+`npm test` são 118 testes em menos de um segundo, **sem banco e sem rede**. Para subir a
+aplicação é preciso um `.env` na raiz, a partir do [`.env.example`](.env.example), com a
+conexão do Neon e as credenciais do Google.
+
+```bash
+npm run test:banco
+```
+
+Roda os 130, incluindo os 12 que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma
+branch do Neon criada só para isso — **a suíte apaga todo lançamento que encontra**. O runner
+se recusa a rodar se essa variável faltar ou se apontar para o mesmo endpoint da
+`DATABASE_URL`.
 
 ## Stack
 

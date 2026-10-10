@@ -272,6 +272,10 @@ aplicar fuso e mover a compra do dia do fechamento para a fatura errada.
 - `importar-planilha.ts` — migração de uma vez só, do CSV colunar exportado do Sheets
 - `importar-planilha.test.ts` — o teste do leitor; roda no `npm test` como os de domínio
 - `dados-ficticios.ts` — popula as telas com dez lançamentos inventados, e apaga só o que criou
+- `testar-banco.mjs` — o runner de `npm run test:banco`. Aponta a suíte para
+  `DATABASE_URL_TESTE` e **recusa** rodar contra o endpoint de produção; força `--no-file-parallelism`
+  porque os três arquivos de banco compartilham um banco e se atropelam em paralelo. Ver
+  [`decisoes.md`](decisoes.md) antes de mexer em qualquer um dos dois comportamentos
 
 ### `e2e/`
 
@@ -448,3 +452,16 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     reaproveitados como dado de teste em `agrupamento.test.ts`. O substituto é
     `fixtures/mes-de-referencia.ts`, inventado. **Ao escrever teste de cálculo, invente o
     número**; a conferência contra o real é na tela, por `verificacao-visual.md`.
+
+17. **Resultado certo não prova caminho certo, e no middleware isso engana.** `/despesas`
+    redirecionando para `/entrar` parece prova de que a proteção de rota funciona. Em produção
+    estava redirecionando **com a configuração do Auth.js quebrada** — `MissingSecret` em todo
+    `/api/auth/*`, 500 em todas elas, e o 307 saindo mesmo assim. A observação foi registrada
+    aqui como "middleware verificado em produção" e estava errada.
+
+    Para dar a proteção por verificada é preciso ver o **par**: quem não tem sessão é barrado
+    **e** quem tem entra. Só a primeira metade é indistinguível de tudo estar quebrado, porque
+    sistema quebrado também barra todo mundo.
+
+    O mesmo vale para a allowlist: `/entrar` recusando um e-mail de fora só significa alguma
+    coisa se um e-mail de dentro entrar.
