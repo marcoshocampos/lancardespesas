@@ -9,18 +9,23 @@ inclusive uma sessão nova de agente, que não tem memória da conversa anterior
 publicado em https://lancardespesas.vercel.app.** O merge do redesenho é o `39bb8e4`, com 61
 commits. As branches de trabalho foram apagadas; só existe `main`.
 
-**O login em produção está quebrado: falta `AUTH_SECRET` nas variáveis de ambiente da
-Vercel.** Toda rota de `/api/auth/*` devolve 500 com `MissingSecret`, e a página mostra
-*"Server error — There is a problem with the server configuration"*. O `.env` local tem a
-variável; o ambiente de produção, não. Conserto: cadastrar no painel da Vercel, escopo
-Production, **e refazer o deploy** — variável nova não alcança deploy que já existe.
+**O login em produção ainda não completou nenhuma vez, e já passou por dois erros
+distintos.** O primeiro foi `AUTH_SECRET` ausente no ambiente da Vercel — resolvido, o
+`.env` foi importado para lá e `/api/auth/*` voltou a responder 200. O segundo é
+`redirect_uri_mismatch` do Google: falta cadastrar
+`https://lancardespesas.vercel.app/api/auth/callback/google` no console do Google Cloud.
+
+O URI que o Auth.js realmente usa não se adivinha — `GET /api/auth/providers` devolve o
+`callbackUrl` dele em JSON, sem autenticação. **E só dá para entrar pelo domínio estável:**
+a URL própria de cada deploy muda sempre e não há como cadastrá-la. Ver armadilha 18 em
+[`arquitetura.md`](arquitetura.md).
 
 Uma lição de leitura, registrada porque custou uma afirmação errada: este arquivo chegou a
 dizer que *"o middleware funciona em produção"*, com base em ver `/despesas` redirecionar
-para `/entrar`. O log mostrou que **aquele 307 vinha junto do mesmo `MissingSecret`** — o
+para `/entrar`. O log mostrou que **aquele 307 vinha junto de `MissingSecret`** — o
 redirecionamento acontecia apesar da configuração quebrada, não por causa dela funcionar.
 Observar o resultado certo não prova o caminho certo. **A proteção de rota em produção
-continua não verificada**, e só pode ser dada por boa depois que o segredo existir lá.
+continua não verificada**, e só pode ser dada por boa quando alguém conseguir entrar.
 
 A allowlist também segue sem teste em produção, porque exige login de verdade.
 
@@ -228,9 +233,13 @@ Na grade, a faixa do cabeçalho de uma pessoa pode ficar idêntica à bolinha de
 lançamento dela. Ficou decidido trocar a cor dos **membros**, e não a das categorias — são dois
 registros contra oito, e a cor de membro aparece em menos lugares.
 
-**A proposta em aberto é `#6D3551` para Nardy e `#2E4A63` para Nick.** São dois `UPDATE` na
-tabela `Membro`, contra o banco de produção do casal, e **ninguém deve rodá-los sem a palavra
-do usuário**. Até lá o código lê `Membro.cor` normalmente e nada precisa mudar.
+**Resolvido assim: o casal escolhe na tela, e nenhum agente mexe no banco.** A lista de
+Pessoas em `/configuracoes` já tem o seletor de cor por membro (`CampoCor`, ligado a
+`acaoEditarMembro`) — a capacidade existe desde a Etapa 06 e ninguém sabia, porque a tela
+nunca foi vista. É o Passo 5 do [roteiro](verificacao-visual.md).
+
+Se faltar ponto de partida, `#6D3551` para Nardy e `#2E4A63` para Nick não colidem com
+nenhuma das treze categorias. Mas a cor de cada um é escolha deles, não proposta de agente.
 
 ## O centavo em que a planilha e o sistema discordam
 
@@ -263,8 +272,8 @@ verdadeira quando o conjunto é ímpar.
 |---|---|
 | Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha reimportada como `2026-09`** (58 lançamentos, fatura conferida contra a linha `FATURA:`). É o banco de produção do casal, com dado financeiro real |
 | Neon — banco de teste | **Criado**, como branch do projeto. Conexão em `DATABASE_URL_TESTE`; os 130 testes rodam com `npm run test:banco` |
-| Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo |
-| Vercel | **Publicado** em https://lancardespesas.vercel.app, mas o **login está quebrado**: falta `AUTH_SECRET` no ambiente. Nada de `/api/auth/*` responde |
+| Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo. **Falta o URI de redirecionamento de produção** — só o de `localhost` está cadastrado, e é o que trava o login |
+| Vercel | **Publicado** em https://lancardespesas.vercel.app. Variáveis importadas do `.env` local e `/api/auth/*` respondendo. Falta o **URI de redirecionamento no Google** — o login ainda não completou |
 | GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada e única; branches de trabalho apagadas |
 
 Os segredos moram em `.env`, na raiz, a partir do `.env.example`. **`.env`, e não
@@ -297,9 +306,8 @@ lançamento ou em qualquer consulta que filtre por `ativa`/`arquivada`/`ativo`.
 2. **Testar o login no navegador**, com um e-mail da allowlist e um de fora. Continua sendo o
    teste que nenhum agente conseguiu fazer
 3. **Decidir as cores dos membros** (dívida 2 acima)
-4. **Publicar na Vercel**, se quiserem acessar de fora de casa
-
-A importação da planilha, que constava aqui como pendente, **já foi feita**.
+A importação da planilha e a publicação na Vercel, que constavam aqui como pendentes, **já
+foram feitas**.
 
 ## Pendências menores para triar
 
@@ -308,22 +316,29 @@ bloqueavam — o parser de dinheiro aceitando entrada ambígua e a suíte destru
 lançamento no banco — já foram corrigidas. Estas são de baixo nível e nenhuma ficou pior com o
 redesenho visual; as pendências que importam agora são as duas dívidas lá em cima.
 
+Sobraram **três, e as três foram triadas como não-trabalho** — ficam escritas para que ninguém
+as redescubra achando que são tarefa:
+
 1. **`avancarCompetencia` quebra antes do ano `0000`**, porque o `%` do JavaScript preserva o
    sinal do dividendo. Só alcançável com um delta na casa de -24000 meses
 2. **O ramo `TOTAL` de `gerarParcelas` nunca é exercitado com valor negativo.** Não é bug: com
    uma parcela a expressão colapsa e a soma fecha por álgebra
-3. **`ratear` produz `-0`** quando uma cota trunca para zero num valor negativo
-4. **O middleware não exclui `public/`**, então asset estático também redireciona. Proteção a
-   mais, nunca a menos; vai incomodar quando entrar `robots.txt` ou manifest
-5. **`docs/regras-de-negocio.md` descreve "editar uma parcela" sem redistribuir as demais**,
-   enquanto `editarLancamento` sempre regera todas. Divergência entre documento e código
+3. **`ratear` produz `-0`** quando uma cota trunca para zero num valor negativo. **Nunca
+   chega na tela:** `formatarBRL(-0)` imprime `R$ 0,00`, sem sinal — conferido
 
-O item que era o 5 — *"a mensagem de recusa em `linha-nova.tsx` ignora o `motivo`"* — saiu de
-pauta com o arquivo: `linha-nova.tsx` e `linha-edicao.tsx` não existem mais, e o painel que os
-substituiu trata os motivos um a um.
+As que saíram desta lista por terem sido resolvidas:
 
-Também sem transação: `gravarFilhos` faz `deleteMany` e `createMany` separados, então uma
-falha entre os dois deixaria lançamento sem parcela.
+- *O middleware não excluía `public/`* — asset estático era interceptado e `/robots.txt`
+  devolvia **307 para o login** em produção. O `matcher` passou a excluir caminho terminado em
+  `.extensão`, e o par foi verificado: arquivo estático serve com 200, rota privada continua
+  redirecionando
+- *`regras-de-negocio.md` divergia do código sobre editar uma parcela* — resolvido a favor do
+  código. A operação **não existe**, e o documento passou a dizer isso em vez de descrever
+  comportamento que ninguém construiu
+- *`gravarFilhos` sem transação* — as três gravações de lançamento rodam em
+  `prisma.$transaction` desde `28f83e7`
+- *A mensagem de recusa em `linha-nova.tsx` ignorava o `motivo`* — saiu de pauta com o
+  arquivo: `linha-nova.tsx` e `linha-edicao.tsx` não existem mais
 
 ## Histórico de commits da Fase 1
 

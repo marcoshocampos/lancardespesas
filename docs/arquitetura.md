@@ -465,3 +465,16 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
 
     O mesmo vale para a allowlist: `/entrar` recusando um e-mail de fora só significa alguma
     coisa se um e-mail de dentro entrar.
+
+18. **Só dá para entrar pelo domínio estável da Vercel.** Cada deploy ganha uma URL própria
+    (`lancardespesas-h9keuusyk-nick-hoc.vercel.app`), e o Auth.js monta o callback a partir do
+    host da requisição. Entrar por ali manda ao Google um `redirect_uri` que muda a cada deploy
+    e que **não há como cadastrar** — o resultado é `Erro 400: redirect_uri_mismatch` com toda a
+    configuração correta.
+
+    O botão "Visit" do painel da Vercel leva justamente para a URL do deploy, e foi assim que
+    isto apareceu. Use sempre `https://lancardespesas.vercel.app`.
+
+    O URI que o Auth.js realmente usa não precisa ser adivinhado: `GET /api/auth/providers`
+    devolve o `callbackUrl` dele em JSON, sem autenticação. É a forma de conferir contra o que
+    está cadastrado no Google em vez de supor.

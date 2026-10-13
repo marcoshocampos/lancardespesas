@@ -68,11 +68,22 @@ digitando. A planilha sempre usou o valor da parcela, então esse é o padrão.
 Quando o valor informado é o total, a divisão é em centavos e **a diferença vai na última
 parcela**. R$ 100,00 em 3x vira 33,33 + 33,33 + 33,34.
 
-### Editar uma parcela
+### Editar uma parcela — **não existe**
 
-Alterar o valor de uma parcela **não redistribui as outras**. O valor total do lançamento
-passa a ser a soma das suas parcelas. É o comportamento correto para renegociação e para
-juros que aparecem no meio do parcelamento.
+Esta seção descrevia alterar o valor de **uma** parcela sem redistribuir as outras, deixando o
+total do lançamento virar a soma das suas parcelas. É o comportamento certo para renegociação
+e para juros que aparecem no meio do parcelamento, e **nada disso foi construído**.
+
+O que o sistema faz hoje: `editarLancamento` regenera **todas** as parcelas a partir do valor
+do lançamento, a cada edição. Não há operação que alcance uma parcela sozinha, nem na tela nem
+no repositório. Editar um parcelado de 12x para corrigir a descrição recalcula as doze.
+
+Consequência prática: **não há como registrar juros que apareceram na parcela 7.** O jeito de
+representar isso hoje é um lançamento à vista separado, na competência em que o juro caiu.
+
+Fica registrado como divergência resolvida a favor do código, e não some daqui porque a
+intenção continua válida — quando a operação existir, é este o comportamento esperado. A única
+edição por parcela que o sistema tem é **cancelar**, abaixo.
 
 ### Cancelar uma parcela
 
