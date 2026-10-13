@@ -9,25 +9,26 @@ inclusive uma sessão nova de agente, que não tem memória da conversa anterior
 publicado em https://lancardespesas.vercel.app.** O merge do redesenho é o `39bb8e4`, com 61
 commits. As branches de trabalho foram apagadas; só existe `main`.
 
-**O login em produção ainda não completou nenhuma vez, e já passou por dois erros
-distintos.** O primeiro foi `AUTH_SECRET` ausente no ambiente da Vercel — resolvido, o
-`.env` foi importado para lá e `/api/auth/*` voltou a responder 200. O segundo é
-`redirect_uri_mismatch` do Google: falta cadastrar
-`https://lancardespesas.vercel.app/api/auth/callback/google` no console do Google Cloud.
+**O login em produção funciona, e a autenticação está verificada pelo par completo:** os dois
+e-mails da allowlist entraram, e um e-mail de fora foi bloqueado. É a primeira vez que alguém
+passou da tela de login em produção, e com isso a proteção de rota deixa de ser suposição.
 
-O URI que o Auth.js realmente usa não se adivinha — `GET /api/auth/providers` devolve o
-`callbackUrl` dele em JSON, sem autenticação. **E só dá para entrar pelo domínio estável:**
-a URL própria de cada deploy muda sempre e não há como cadastrá-la. Ver armadilha 18 em
+**Por que o par importa, e não só a metade que barra:** este arquivo chegou a dizer que *"o
+middleware funciona em produção"* com base em ver `/despesas` redirecionar para `/entrar`. O
+log mostrou que aquele 307 vinha junto de `MissingSecret` — o redirecionamento acontecia
+apesar da configuração quebrada. Sistema quebrado barra todo mundo igual. Ver armadilha 17 em
 [`arquitetura.md`](arquitetura.md).
 
-Uma lição de leitura, registrada porque custou uma afirmação errada: este arquivo chegou a
-dizer que *"o middleware funciona em produção"*, com base em ver `/despesas` redirecionar
-para `/entrar`. O log mostrou que **aquele 307 vinha junto de `MissingSecret`** — o
-redirecionamento acontecia apesar da configuração quebrada, não por causa dela funcionar.
-Observar o resultado certo não prova o caminho certo. **A proteção de rota em produção
-continua não verificada**, e só pode ser dada por boa quando alguém conseguir entrar.
+A publicação atravessou dois erros até aqui, os dois registrados porque voltam:
 
-A allowlist também segue sem teste em produção, porque exige login de verdade.
+- **`AUTH_SECRET` ausente** no ambiente da Vercel. Toda rota de `/api/auth/*` em 500 com
+  `MissingSecret`. Resolvido importando o `.env` para lá — e **variável nova exige deploy
+  novo**, não alcança o que já existe
+- **`redirect_uri_mismatch` do Google**, resolvido cadastrando
+  `https://lancardespesas.vercel.app/api/auth/callback/google`. O URI que o Auth.js realmente
+  usa não se adivinha: `GET /api/auth/providers` devolve o `callbackUrl` dele em JSON, sem
+  autenticação. **E só dá para entrar pelo domínio estável** — a URL própria de cada deploy
+  muda sempre e não há como cadastrá-la (armadilha 18)
 
 O redesenho visual é o trabalho do plano
 [`plans/redesenho-visual/`](plans/redesenho-visual/README.md): a camada visual que a Fase 1 não
@@ -43,9 +44,10 @@ construiu. As sete etapas estão concluídas, cada tarefa com revisão própria.
 | [06 — Configurações](plans/redesenho-visual/06-configuracoes.md) | Repositório, actions e as três listas | Concluída |
 | [07 — Acabamento](plans/redesenho-visual/07-acabamento.md) | Varredura de cor, verificação guiada, documentação, fechamento | T1 e T3 feitas; **T2 não**; T4 depende da T2 |
 
-**A Tarefa 2 da Etapa 07 — a conferência visual tela a tela — não foi feita por ninguém**, e a
-razão é simples: tudo da Etapa 02 em diante está atrás do login com Google, e nenhum agente
-conseguiu entrar. É a dívida 1 mais abaixo, e é ela que segura a Tarefa 4, o fechamento.
+**A Tarefa 2 da Etapa 07 — a conferência visual tela a tela — continua sem ser feita**, mas
+não há mais impedimento: o login em produção funciona. Até agora a razão era que tudo da Etapa
+02 em diante está atrás do Google e nenhum agente entra. É a dívida 1 mais abaixo, e é ela que
+segura a Tarefa 4, o fechamento.
 
 Três consertos nasceram fora do plano, de revisão, e entraram junto: conta inativa com
 histórico derrubando o mês (`9232252`), categoria arquivada sendo trocada em silêncio ao editar
@@ -54,12 +56,12 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 118 passando e 12 pulados, em 10 arquivos passando e 3 pulados.** Saída
-literal:
+**`npm test` hoje: 118 passando e 16 pulados.** Com banco, `npm run test:banco`, são **134
+passando e nenhum pulado**. Saída literal dos dois:
 
 ```
- Test Files  10 passed | 3 skipped (13)
-      Tests  118 passed | 12 skipped (130)
+ Test Files  10 passed | 3 skipped (13)        Test Files  13 passed (13)
+      Tests  118 passed | 16 skipped (134)          Tests  134 passed (134)
 ```
 
 Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
@@ -132,14 +134,14 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 - **Não há tela de resolução de conflito.** A proteção contra sobrescrita existe e a recusa
   aparece — e desde `35ba027` a recusa não apaga mais o que foi digitado —, mas sem o
   comparativo lado a lado
-- **Não há tela para marcar reembolso como recebido.** O cálculo já obedece a regra — o
-  reembolso sai do gasto do casal e continua na fatura, na linha *A receber* do Resumo —, mas
-  marcar um lançamento como reembolso ainda é trabalho de banco: o painel de lançamento não
-  tem o campo, e nem `devedorNome` nem `statusReembolso` são graváveis pela tela. **A
-  renderização da linha nova nunca foi vista por ninguém**, pelo mesmo motivo de sempre: está
-  atrás do login. É o passo novo do [roteiro](verificacao-visual.md)
+- **Não há tela para marcar reembolso como RECEBIDO.** Marcar um lançamento *como reembolso*
+  passou a existir — o interruptor "Alguém vai devolver" no painel grava `statusReembolso` e
+  `devedorNome`. O que falta é o outro lado: dizer que a pessoa **já devolveu**. O status
+  `RECEBIDO` existe no enum, o repositório o preserva numa edição, e nada o grava
 - **Não há "A receber" fora do Resumo.** A regra fala de uma visão de pendências; o que existe
-  é a linha na matriz do mês
+  é a linha na matriz do mês. **O usuário pediu essa seção** ao decidir a semântica da marca de
+  terceiros — "posteriormente deve criar uma sessão de valores de terceiros" — e ela é a próxima
+  tarefa natural, junto com marcar como recebido
 - **Não há histórico de auditoria na tela.** A tabela `Auditoria` passou a receber linhas —
   travar e destravar fatura, com quem e quando —, mas nada as mostra. Hoje só por SQL
 - **Não há tema escuro.** Os tokens estão prontos para receber um, o bloco escuro não foi
@@ -161,7 +163,7 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 A tela de cadastro de categoria, que constava aqui como ausente, **passou a existir** com a
 Etapa 06 — junto com a de contas e a de pessoas.
 
-## As duas dívidas que dependem do usuário
+## A dívida que ainda depende do usuário
 
 **Leia esta seção antes de qualquer outra coisa.** Nenhuma das duas pode ser resolvida por um
 agente sozinho, e as duas ficam abertas entre uma sessão e a seguinte.
@@ -200,16 +202,21 @@ arquivos compartilham um banco só.
 Em série, os mesmos 130 passam. O `--no-file-parallelism` está assado no runner por isso — ver
 [`decisoes.md`](decisoes.md) antes de tirar em nome de velocidade.
 
-### 1. A conferência visual da camada nova não foi feita por ninguém
+### 1. ~~A conferência visual~~ — **feita**
 
-Tudo da Etapa 02 em diante — casco, grade, painel, resumo, configurações — está atrás do login
-com Google, e **nenhum agente conseguiu entrar**. Nada da camada visual foi visto numa tela de
-verdade. Não há teste automatizado dela: o projeto não tem teste de componente, e o único
-Playwright está pulado por exigir login.
+Os quatorze passos de [`verificacao-visual.md`](verificacao-visual.md) foram conferidos pelo
+usuário em 2026-10-12, incluindo a prova de paridade contra a planilha. **Era a dívida mais
+antiga do projeto**, aberta desde setembro, e o que a destravou foi o login em produção passar
+a funcionar — nenhum agente consegue entrar, então ela nunca dependeu de trabalho, só de
+acesso.
 
-O roteiro operacional, escrito para não depender de memória, está em
-[`verificacao-visual.md`](verificacao-visual.md) — sete passos, incluindo a prova de paridade,
-que é conferida contra a planilha do casal e não contra número escrito aqui.
+Saíram dela dois pedidos, os dois já implementados: o botão flutuante de novo lançamento e a
+marca de reembolso no painel. **Nada mais foi apontado como errado** — nem a paridade, nem os
+totais, nem o fechamento do mês.
+
+A camada visual continua sem teste automatizado: o projeto não tem teste de componente, e o
+único Playwright está pulado por exigir login. Mudança nessas telas continua precisando de
+olho humano, e o roteiro continua valendo como lista.
 
 Para ver as telas com conteúdo sem tocar em dado real:
 
@@ -272,8 +279,8 @@ verdadeira quando o conjunto é ímpar.
 |---|---|
 | Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha reimportada como `2026-09`** (58 lançamentos, fatura conferida contra a linha `FATURA:`). É o banco de produção do casal, com dado financeiro real |
 | Neon — banco de teste | **Criado**, como branch do projeto. Conexão em `DATABASE_URL_TESTE`; os 130 testes rodam com `npm run test:banco` |
-| Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo. **Falta o URI de redirecionamento de produção** — só o de `localhost` está cadastrado, e é o que trava o login |
-| Vercel | **Publicado** em https://lancardespesas.vercel.app. Variáveis importadas do `.env` local e `/api/auth/*` respondendo. Falta o **URI de redirecionamento no Google** — o login ainda não completou |
+| Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo. URIs de redirecionamento de `localhost` e de produção cadastrados. **Login verificado nos dois sentidos** |
+| Vercel | **Publicado e funcionando** em https://lancardespesas.vercel.app. Variáveis importadas do `.env` local. Apagar de lá o `DATABASE_URL_TESTE`, que veio junto e a aplicação não lê |
 | GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada e única; branches de trabalho apagadas |
 
 Os segredos moram em `.env`, na raiz, a partir do `.env.example`. **`.env`, e não
@@ -301,13 +308,14 @@ lançamento ou em qualquer consulta que filtre por `ativa`/`arquivada`/`ativo`.
 
 ## Antes de usar de verdade
 
-1. **Fazer a conferência visual da Tarefa 2** (dívida 1 acima). É o que separa "está bonito"
-   de afirmação verificável
-2. **Testar o login no navegador**, com um e-mail da allowlist e um de fora. Continua sendo o
-   teste que nenhum agente conseguiu fazer
-3. **Decidir as cores dos membros** (dívida 2 acima)
-A importação da planilha e a publicação na Vercel, que constavam aqui como pendentes, **já
-foram feitas**.
+1. **Fazer a conferência visual** pelo [roteiro](verificacao-visual.md), quatorze passos. É o
+   que separa "está bonito" de afirmação verificável, e **agora é possível** — até o login
+   funcionar, ninguém conseguia passar da primeira tela
+2. **Escolher as cores dos membros** em `/configuracoes` → Pessoas (Passo 5 do roteiro)
+
+Já feitos, e que constavam aqui como pendentes: a importação da planilha, a publicação na
+Vercel, e o **teste de login** — os dois e-mails da allowlist entraram e um de fora foi
+bloqueado, que é o par completo.
 
 ## Pendências menores para triar
 

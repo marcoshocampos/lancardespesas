@@ -25,6 +25,8 @@ export type LinhaGrade = {
   contaId: string;
   contaNome: string;
   ehReembolso: boolean;
+  /** Quem vai devolver. Null tambem quando ehReembolso e true e ninguem anotou o nome. */
+  devedorNome: string | null;
 };
 
 const PARCELA_VISIVEL = { cancelada: false, lancamento: { deletadoEm: null } };
@@ -129,5 +131,6 @@ export async function carregarLinhasDaGrade(
     contaId: p.lancamento.contaId,
     contaNome: p.lancamento.conta.nome,
     ehReembolso: p.lancamento.statusReembolso !== null,
+    devedorNome: p.lancamento.devedorNome,
   }));
 }

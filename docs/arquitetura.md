@@ -466,6 +466,11 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     O mesmo vale para a allowlist: `/entrar` recusando um e-mail de fora só significa alguma
     coisa se um e-mail de dentro entrar.
 
+    **O par foi fechado em 2026-10-12**, em produção: os dois e-mails da allowlist entraram e
+    um de fora foi bloqueado. A armadilha fica porque ela não é sobre autenticação — é sobre
+    aceitar meia evidência. Vale para qualquer barreira: filtro, validação, trava de fatura,
+    guarda de teste. Barrar é a metade fácil, e é a que um sistema quebrado também faz.
+
 18. **Só dá para entrar pelo domínio estável da Vercel.** Cada deploy ganha uma URL própria
     (`lancardespesas-h9keuusyk-nick-hoc.vercel.app`), e o Auth.js monta o callback a partir do
     host da requisição. Entrar por ali manda ao Google um `redirect_uri` que muda a cada deploy
@@ -478,3 +483,13 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     O URI que o Auth.js realmente usa não precisa ser adivinhado: `GET /api/auth/providers`
     devolve o `callbackUrl` dele em JSON, sem autenticação. É a forma de conferir contra o que
     está cadastrado no Google em vez de supor.
+
+19. **Branch de teste recriada no Neon volta com os dados de produção.** A branch nasce como
+    cópia do pai, e recriá-la — para rotacionar senha, por exemplo — repete isso. Aconteceu:
+    depois de uma rotação, `npm run test:banco` recusou rodar com *"Banco tem 67 lançamento(s)"*.
+
+    **A recusa é o comportamento certo, não o problema.** Quem vir essa mensagem deve limpar a
+    branch de teste, nunca contornar a guarda. E antes de limpar, conferir que o endpoint não é
+    o de produção — o runner já compara, mas o `deleteMany` que se escreve na hora não.
+
+    Categorias, membros e contas ficam: a suíte os lê como fixture pelo `findFirstOrThrow`.

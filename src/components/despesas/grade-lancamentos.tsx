@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { agrupar } from '@/domain/agrupamento';
 import { formatarCompetencia } from '@/domain/competencia';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
+import { BotaoFlutuanteNovo, ID_BOTAO_FLUTUANTE } from './botao-flutuante-novo';
 import { ChipsConta } from './chips-conta';
 import { ID_BOTAO_NOVO_LANCAMENTO, PainelLancamento, type ModoPainel } from './painel-lancamento';
 import { SecaoPessoa } from './secao-pessoa';
@@ -109,6 +110,10 @@ export function GradeLancamentos({
 
   const abrirCriacao = () => setEstado({ modo: 'criar' });
 
+  // O flutuante diz quem ele e, para o painel devolver o foco a ele ao fechar
+  // em vez de rolar a pagina ate o botao do topo.
+  const abrirCriacaoDoFlutuante = () => setEstado({ modo: 'criar', focoAoFechar: ID_BOTAO_FLUTUANTE });
+
   const conteudo = (() => {
     if (linhas.length === 0) {
       // Pela lista do mes: quem filtrou por uma conta desativada que tem
@@ -204,6 +209,8 @@ export function GradeLancamentos({
       </div>
 
       <div className="mt-4 overflow-hidden rounded-caixa border border-borda bg-superficie">{conteudo}</div>
+
+      <BotaoFlutuanteNovo onClick={abrirCriacaoDoFlutuante} />
 
       {/* As duas listas, porque o painel tem dois modos: criar so oferece conta
           ATIVA, editar tambem precisa da conta do proprio lancamento, ainda que

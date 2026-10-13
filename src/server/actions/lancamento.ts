@@ -16,6 +16,8 @@ const esquema = z.object({
   categoriaId: z.string().min(1),
   membroId: z.string().optional(),
   competenciaManual: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+  ehReembolso: z.boolean().optional(),
+  devedorNome: z.string().trim().max(80).optional(),
 });
 
 async function exigirSessao() {

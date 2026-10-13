@@ -21,6 +21,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -53,8 +54,17 @@ type Conta = {
   cor: string;
 };
 
-/** `estado === null` fecha o painel. Um componente, dois modos — nunca dois componentes. */
-export type ModoPainel = { modo: 'criar' } | { modo: 'editar'; linha: LinhaGrade };
+/**
+ * `estado === null` fecha o painel. Um componente, dois modos — nunca dois componentes.
+ *
+ * `focoAoFechar` existe porque criar tem DOIS gatilhos: o botao do topo e o
+ * flutuante que acompanha a rolagem. Sem ele, abrir pelo flutuante e fechar
+ * devolvia o foco ao botao do topo — que esta fora de vista, entao o navegador
+ * rolava a pagina ate la. Era o mesmo salto que o flutuante existe para evitar.
+ */
+export type ModoPainel =
+  | { modo: 'criar'; focoAoFechar?: string }
+  | { modo: 'editar'; linha: LinhaGrade };
 
 /** Id do botao "Novo lancamento" — usado por `grade-lancamentos.tsx` e como alvo de
  * foco quando o painel fecha (ver `onCloseAutoFocus` abaixo). Compartilhado como
@@ -87,6 +97,8 @@ type CamposComuns = {
   contaId: string;
   categoriaId: string;
   membroId?: string;
+  ehReembolso: boolean;
+  devedorNome?: string;
 };
 
 // `atual` chega tipado `unknown` (ResultadoGravacao) porque e o registro cru do
@@ -227,6 +239,42 @@ function Formulario({
   const [dataCompra, setDataCompra] = useState(editando?.linha.dataCompra ?? '');
   const [contaId, setContaId] = useState(editando?.linha.contaId ?? contasOferecidas[0]?.id ?? '');
 
+  /**
+   * Marca de "alguem de fora vai devolver". Mora em estado, e nao no FormData,
+   * porque o Switch do shadcn e um `button[role=switch]` — nao e campo de
+   * formulario e nao aparece no `FormData`.
+   */
+  const [ehReembolso, setEhReembolso] = useState(editando?.linha.ehReembolso ?? false);
+
+  /**
+   * A categoria precisou virar CONTROLADA, ao contrario dos outros campos.
+   *
+   * Ligar a marca de terceiros preenche a categoria com "Terceiros", e campo
+   * nao controlado nao aceita ser preenchido de fora: `defaultValue` so vale na
+   * montagem. O custo e conhecido e esta no comentario do `onSubmit` logo
+   * abaixo — campo controlado volta ao valor do estado num re-render —, mas
+   * aqui o estado E a verdade, entao nao ha o que perder.
+   *
+   * Preenche, nao trava: o remedio comprado para a tia pode ficar em Medicacao
+   * e continuar sendo reembolso. Por isso um `onValueChange` normal convive com
+   * o preenchimento automatico.
+   */
+  const [categoriaId, setCategoriaId] = useState(
+    editando?.linha.categoriaId ?? categoriasOferecidas[0]?.id ?? '',
+  );
+
+  const categoriaTerceiros = categoriasOferecidas.find(
+    (c) => c.nome.trim().toLowerCase() === 'terceiros',
+  );
+
+  function alternarReembolso(ligado: boolean) {
+    setEhReembolso(ligado);
+    // So preenche ao LIGAR, e so se a categoria existir. Desligar nao desfaz a
+    // escolha: quem ligou, viu virar Terceiros e desligou provavelmente quis
+    // mesmo essa categoria.
+    if (ligado && categoriaTerceiros) setCategoriaId(categoriaTerceiros.id);
+  }
+
   const dica = calcularDica(dataCompra, contaId, contasOferecidas);
 
   // ATENCAO, terceiro caso da mesma familia, hoje inalcancavel: `membros` chega
@@ -290,8 +338,12 @@ function Formulario({
       numeroParcelas,
       escopo: escopo === 'CONJUNTO' ? 'CONJUNTO' : 'PESSOAL',
       contaId: String(dados.get('contaId') ?? ''),
-      categoriaId: String(dados.get('categoriaId') ?? ''),
+      categoriaId,
       ...(escopo === 'CONJUNTO' ? {} : { membroId: escopo }),
+      ehReembolso,
+      // O nome so viaja junto com a marca ligada. Desligar e salvar tem que
+      // limpar o devedor no banco, nao deixa-lo pendurado num lancamento comum.
+      ...(ehReembolso ? { devedorNome: String(dados.get('devedorNome') ?? '') } : {}),
     };
 
     if (editando) {
@@ -499,11 +551,7 @@ function Formulario({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="campo-categoria">Categoria</Label>
-            <Select
-              name="categoriaId"
-              required
-              defaultValue={editando?.linha.categoriaId ?? categoriasOferecidas[0]?.id ?? ''}
-            >
+            <Select name="categoriaId" required value={categoriaId} onValueChange={setCategoriaId}>
               <SelectTrigger id="campo-categoria" className="w-full">
                 <SelectValue placeholder="Selecionar" />
               </SelectTrigger>
@@ -516,6 +564,48 @@ function Formulario({
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        {/* Reembolso de terceiro fecha o formulario porque e a excecao, nao a
+            regra: a maioria dos lancamentos e gasto do casal, e um campo sempre
+            visivel no meio dos outros sugeriria o contrario. */}
+        <div className="mt-4 space-y-3 rounded-caixa border border-borda-suave bg-superficie-alta p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="campo-reembolso" className="text-sm">
+                Alguém vai devolver
+              </Label>
+              <p id="ajuda-reembolso" className="text-xs text-tinta-fraca">
+                Continua na fatura do cartão e sai do gasto de vocês, na linha{' '}
+                <strong className="font-medium">A receber</strong> do Resumo.
+              </p>
+            </div>
+            <Switch
+              id="campo-reembolso"
+              checked={ehReembolso}
+              onCheckedChange={alternarReembolso}
+              aria-describedby="ajuda-reembolso"
+            />
+          </div>
+
+          {ehReembolso && (
+            <div className="space-y-1.5">
+              <Label htmlFor="campo-devedor" className="text-xs font-normal text-tinta-fraca">
+                Quem vai devolver
+              </Label>
+              {/* Nao controlado, como os demais campos de texto: o `key` so
+                  existe para o campo reler o valor gravado ao trocar de
+                  lancamento sem desmontar o painel. */}
+              <Input
+                key={editando?.linha.lancamentoId ?? 'novo'}
+                id="campo-devedor"
+                name="devedorNome"
+                maxLength={80}
+                placeholder="Nome ou descrição"
+                defaultValue={editando?.linha.devedorNome ?? ''}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -631,7 +721,9 @@ export function PainelLancamento({
   useEffect(() => {
     if (estado === null) return;
     focoAoFecharRef.current =
-      estado.modo === 'editar' ? idBotaoEditar(estado.linha.parcelaId) : ID_BOTAO_NOVO_LANCAMENTO;
+      estado.modo === 'editar'
+        ? idBotaoEditar(estado.linha.parcelaId)
+        : (estado.focoAoFechar ?? ID_BOTAO_NOVO_LANCAMENTO);
   }, [estado]);
 
   return (

@@ -181,6 +181,54 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     expect(parcelas[0]?.competencia).toBe('2026-07');
   });
 
+  it('grava a marca de reembolso e o nome de quem vai devolver', async () => {
+    const id = await criarOk({ ...entrada(), ehReembolso: true, devedorNome: '  Tia Cida  ' });
+
+    const salvo = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    expect(salvo.statusReembolso).toBe('PENDENTE');
+    // Trim no repositorio: espaco em volta do nome e digitacao, nao dado.
+    expect(salvo.devedorNome).toBe('Tia Cida');
+  });
+
+  it('nao grava nome de devedor quando a marca esta desligada', async () => {
+    const id = await criarOk({ ...entrada(), devedorNome: 'Tia Cida' });
+
+    const salvo = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    expect(salvo.statusReembolso).toBeNull();
+    expect(salvo.devedorNome).toBeNull();
+  });
+
+  it('limpa o devedor ao desligar a marca numa edicao', async () => {
+    const id = await criarOk({ ...entrada(), ehReembolso: true, devedorNome: 'Tia Cida' });
+
+    const resultado = await editarLancamento(id, 1, { ...entrada(), ehReembolso: false });
+    expect(resultado.ok).toBe(true);
+
+    const salvo = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    expect(salvo.statusReembolso).toBeNull();
+    // Sem isto, o nome de quem devia ficaria pendurado num lancamento comum e
+    // reapareceria do nada se alguem religasse a marca.
+    expect(salvo.devedorNome).toBeNull();
+  });
+
+  it('nao rebaixa um reembolso ja RECEBIDO ao editar o lancamento', async () => {
+    const id = await criarOk({ ...entrada(), ehReembolso: true, devedorNome: 'Tia Cida' });
+    await prisma.lancamento.update({ where: { id }, data: { statusReembolso: 'RECEBIDO' } });
+
+    const resultado = await editarLancamento(id, 1, {
+      ...entrada(),
+      descricao: 'loja online (descricao corrigida)',
+      ehReembolso: true,
+      devedorNome: 'Tia Cida',
+    });
+    expect(resultado.ok).toBe(true);
+
+    const salvo = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    // Quem ja devolveu continua tendo devolvido depois de alguem corrigir a
+    // descricao do lancamento.
+    expect(salvo.statusReembolso).toBe('RECEBIDO');
+  });
+
   it('mantem a parcela cancelada depois de editar o lancamento', async () => {
     const id = await criarOk({ ...entrada(), numeroParcelas: 3 });
     const parcela3 = await prisma.parcela.findFirstOrThrow({

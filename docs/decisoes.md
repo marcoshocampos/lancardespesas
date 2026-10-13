@@ -394,3 +394,53 @@ argumento passado com shell não é escapado, e aqui chegam argumentos da linha 
 **Branch do Neon nasce como cópia do pai**, então a de teste vem com os dados reais dentro. Os
 lançamentos têm de ser apagados dela antes do primeiro uso; categorias, membros e contas ficam,
 porque a suíte os lê como fixture pelo `findFirstOrThrow`.
+
+## O seletor de categoria é controlado, e só ele
+
+**Onde:** `categoriaId` em `painel-lancamento.tsx`.
+
+Todos os campos do painel são **não controlados** (`defaultValue` + leitura do `FormData` no
+envio), por um motivo medido e registrado no próprio arquivo: com campo controlado ou com
+`action={}`, o React 19 devolve o campo ao valor do estado quando a transição termina, e a
+pessoa perde o que digitou justamente nas recusas — `CONFLITO` e `FATURA_TRAVADA` — em que a
+tela manda tentar de novo.
+
+A categoria é a exceção porque **ligar a marca de terceiros a preenche com "Terceiros"**, e
+campo não controlado não aceita ser preenchido de fora: `defaultValue` só vale na montagem.
+
+O custo não se aplica aqui: o estado **é** a verdade para esse campo, então não há valor
+digitado a perder. Preenche, não trava — o remédio comprado para a tia pode ficar em Medicação
+e continuar sendo reembolso.
+
+**Não transforme os outros campos em controlados "para ficar consistente".** A inconsistência é
+deliberada e o motivo de cada lado está escrito onde ele vale.
+
+## Criar lançamento não apaga filho que não existe
+
+**Onde:** o parâmetro `recemCriado` de `gravarFilhos`, em `repositorios/lancamento.ts`.
+
+`gravarFilhos` serve criar e editar. Na edição ele precisa ler as parcelas canceladas, apagar
+as parcelas velhas e apagar os rateios velhos. Na criação **nada disso encontra coisa alguma**:
+o lançamento nasceu na linha de cima, dentro da mesma transação.
+
+Eram três consultas sem efeito, mais uma quarta: `competenciaBaseDe` lia a conta no banco duas
+vezes por gravação — uma na checagem de fatura travada, outra dentro do `gravarFilhos`. A
+`competenciaBase` agora é lida uma vez e passada adiante, e `competenciasDe` virou função pura
+de quebra.
+
+Medido contra o banco de teste, com o log de consultas do Prisma:
+
+| | consultas antes | consultas depois |
+|---|---|---|
+| criar à vista | 10 | **6** |
+| criar 12x conjunto | 12 | **8** |
+| editar | 14 | 13 |
+
+Cada ida ao Neon custa algo em torno de 45 ms, então a conta fecha. **A edição quase não
+melhora, e está certo:** ela precisa mesmo de quase tudo que faz.
+
+**O risco está no sentido contrário:** passar `recemCriado: true` para um lançamento que já
+existe duplica parcela, porque o `createMany` roda sem o `deleteMany` antes. Só
+`criarLancamento` pode passar `true`, e só porque criou o registro na transação corrente. Os
+testes de banco do caminho de gravação são a rede — rode `npm run test:banco` antes de mexer
+aqui.
