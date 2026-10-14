@@ -136,6 +136,8 @@ React. Sem I/O próprio: recebem dados por prop e chamam actions.
 | `barra-lateral.tsx` | **sim** | Destinos, destaque do atual, e o `?competencia=` carregado de uma tela para a outra |
 | `faixa-competencia.tsx` | não | O mês em tipo grande, setas de mês, e os totais do mês por membro e por fatura |
 | `identidade.tsx` | não | Quem está logado, no rodapé da barra, e o botão de sair |
+| `tema.tsx` | **sim** | O botão de tema, no rodapé: sistema → claro → escuro |
+| `tema-compartilhado.ts` | — | Nome do cookie e tipo, partilhados com o `layout.tsx` de servidor |
 
 Os três juntos são a armadilha 9 desta página, e vale ler antes de mexer em qualquer um:
 a barra é de cliente porque usa `useSearchParams()`, a faixa é de servidor porque é a página
@@ -522,3 +524,21 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     excluir já recusa em mês fechado, então nada na lixeira veio de um mês travado — mas a
     fatura pode ter sido travada **depois**. Sem a segunda verificação, restaurar devolveria uma
     parcela para um mês que alguém já conferiu e fechou.
+
+22. **O tema forçado vem de cookie, e trocar isso por `localStorage` quebra a hidratação.**
+    `layout.tsx` lê o cookie no servidor e já renderiza `data-tema` no `<html>`. Parece rodeio
+    quando `localStorage` é mais simples — e foi exatamente o que se tentou primeiro.
+
+    O que acontece com `localStorage`: a escolha só é conhecida no cliente, então é preciso um
+    script inline que ponha o atributo antes da primeira pintura, senão há lampejo do tema
+    errado. Mas aí o `<html>` que o React hidrata tem um atributo que o HTML do servidor não
+    tinha — **erro de hidratação no console a cada carregamento**. E
+    `suppressHydrationWarning` no `<html>` **não suprime esse caso no Next 16**: foi testado,
+    com o servidor de desenvolvimento reiniciado, e o erro continuou.
+
+    O custo do cookie é o layout raiz virar dinâmico: `/entrar` deixou de ser pré-renderizado,
+    de `○` para `ƒ` no `npm run build`. Aceito, porque todo o resto já é dinâmico por sessão.
+
+    O contrato mora em `casco/tema-compartilhado.ts`, **sem `'use client'`** — um componente de
+    servidor não importa de módulo de cliente, e duplicar o nome do cookie faria as duas pontas
+    divergirem em silêncio.

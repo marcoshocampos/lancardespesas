@@ -139,3 +139,21 @@ fechamento da fase.
       recusar dizendo que a fatura foi fechada depois da exclusão.
 - [ ] Indo de Despesas para a Lixeira e voltando, **o mês não se perde** — a Lixeira não tem
       faixa de competência, mas preserva a da tela anterior.
+
+## Passo 9 — Tema
+
+O botão fica no rodapé da barra lateral, acima do seu nome, e cicla **sistema → claro →
+escuro**.
+
+- [ ] Com o botão em **sistema** (ícone de monitor), troque o tema do seu sistema operacional:
+      a tela acompanha.
+- [ ] Ponha o sistema no **escuro** e force **claro** pelo botão. A tela fica clara e
+      **continua clara ao recarregar** — é a direção que costuma falhar.
+- [ ] Force **escuro** e recarregue: **nenhum lampejo branco** antes da página aparecer.
+- [ ] Volte para **sistema**: o ícone vira monitor e a tela volta a obedecer o aparelho.
+- [ ] No escuro, abra o painel de lançamento e clique no campo de **data**: o calendário do
+      navegador tem que abrir escuro também, não branco.
+- [ ] No escuro, confira os selos de conferência e as mensagens de erro — verde, vermelho e
+      laranja precisam continuar legíveis.
+- [ ] As bolinhas de categoria e as faixas de membro **não mudam** com o tema, por decisão. Se
+      alguma ficar ilegível no escuro, dá para reajustar em Configurações.

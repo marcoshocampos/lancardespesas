@@ -140,9 +140,9 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 - **Não há busca.** Achar um lançamento antigo exige lembrar o mês dele
 - **Não há histórico de auditoria na tela.** A tabela `Auditoria` passou a receber linhas —
   travar e destravar fatura, com quem e quando —, mas nada as mostra. Hoje só por SQL
-- **Não há tema escuro.** Os tokens estão prontos para receber um, o bloco escuro não foi
-  escrito, e o `@media (prefers-color-scheme: dark)` do template do Next foi **removido de
-  propósito**. Ver [`decisoes.md`](decisoes.md) antes de achar que é regressão
+- **Não há tema por pessoa.** O escuro existe e segue o sistema operacional, com um botão que
+  força claro ou escuro — mas a escolha forçada é por aparelho, num cookie. Preferência que
+  segue a pessoa depende da tabela `Preferencia`, de Fase 2
 - **Não há gráficos.** O destino existe na barra lateral, desabilitado. Precisa de Recharts,
   consultas que atravessam meses e decisões de regra em aberto
 - **Não há criar conta pela tela.** Configurações edita as contas que existem; conta nova

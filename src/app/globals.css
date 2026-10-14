@@ -57,12 +57,106 @@
   --font-sans: var(--font-geist-sans);
 }
 
+/*
+ * O tema escuro, em dois blocos que NAO sao redundantes.
+ *
+ * O primeiro segue o sistema operacional. O segundo atende o botao da barra
+ * lateral, que forca um tema por aparelho.
+ *
+ * `:root:not([data-tema="claro"])` e o detalhe que decide tudo: sem ele,
+ * forcar CLARO com o sistema no escuro nao funcionaria — a media query venceria
+ * e o botao so teria efeito num sentido. E o erro mais comum deste arranjo.
+ *
+ * Trocar variavel em tempo de execucao funciona porque o Tailwind 4 emite
+ * `var(--color-tinta-fraca)` nas utilidades, e nao o valor cravado. Conferido
+ * no CSS compilado antes de escrever isto.
+ *
+ * A paleta escura e QUENTE, como a clara: a clara parte de #f7f7f5 e #1a1917,
+ * e um escuro azulado leria como outro sistema. Os semanticos ganham versao
+ * propria porque verde e vermelho de fundo claro perdem contraste no escuro —
+ * nao basta inverter superficie e tinta.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --color-fundo: #161513;
+    --color-superficie: #1e1d1a;
+    --color-superficie-alta: #24231f;
+    --color-realce: #2b2926;
+
+    --color-borda: #38352f;
+    --color-borda-suave: #2a2824;
+
+    --color-tinta: #ede9e2;
+    --color-tinta-fraca: #a39d93;
+    --color-tinta-apagada: #6e685f;
+
+    --color-acento: #5fb3bb;
+    --color-positivo: #6fbf8b;
+    --color-positivo-fundo: #1b2e22;
+    --color-negativo: #f0867d;
+    --color-negativo-fundo: #33201e;
+    --color-atencao: #d9a05b;
+    --color-atencao-fundo: #302417;
+
+    /* Sombra quase nao se ve no escuro; o que separa plano e a superficie mais
+       clara. Mantida, mais densa, so para o painel nao colar no fundo. */
+    --shadow-painel: -8px 0 32px rgb(0 0 0 / 0.45);
+    --shadow-flutuante: 0 4px 12px rgb(0 0 0 / 0.35);
+  }
+}
+
+:root[data-tema="escuro"] {
+  --color-fundo: #161513;
+  --color-superficie: #1e1d1a;
+  --color-superficie-alta: #24231f;
+  --color-realce: #2b2926;
+
+  --color-borda: #38352f;
+  --color-borda-suave: #2a2824;
+
+  --color-tinta: #ede9e2;
+  --color-tinta-fraca: #a39d93;
+  --color-tinta-apagada: #6e685f;
+
+  --color-acento: #5fb3bb;
+  --color-positivo: #6fbf8b;
+  --color-positivo-fundo: #1b2e22;
+  --color-negativo: #f0867d;
+  --color-negativo-fundo: #33201e;
+  --color-atencao: #d9a05b;
+  --color-atencao-fundo: #302417;
+
+  --shadow-painel: -8px 0 32px rgb(0 0 0 / 0.45);
+  --shadow-flutuante: 0 4px 12px rgb(0 0 0 / 0.35);
+}
+
+/*
+ * `color-scheme` nao e enfeite: e o que manda o NAVEGADOR pintar barra de
+ * rolagem, seletor de data e autofill no tom certo. Sem isto, o calendario do
+ * campo de data abre branco no meio do tema escuro, e o autofill do Chrome
+ * pinta o campo de azul claro.
+ */
+:root {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    color-scheme: dark;
+  }
+}
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+}
+:root[data-tema="claro"] {
+  color-scheme: light;
+}
+
 body {
   background: var(--color-fundo);
   color: var(--color-tinta);
 }
 
-/* Base do shadcn/ui, revestida com os tokens da casa — sem tema escuro. */
+/* Base do shadcn/ui, revestida com os tokens da casa. */
 @layer base {
   * {
     @apply border-borda outline-acento/50;

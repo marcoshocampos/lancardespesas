@@ -180,24 +180,49 @@ renderizador, e ele custa caro antes de alguém ter usado o sistema. Ver a §2.1
 [spec do redesenho](specs/2026-09-07-redesenho-visual-e-navegacao-design.md), que decidiu isso
 explicitamente para o caso não ser reaberto por engano.
 
-## O escuro não foi construído, e o `prefers-color-scheme` foi removido de propósito
+## O tema escuro guarda a escolha num COOKIE, não no `localStorage`
 
-O `globals.css` que veio do template do Next tinha um `@media (prefers-color-scheme: dark)`
-trocando `--background` e `--foreground`. Ele foi **removido** (commit `8933f6f`), e a
-ausência dele não é regressão — é a decisão.
+**Esta seção substitui a decisão anterior, que era não construir o escuro.** O argumento de lá
+continua registrado logo abaixo, porque explica por que o botão tem três estados.
 
-O tema alvo desta camada é o **claro**. Os tokens nascem prontos para receber um bloco escuro
-depois: cada cor é uma variável em `@theme`, e nenhum componente escreve cor literal. Mas o
-bloco escuro não foi escrito, e Configurações não ganhou seletor de tema.
+A escolha mora em cookie por um motivo que custou uma implementação inteira: **o servidor
+consegue ler cookie**, e com isso renderiza `data-tema` já no HTML.
 
-O motivo é que a preferência por pessoa depende da tabela `Preferencia`, que é de Fase 2. Um
-tema escuro sem onde guardar a escolha — ou guardado só no navegador de um dos dois — é
-meio-recurso, e meio-tema é pior que tema nenhum, porque cria a expectativa de que funciona.
+O caminho comum — guardar no `localStorage` e aplicar por script inline antes da primeira
+pintura — **foi construído e descartado**. Ele resolve o lampejo de tema errado, mas o atributo
+aparece no `<html>` antes de o React hidratar e o HTML do servidor não o tem: erro de
+hidratação no console a cada carregamento. **`suppressHydrationWarning` no `<html>` não
+suprime esse caso no Next 16** — testado, com o servidor reiniciado, e o erro continuou.
 
-Manter o `prefers-color-scheme` antigo junto dos tokens novos seria exatamente isso: um escuro
-pela metade, herdado de um CSS de exemplo, decidindo sozinho a aparência do sistema conforme o
-ajuste do sistema operacional de quem abrisse. **Não recoloque o bloco achando que sumiu sem
-querer.** Ver §2.2 da [spec do redesenho](specs/2026-09-07-redesenho-visual-e-navegacao-design.md).
+Com cookie não há divergência a suprimir nem script a correr antes da pintura. O custo é que
+ler cookie torna o layout raiz dinâmico, e `/entrar` deixa de ser pré-renderizado — irrelevante
+num sistema em que todo o resto já é dinâmico por depender de sessão.
+
+O contrato mínimo entre servidor e cliente mora em `casco/tema-compartilhado.ts`, sem
+`'use client'`: `layout.tsx` é componente de servidor e não pode importar de módulo de
+cliente, e duplicar o nome do cookie convidaria as duas pontas a divergir em silêncio.
+
+### Três estados, e por que o antigo argumento continua valendo
+
+O botão cicla **sistema → claro → escuro**. Com dois estados, "voltar a seguir o sistema"
+sumiria no primeiro clique.
+
+E seguir o sistema importa porque a escolha forçada é **por aparelho e por navegador**: o
+celular e o notebook guardam cookies separados. Guardar por pessoa exige a tabela
+`Preferencia`, que é de Fase 2 — a mesma que segura o layout A da grade.
+
+Era esse o argumento original para não construir nada: *"um tema escuro sem onde guardar a
+escolha é meio-recurso, e meio-tema é pior que tema nenhum, porque cria a expectativa de que
+funciona"*. Ele foi respeitado, não ignorado: **o padrão que funciona em qualquer aparelho é
+seguir o sistema**, e o forçado é uma sobreposição local, não uma preferência que promete
+seguir a pessoa. Quando `Preferencia` existir, o cookie vira o atalho e o banco vira a verdade.
+
+### O `@media (prefers-color-scheme: dark)` do template continua removido
+
+O bloco que veio do Next trocava `--background` e `--foreground`, variáveis que não existem
+mais. A remoção (`8933f6f`) segue valendo — o escuro de hoje é escrito sobre os tokens da casa,
+com paleta **quente** combinando com a clara e com os semânticos refeitos, porque verde e
+vermelho de fundo claro perdem contraste no escuro.
 
 ## A varredura de cor exige dígito, e o Tailwind é preso a `src/`
 

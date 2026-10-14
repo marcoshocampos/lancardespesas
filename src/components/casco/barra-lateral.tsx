@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { BotaoTema } from './tema';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { BarChart3, ClipboardList, Receipt, Settings, Trash2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -110,7 +111,15 @@ export function BarraLateral({ children }: { children: ReactNode }) {
         </ul>
       </nav>
 
-      <div className="mt-auto shrink-0 border-t border-borda">{children}</div>
+      {/* O botao de tema fica ACIMA da identidade, numa faixa propria: ele e
+          controle, e a identidade e informacao mais o sair. Juntar os dois na
+          mesma linha punha "trocar tema" ao lado de "encerrar sessao". */}
+      <div className="mt-auto shrink-0 border-t border-borda">
+        <div className="flex justify-end px-3 pt-2">
+          <BotaoTema />
+        </div>
+        {children}
+      </div>
     </aside>
   );
 }
