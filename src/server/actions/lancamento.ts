@@ -8,6 +8,7 @@ import {
   editarLancamento,
   excluirLancamento,
   marcarReembolso,
+  restaurarLancamento,
 } from '../repositorios/lancamento';
 
 const esquema = z.object({
@@ -68,6 +69,19 @@ export async function acaoMarcarReembolso(dados: unknown) {
     // O Resumo mostra a lista; a grade mostra o selo de reembolso na linha.
     revalidatePath('/resumo');
     revalidatePath('/despesas');
+  }
+  return resultado;
+}
+
+export async function acaoRestaurarLancamento(id: string, versao: number) {
+  await exigirSessao();
+  const resultado = await restaurarLancamento(id, versao);
+  if (resultado.ok) {
+    // A grade do mes volta a mostrar as parcelas, o resumo volta a soma-las,
+    // e a lixeira perde a linha.
+    revalidatePath('/despesas');
+    revalidatePath('/resumo');
+    revalidatePath('/lixeira');
   }
   return resultado;
 }

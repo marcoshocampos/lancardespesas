@@ -127,3 +127,15 @@ número errado só esconde o problema.
 Marque a Tarefa 2 na [Etapa 07](plans/redesenho-visual/07-acabamento.md) e atualize o
 [`estado.md`](estado.md), que hoje registra esta conferência como a dívida que segura o
 fechamento da fase.
+
+## Passo 8 — Lixeira
+
+- [ ] Com nada excluído, a tela diz que está vazia e explica que exclusão vem parar ali — não
+      mostra só "vazio".
+- [ ] Exclua um lançamento **parcelado** no Despesas. Ele aparece na Lixeira como **uma** linha,
+      com `12x` e a faixa de meses em que as parcelas caem — não doze linhas.
+- [ ] **Restaure.** Ele volta à grade do mês com as mesmas parcelas, nos mesmos meses e valores.
+- [ ] Exclua outro, **feche o mês** de alguma parcela dele no Resumo, e tente restaurar: tem que
+      recusar dizendo que a fatura foi fechada depois da exclusão.
+- [ ] Indo de Despesas para a Lixeira e voltando, **o mês não se perde** — a Lixeira não tem
+      faixa de competência, mas preserva a da tela anterior.

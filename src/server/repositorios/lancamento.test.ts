@@ -4,6 +4,8 @@ import {
   criarLancamento,
   editarLancamento,
   marcarReembolso,
+  restaurarLancamento,
+  excluirLancamento,
   type EntradaLancamento,
 } from './lancamento';
 
@@ -282,6 +284,53 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     if (!resultado.ok) expect(resultado.motivo).toBe('NAO_E_REEMBOLSO');
     // Marcar o que ninguem deve criaria reembolso pela porta dos fundos.
     expect((await prisma.lancamento.findUniqueOrThrow({ where: { id } })).statusReembolso).toBeNull();
+  });
+
+  it('restaura um lancamento da lixeira com as parcelas que ele tinha', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 3 });
+    const parcelasAntes = await prisma.parcela.findMany({
+      where: { lancamentoId: id },
+      orderBy: { numero: 'asc' },
+    });
+    expect((await excluirLancamento(id, 1)).ok).toBe(true);
+
+    const restaurado = await restaurarLancamento(id, 2);
+    expect(restaurado.ok).toBe(true);
+
+    const salvo = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    expect(salvo.deletadoEm).toBeNull();
+    // Nao regera: as parcelas nunca sairam do banco, entao voltam identicas.
+    const parcelasDepois = await prisma.parcela.findMany({
+      where: { lancamentoId: id },
+      orderBy: { numero: 'asc' },
+    });
+    expect(parcelasDepois.map((p) => p.competencia)).toEqual(parcelasAntes.map((p) => p.competencia));
+    expect(parcelasDepois.map((p) => p.valorCentavos)).toEqual(parcelasAntes.map((p) => p.valorCentavos));
+  });
+
+  it('recusa restaurar para dentro de fatura travada depois da exclusao', async () => {
+    const id = await criarOk();
+    expect((await excluirLancamento(id, 1)).ok).toBe(true);
+    // A fatura trava DEPOIS: e o caso que a barreira da exclusao nao cobre.
+    await travarFatura('2026-08');
+
+    const resultado = await restaurarLancamento(id, 2);
+
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) expect(resultado.motivo).toBe('FATURA_TRAVADA');
+    expect((await prisma.lancamento.findUniqueOrThrow({ where: { id } })).deletadoEm).not.toBeNull();
+  });
+
+  it('recusa a segunda restauracao concorrente em vez de sobrescrever', async () => {
+    const id = await criarOk();
+    expect((await excluirLancamento(id, 1)).ok).toBe(true);
+
+    const primeira = await restaurarLancamento(id, 2);
+    const segunda = await restaurarLancamento(id, 2);
+
+    expect(primeira.ok).toBe(true);
+    expect(segunda.ok).toBe(false);
+    if (!segunda.ok) expect(segunda.motivo).toBe('CONFLITO');
   });
 
   it('mantem a parcela cancelada depois de editar o lancamento', async () => {

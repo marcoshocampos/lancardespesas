@@ -79,9 +79,10 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 
 | Arquivo | Interface |
 |---|---|
-| `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento`, `marcarReembolso` |
+| `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento`, `marcarReembolso`, `restaurarLancamento` |
 | `repositorios/resumo.ts` | `LinhaGrade`, `LinhaAReceber`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade`, `carregarReembolsosDaCompetencia` |
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
+| `repositorios/lixeira.ts` | `ItemDaLixeira`, `carregarLixeira` |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 
 **As três gravações de lançamento rodam dentro de `prisma.$transaction`**, e todo helper do
@@ -508,3 +509,16 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     todas do mês para somar as outras linhas, e a lista precisa de descrição, conta e devedor,
     que a matriz não usa. Uma consulta servindo os dois carregaria o mês inteiro com campos que
     metade dos consumidores ignora.
+
+21. **A lixeira é a única tela que não é de um mês, e a única leitura por
+    lançamento.** Todo o resto do sistema lê parcela e recebe competência. Aqui não: o que se
+    procura é *"o que eu acabei de excluir"*, não *"o que foi excluído em setembro"*, e mostrar
+    doze linhas de um parcelado mentiria sobre o que volta ao restaurar.
+
+    Ela recebe o `?competencia=` que a barra lateral monta e **ignora**, como Configurações —
+    é esse parâmetro ignorado que preserva o mês ao voltar para Despesas.
+
+    `restaurarLancamento` verifica fatura travada **de novo**, e esse é o ponto não óbvio:
+    excluir já recusa em mês fechado, então nada na lixeira veio de um mês travado — mas a
+    fatura pode ter sido travada **depois**. Sem a segunda verificação, restaurar devolveria uma
+    parcela para um mês que alguém já conferiu e fechou.

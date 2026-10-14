@@ -56,12 +56,12 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 118 passando e 20 pulados.** Com banco, `npm run test:banco`, são **138
+**`npm test` hoje: 118 passando e 23 pulados.** Com banco, `npm run test:banco`, são **141
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
  Test Files  10 passed | 3 skipped (13)        Test Files  13 passed (13)
-      Tests  118 passed | 20 skipped (138)          Tests  138 passed (138)
+      Tests  118 passed | 23 skipped (141)          Tests  141 passed (141)
 ```
 
 Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
@@ -106,7 +106,7 @@ O que a branch `navegacao` acrescentou — **camada visual, sem tocar em nenhum 
   destinos, identidade de quem está logado e botão de sair — que até então não existia em
   lugar nenhum do sistema. As URLs não mudaram
 - **Navegação que preserva contexto:** trocar de tela preserva o mês, trocar de mês preserva o
-  filtro de conta. Gráficos e Lixeira aparecem desabilitados, porque as páginas não existem
+  filtro de conta. Só Gráficos aparece desabilitado, porque a página não existe
 - **Faixa de competência** com o mês, as setas de mês, e os totais do mês por membro e por
   fatura de cartão — pelo mesmo `calcularResumo` que o Resumo usa, então as duas telas não
   divergem
@@ -129,8 +129,8 @@ O que a branch `navegacao` acrescentou — **camada visual, sem tocar em nenhum 
 
 Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas em revisão.
 
-- **Não há tela de lixeira.** A exclusão marca `deletadoEm` e não apaga, mas para o casal o
-  efeito é definitivo até a Fase 3
+- **Não há apagar definitivo.** A lixeira só restaura; nada sai do banco. Escolha explícita,
+  fiel ao invariante 6 — ver [`decisoes.md`](decisoes.md)
 - **Não há tela de resolução de conflito.** A proteção contra sobrescrita existe e a recusa
   aparece — e desde `35ba027` a recusa não apaga mais o que foi digitado —, mas sem o
   comparativo lado a lado
@@ -276,7 +276,7 @@ verdadeira quando o conjunto é ímpar.
 | Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha reimportada como `2026-09`** (58 lançamentos, fatura conferida contra a linha `FATURA:`). É o banco de produção do casal, com dado financeiro real |
 | Neon — banco de teste | **Criado**, como branch do projeto. Conexão em `DATABASE_URL_TESTE`; os 130 testes rodam com `npm run test:banco` |
 | Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo. URIs de redirecionamento de `localhost` e de produção cadastrados. **Login verificado nos dois sentidos** |
-| Vercel | **Publicado e funcionando** em https://lancardespesas.vercel.app. Variáveis importadas do `.env` local. Apagar de lá o `DATABASE_URL_TESTE`, que veio junto e a aplicação não lê |
+| Vercel | **Publicado e funcionando** em https://lancardespesas.vercel.app. Variáveis importadas do `.env` local. O `DATABASE_URL_TESTE`, que veio junto na importação do `.env`, já foi removido de lá |
 | GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada e única; branches de trabalho apagadas |
 
 Os segredos moram em `.env`, na raiz, a partir do `.env.example`. **`.env`, e não

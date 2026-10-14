@@ -375,3 +375,33 @@ a 12 geradas para frente, e as parcelas 1 a 6 marcadas como passadas.
 
 A conferência do resultado é o total: se a soma importada não bater com o `FATURA` da
 planilha, a importação falhou e deve ser refeita, não corrigida na mão.
+
+## 9. Lixeira
+
+Excluir um lançamento grava `deletadoEm` e **não apaga nada** — invariante 6. As parcelas
+continuam no banco, apenas deixam de ser lidas: `PARCELA_VISIVEL` filtra por
+`lancamento: { deletadoEm: null }`.
+
+A tela `/lixeira` lista o que foi excluído, **mais recente primeiro, sem filtro de mês**. É a
+única tela do sistema que não é de uma competência, porque o que se procura nela é o que
+acabou de ser excluído.
+
+Cada item mostra o lançamento inteiro — nunca parcela por parcela — com **a faixa de meses em
+que as parcelas caem**. Numa lista que atravessa competências, é o que responde "onde isto
+reaparece se eu restaurar".
+
+### Restaurar
+
+Limpa o `deletadoEm` e devolve o lançamento **com as parcelas que ele já tinha**: mesmos
+valores, mesmas competências. Não regera nada, porque nada foi apagado.
+
+- Passa pelo **lock otimista**, como qualquer gravação de lançamento
+- **É recusado se alguma parcela cair em fatura travada.** Excluir já recusa em mês fechado,
+  mas a fatura pode ter sido travada depois da exclusão — e restaurar ali dentro mudaria um
+  total que alguém já deu por bom
+
+### A lixeira não esvazia
+
+Não há apagar definitivo, nem expiração automática. **Decisão explícita**, fiel ao invariante 6:
+ver [`decisoes.md`](decisoes.md). A lista cresce na velocidade em que duas pessoas excluem
+lançamento, que é quase nenhuma.

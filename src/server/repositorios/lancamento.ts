@@ -337,3 +337,41 @@ export async function marcarReembolso(
   }
   return { ok: true };
 }
+
+/**
+ * Tira um lancamento da lixeira, com as parcelas que ele ja tinha.
+ *
+ * Par de `excluirLancamento`: aquela grava `deletadoEm`, esta limpa. As
+ * parcelas nunca sairam do banco, entao nao ha o que regerar — restaurar nao
+ * recalcula valor nem competencia, e um parcelado volta exatamente onde estava.
+ *
+ * **A barreira de fatura travada e verificada DE NOVO aqui, e esse e o ponto
+ * nao obvio.** Excluir ja recusa quando ha parcela em mes fechado, entao nada
+ * na lixeira foi excluido de um mes travado — mas a fatura pode ter sido
+ * travada DEPOIS. Restaurar ali dentro devolveria uma parcela para um mes que
+ * alguem ja conferiu e fechou, mudando um total dado por bom.
+ *
+ * Na transacao pelo mesmo motivo das outras gravacoes: conferir fora deixa uma
+ * janela entre a conferencia e a escrita.
+ */
+export async function restaurarLancamento(
+  id: string,
+  versao: number,
+): Promise<ResultadoGravacao> {
+  return prisma.$transaction(async (tx) => {
+    if (await competenciasTravadas(tx, id)) return { ok: false, motivo: 'FATURA_TRAVADA' };
+
+    const alteradas = await tx.lancamento.updateMany({
+      // `deletadoEm: { not: null }` em vez do `deletadoEm: null` das outras
+      // gravacoes: aqui o alvo e justamente o que esta na lixeira.
+      where: { id, versao, deletadoEm: { not: null } },
+      data: { deletadoEm: null, versao: { increment: 1 } },
+    });
+
+    if (alteradas.count === 0) {
+      const atual = await tx.lancamento.findUnique({ where: { id } });
+      return { ok: false, motivo: 'CONFLITO', atual };
+    }
+    return { ok: true };
+  });
+}

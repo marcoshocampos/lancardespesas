@@ -471,3 +471,24 @@ na barra lateral para uma lista de duas ou três linhas por mês seria navegaç�
 **Marcar como recebido não altera número nenhum** — pendente ou recebido, o valor está fora do
 gasto do casal e dentro do `Somado`. Quem for mexer no cálculo por causa desta marca está
 resolvendo um problema que não existe.
+
+## A lixeira não esvazia, e isso foi escolhido
+
+**Onde:** `carregarLixeira` em `repositorios/lixeira.ts` — e na ausência de qualquer função que
+apague de verdade.
+
+O invariante 6 diz *"nada é apagado de verdade"*. Levado ao pé da letra, a lixeira só cresce:
+um lançamento duplicado, criado e excluído no mesmo minuto, fica lá para sempre no meio das
+exclusões que importam.
+
+As três saídas foram postas ao usuário: manter fiel ao invariante; apagar de vez com
+confirmação, reescrevendo o invariante; ou expirar sozinho depois de um prazo. **Escolheu
+manter fiel**, pelo motivo certo: a lixeira está vazia, eles excluem pouco, e a poluição é um
+problema que ainda não existe.
+
+**Não construa apagar definitivo nem expiração automática sem a palavra dele.** Quando a lista
+incomodar, a escolha entre as outras duas vai ser informada pelo que estiver lá dentro — e o
+remédio é um limite na listagem antes de ser apagar o que pediram para guardar.
+
+Sem paginação pela mesma razão. Duas pessoas excluindo lançamento não produzem uma lista que
+precise dela tão cedo, e paginar uma lista vazia é código a manter sem nada a mostrar.

@@ -14,10 +14,10 @@ type Destino = {
 };
 
 /**
- * Destinos da barra, nesta ordem exata. Graficos e Lixeira nao existem no
- * sistema ainda e por isso seguem desabilitados: `docs/arquitetura.md` e
- * explicito em que um destino so entra na navegacao depois que a pagina
- * existir. Configuracoes passou a existir na Etapa 06 e entrou.
+ * Destinos da barra, nesta ordem exata. So Graficos segue desabilitado: a
+ * pagina nao existe, e `docs/arquitetura.md` e explicito em que um destino so
+ * entra na navegacao depois que a pagina existir. Configuracoes entrou na
+ * Etapa 06; Lixeira, quando a tela passou a existir.
  *
  * Configuracoes nao tem filtro de competencia, e ainda assim recebe o
  * `?competencia=` que o link monta logo abaixo — a pagina ignora o parametro
@@ -31,7 +31,7 @@ const DESTINOS: Destino[] = [
   { rotulo: 'Resumo', rota: '/resumo', Icone: ClipboardList },
   { rotulo: 'Gráficos', rota: null, Icone: BarChart3 },
   { rotulo: 'Configurações', rota: '/configuracoes', Icone: Settings },
-  { rotulo: 'Lixeira', rota: null, Icone: Trash2 },
+  { rotulo: 'Lixeira', rota: '/lixeira', Icone: Trash2 },
 ];
 
 /** O destino atual sai do comeco do caminho, nao de igualdade exata — cobre eventuais sub-rotas. */
