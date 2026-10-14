@@ -1,13 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition, type FormEvent } from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import { CampoCor, CampoNome } from '@/components/configuracoes/campos-nome-e-cor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  acaoCriarConta,
   acaoEditarConta,
   type CampoDeCartao,
   type ResultadoEdicaoConta,
@@ -152,6 +160,72 @@ const CLASSE_ROTULO = 'text-xs font-normal text-tinta-fraca';
  * outro. Em categorias, com nome e cor apenas, o rotulo so no leitor de tela
  * nao custa nada.
  */
+/**
+ * Os dois dias do cartao, partilhados por criar e editar.
+ *
+ * Extraidos para que a exigencia NUNCA divirja entre os dois formularios: sao
+ * os campos que `CARTAO_SEM_DIAS` recusa no servidor, e um `required` corrigido
+ * so num lado deixaria o outro mandando payload que o servidor rejeita.
+ *
+ * Conta externa nao os renderiza: sem fatura, o dia seria campo sem
+ * significado. Escondidos, saem do `FormData` e a gravacao manda `null`.
+ */
+function CamposDeCartao({
+  idBase,
+  idErro,
+  erro,
+  fechamento,
+  vencimento,
+}: {
+  idBase: string;
+  idErro: string;
+  erro: ErroDeFormulario | null;
+  fechamento: number | null;
+  vencimento: number | null;
+}) {
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idBase}-fechamento`} className={CLASSE_ROTULO}>
+          Fecha dia
+        </Label>
+        <Input
+          id={`${idBase}-fechamento`}
+          name="diaFechamento"
+          type="number"
+          inputMode="numeric"
+          required
+          min={PRIMEIRO_DIA}
+          max={ULTIMO_DIA}
+          step={1}
+          defaultValue={fechamento ?? ''}
+          className="w-20"
+          {...marcacaoDoCampo('diaFechamento', erro, idErro)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idBase}-vencimento`} className={CLASSE_ROTULO}>
+          Vence dia
+        </Label>
+        <Input
+          id={`${idBase}-vencimento`}
+          name="diaVencimento"
+          type="number"
+          inputMode="numeric"
+          required
+          min={PRIMEIRO_DIA}
+          max={ULTIMO_DIA}
+          step={1}
+          defaultValue={vencimento ?? ''}
+          className="w-20"
+          {...marcacaoDoCampo('diaVencimento', erro, idErro)}
+        />
+      </div>
+    </>
+  );
+}
+
 function FormularioConta({ conta, onFechar }: { conta: Conta; onFechar: () => void }) {
   const [erro, setErro] = useState<ErroDeFormulario | null>(null);
   // `ativa` e o unico campo controlado: e um booleano, e nao ha `defaultValue`
@@ -164,8 +238,6 @@ function FormularioConta({ conta, onFechar }: { conta: Conta; onFechar: () => vo
   const idBase = `conta-${conta.id}`;
   const idNome = `${idBase}-nome`;
   const idCor = `${idBase}-cor`;
-  const idFechamento = `${idBase}-fechamento`;
-  const idVencimento = `${idBase}-vencimento`;
   const idAtiva = `${idBase}-ativa`;
   const idErro = `${idBase}-erro`;
 
@@ -243,45 +315,13 @@ function FormularioConta({ conta, onFechar }: { conta: Conta; onFechar: () => vo
           sem significado. Escondidos, os dois saem do FormData e a gravacao
           manda `null` para ambos. */}
       {ehCartao && (
-        <>
-          <div className="space-y-1.5">
-            <Label htmlFor={idFechamento} className={CLASSE_ROTULO}>
-              Fecha dia
-            </Label>
-            <Input
-              id={idFechamento}
-              name="diaFechamento"
-              type="number"
-              inputMode="numeric"
-              required
-              min={PRIMEIRO_DIA}
-              max={ULTIMO_DIA}
-              step={1}
-              defaultValue={conta.diaFechamento ?? ''}
-              className="w-20"
-              {...marcacaoDoCampo('diaFechamento', erro, idErro)}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor={idVencimento} className={CLASSE_ROTULO}>
-              Vence dia
-            </Label>
-            <Input
-              id={idVencimento}
-              name="diaVencimento"
-              type="number"
-              inputMode="numeric"
-              required
-              min={PRIMEIRO_DIA}
-              max={ULTIMO_DIA}
-              step={1}
-              defaultValue={conta.diaVencimento ?? ''}
-              className="w-20"
-              {...marcacaoDoCampo('diaVencimento', erro, idErro)}
-            />
-          </div>
-        </>
+        <CamposDeCartao
+          idBase={idBase}
+          idErro={idErro}
+          erro={erro}
+          fechamento={conta.diaFechamento}
+          vencimento={conta.diaVencimento}
+        />
       )}
 
       <div className="flex items-center gap-2 pb-1.5">
@@ -300,6 +340,123 @@ function FormularioConta({ conta, onFechar }: { conta: Conta; onFechar: () => vo
 
       {/* `w-full` joga a mensagem para a linha de baixo do flex, sob os campos.
           O `aria-describedby` dos campos marcados aponta para este paragrafo. */}
+      {erro && (
+        <p id={idErro} role="alert" className="w-full text-sm text-negativo">
+          {erro.mensagem}
+        </p>
+      )}
+    </form>
+  );
+}
+
+/**
+ * O formulário de conta NOVA.
+ *
+ * Separado do de edição, e não uma variante dele, porque os dois diferem em
+ * tudo que importa: aqui escolhe-se o `tipo` — a única vez em que isso
+ * acontece pela tela —, não há `ativa` (conta nasce ativa) e a action é outra.
+ * Juntá-los daria um componente cheio de ramos pelo que já é um arquivo denso.
+ *
+ * O que NÃO pode divergir — os dois dias do cartão — é o `CamposDeCartao`
+ * partilhado logo acima.
+ *
+ * `ehCartao` é estado aqui, e não leitura do registro: é a pessoa escolhendo
+ * agora, e os campos de dia aparecem e somem conforme ela decide.
+ */
+function FormularioContaNova({ onFechar }: { onFechar: () => void }) {
+  const [erro, setErro] = useState<ErroDeFormulario | null>(null);
+  const [tipo, setTipo] = useState<'CARTAO' | 'EXTERNA'>('CARTAO');
+  const [pendente, iniciar] = useTransition();
+
+  const idBase = 'conta-nova';
+  const idErro = `${idBase}-erro`;
+  const ehCartao = tipo === 'CARTAO';
+
+  /** Mesma forma e mesmo motivo do formulário de edição: ver o comentário lá. */
+  function enviar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+    const dados = new FormData(evento.currentTarget);
+    const entrada = {
+      nome: String(dados.get('nome') ?? ''),
+      tipo,
+      cor: String(dados.get('cor') ?? ''),
+      diaFechamento: diaDoFormulario(dados.get('diaFechamento')),
+      diaVencimento: diaDoFormulario(dados.get('diaVencimento')),
+    };
+
+    setErro(null);
+    iniciar(async () => {
+      try {
+        const resultado = await acaoCriarConta(entrada);
+        if (!resultado.ok) {
+          setErro(erroDeRecusa(resultado));
+          return;
+        }
+        onFechar();
+      } catch (e) {
+        setErro({ mensagem: mensagemDeFalha(e), campos: [] });
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={enviar} className="flex flex-wrap items-end gap-2">
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idBase}-cor`} className={CLASSE_ROTULO}>
+          Cor
+        </Label>
+        <CampoCor id={`${idBase}-cor`} defaultValue="#155e63" />
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <Label htmlFor={`${idBase}-nome`} className={CLASSE_ROTULO}>
+          Nome
+        </Label>
+        <CampoNome
+          id={`${idBase}-nome`}
+          defaultValue=""
+          autoFocus
+          {...marcacaoDoCampo('nome', erro, idErro)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idBase}-tipo`} className={CLASSE_ROTULO}>
+          Tipo
+        </Label>
+        <Select value={tipo} onValueChange={(v) => setTipo(v === 'EXTERNA' ? 'EXTERNA' : 'CARTAO')}>
+          <SelectTrigger id={`${idBase}-tipo`} className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="CARTAO">Cartão</SelectItem>
+            <SelectItem value="EXTERNA">Externa</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {ehCartao && (
+        <CamposDeCartao
+          idBase={idBase}
+          idErro={idErro}
+          erro={erro}
+          fechamento={null}
+          vencimento={null}
+        />
+      )}
+
+      <Button type="submit" disabled={pendente}>
+        {pendente ? 'Criando…' : 'Criar'}
+      </Button>
+      <Button type="button" variant="outline" onClick={onFechar} disabled={pendente}>
+        Cancelar
+      </Button>
+
+      <p className="w-full text-xs text-tinta-fraca">
+        O tipo não muda depois de criada: trocar cartão por externa numa conta que já tem fatura
+        conferida não é edição, é migração de dado.
+      </p>
+
       {erro && (
         <p id={idErro} role="alert" className="w-full text-sm text-negativo">
           {erro.mensagem}
@@ -360,6 +517,7 @@ const CLASSE_LINHA = 'border-b border-borda-suave px-5 py-2.5 last:border-0';
  */
 export function ListaContas({ contas }: { contas: Conta[] }) {
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [criando, setCriando] = useState(false);
   const ultimaEdicaoRef = useRef<string | null>(null);
 
   // Sair do modo de edicao desmonta o formulario, e com ele o campo que estava
@@ -387,14 +545,28 @@ export function ListaContas({ contas }: { contas: Conta[] }) {
           Contas
         </h2>
         <p className="mt-1 text-xs text-tinta-fraca">
-          De onde o dinheiro sai. Aqui só se edita o que já existe: conta nova mexe nas faturas e
-          nas colunas do Resumo, e o tipo — cartão ou externa — não muda depois de criada.
+          De onde o dinheiro sai. Conta nova entra no fim da ordem das colunas do Resumo, e o
+          tipo — cartão ou externa — não muda depois de criada.
         </p>
         <p className="mt-1 text-xs text-tinta-fraca">
           Desativar tira a conta das opções de lançamento novo e das colunas do Resumo. Desative
           só conta sem lançamento nenhum: enquanto houver, o mês em que ela aparece deixa de
           abrir.
         </p>
+
+        {/* O formulário substitui o botão em vez de aparecer abaixo dele: um
+            botão "Nova conta" vivo ao lado de um formulário de conta nova
+            convida a clicar de novo no meio do preenchimento. */}
+        <div className="mt-3">
+          {criando ? (
+            <FormularioContaNova onFechar={() => setCriando(false)} />
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={() => setCriando(true)}>
+              <Plus aria-hidden="true" />
+              Nova conta
+            </Button>
+          )}
+        </div>
       </div>
 
       {contas.length === 0 ? (

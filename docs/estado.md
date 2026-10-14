@@ -56,12 +56,12 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 118 passando e 23 pulados.** Com banco, `npm run test:banco`, são **141
+**`npm test` hoje: 118 passando e 26 pulados.** Com banco, `npm run test:banco`, são **144
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
  Test Files  10 passed | 3 skipped (13)        Test Files  13 passed (13)
-      Tests  118 passed | 23 skipped (141)          Tests  141 passed (141)
+      Tests  118 passed | 26 skipped (144)          Tests  144 passed (144)
 ```
 
 Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
@@ -145,11 +145,11 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
   segue a pessoa depende da tabela `Preferencia`, de Fase 2
 - **Não há gráficos.** O destino existe na barra lateral, desabilitado. Precisa de Recharts,
   consultas que atravessam meses e decisões de regra em aberto
-- **Não há criar conta pela tela.** Configurações edita as contas que existem; conta nova
-  continua sendo trabalho de banco
-- **Não há desativar pessoa.** `editarMembro` grava só `nome` e `cor`; `Membro.ativo` é rótulo
-  na lista. **Quando essa tela existir, leia antes a armadilha 12 de
-  [`arquitetura.md`](arquitetura.md)** — há três pontos que precisam ser consertados juntos
+- **Desativar pessoa não existe e NÃO SERÁ construído** — decisão do usuário em 2026-10-14.
+  `editarMembro` grava só `nome` e `cor`, e `Membro.ativo` segue como rótulo na lista. A
+  armadilha 12 de [`arquitetura.md`](arquitetura.md) continua valendo, mas como *não construa*:
+  são três pontos do código que se comportam mal com membro desconhecido, e nenhum deles é
+  alcançável enquanto a tela não existir
 - **`Categoria.icone` existe no schema e não é usado em lugar nenhum**
 - **`Recorrente` e `Preferencia` não existem no banco**, por serem de Fase 2. É a `Preferencia`
   que segura o tema escuro por pessoa e o layout A da grade
@@ -210,6 +210,10 @@ Saíram dela dois pedidos, os dois já implementados: o botão flutuante de novo
 marca de reembolso no painel. **Nada mais foi apontado como errado** — nem a paridade, nem os
 totais, nem o fechamento do mês.
 
+Os passos **8 (lixeira)** e **9 (tema)**, acrescentados depois, também foram conferidos pelo
+usuário em 2026-10-14, e os dois passaram. Isso cobre tudo que foi entregue até aqui: **nenhuma
+tela do sistema está sem ter sido vista funcionando.**
+
 A camada visual continua sem teste automatizado: o projeto não tem teste de componente, e o
 único Playwright está pulado por exigir login. Mudança nessas telas continua precisando de
 olho humano, e o roteiro continua valendo como lista.
@@ -249,21 +253,22 @@ nenhuma das treze categorias. Mas a cor de cada um é escolha deles, não propos
 **O sistema está certo e a planilha erra**, e vale saber disso antes da conferência.
 
 Num conjunto de valor ímpar a metade não existe em centavos. A planilha arredonda as duas para
-cima: em R$ 101,01 ela dá R$ 50,50 a cada um, e os dois totais gerais passam a somar um
-centavo **mais** do que a fatura que se paga de fato. O sistema dá a sobra a quem tem
-`absorveSobra` — Nick — e fecha exato.
+cima; o sistema dá a sobra a quem tem `absorveSobra` e fecha exato.
 
-Na importação de setembro isso aparece assim, com nove lançamentos conjuntos:
+Com os números da fixture — pessoal de R$ 423,75 e R$ 500,75, conjunto de R$ 101,01, que não
+divide ao meio:
 
 | | planilha | sistema |
 |---|---|---|
-| Total geral Nardy | R$ 474,25 | R$ 474,25 |
+| Metade de cada um | R$ 50,51 e R$ 50,51 | R$ 50,50 e R$ 50,51 |
+| Total geral Nardy | R$ 474,26 | **R$ 474,25** |
 | Total geral Nick | R$ 551,26 | R$ 551,26 |
 | Soma | R$ 1.025,52 | **R$ 1.025,51**, igual à fatura |
 
-A diferença **não é de um centavo no total**: é de um centavo por lançamento conjunto ímpar, e
-toda ela recai sobre a mesma pessoa. Com nove lançamentos deu dois centavos. Está registrado
-como armadilha 15 em [`arquitetura.md`](arquitetura.md).
+A planilha cria um centavo que ninguém paga. E a diferença **não é de um centavo no total**: é
+de um centavo por lançamento conjunto ímpar, e toda ela recai sobre a mesma pessoa — num mês
+com nove lançamentos conjuntos, deu dois centavos. Está registrado como armadilha 15 em
+[`arquitetura.md`](arquitetura.md).
 
 A seção 4 de [`regras-de-negocio.md`](regras-de-negocio.md) mostra as duas metades em linhas
 separadas justamente por isso — a linha única "Metade cada" da planilha não tem como ser

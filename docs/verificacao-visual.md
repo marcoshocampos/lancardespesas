@@ -157,3 +157,17 @@ escuro**.
       laranja precisam continuar legíveis.
 - [ ] As bolinhas de categoria e as faixas de membro **não mudam** com o tema, por decisão. Se
       alguma ficar ilegível no escuro, dá para reajustar em Configurações.
+
+## Passo 10 — Criar conta
+
+- [ ] Em Configurações, o botão **Nova conta** abre o formulário **no lugar do botão** — não
+      sobra um botão vivo ao lado do formulário.
+- [ ] Com tipo **Cartão**, os campos *Fecha dia* e *Vence dia* aparecem. Troque para
+      **Externa**: os dois somem.
+- [ ] Crie uma conta **externa**. Ela aparece na lista, e **editando-a o tipo não é oferecido** —
+      é escolha de criação, permanente.
+- [ ] Crie um **cartão** e confira no Resumo: a coluna nova aparece **no fim**, depois das que
+      já existiam.
+- [ ] Tente criar um cartão deixando *Fecha dia* vazio: o navegador barra antes de enviar. Se
+      passar, o servidor recusa dizendo qual dia falta.
+- [ ] A conta criada já nasce **ativa** e aparece nas opções de lançamento novo.

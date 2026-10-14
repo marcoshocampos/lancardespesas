@@ -83,7 +83,7 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 | `repositorios/resumo.ts` | `LinhaGrade`, `LinhaAReceber`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade`, `carregarReembolsosDaCompetencia` |
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
 | `repositorios/lixeira.ts` | `ItemDaLixeira`, `carregarLixeira` |
-| `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
+| `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarConta`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 
 **As três gravações de lançamento rodam dentro de `prisma.$transaction`**, e todo helper do
 módulo recebe um `ClienteBanco` em vez de fechar sobre o `prisma` global — é o que permite a
@@ -420,6 +420,11 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     lista estreita (`contasAtivas`) sobrevive só para o que se **oferece** em lançamento novo.
     Mesma forma para categoria: a página de despesas carrega todas, inclusive arquivadas,
     porque a bolinha de cor de cada linha da grade precisa delas.
+
+    **ATUALIZAÇÃO 2026-10-14: desativar pessoa NÃO será construído** — decisão do usuário. Esta
+    armadilha deixa de ser "quando você construir isso, cuidado" e passa a ser **"não construa
+    isso"**. O que está descrito abaixo é por que não é trivial, e segue valendo como aviso a
+    quem pensar em reintroduzir.
 
     **O caso latente do membro é o mesmo, e hoje não é alcançável.** `calcularResumo` lança
     igual para membro desconhecido; `escopoPadrao`, em `painel-lancamento.tsx`, tem exatamente

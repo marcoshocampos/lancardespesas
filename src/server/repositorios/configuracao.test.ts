@@ -1,9 +1,10 @@
 import type { Categoria } from '@prisma/client';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../db';
 import {
   arquivarCategoria,
   criarCategoria,
+  criarConta,
   definirQuemAbsorveSobra,
   editarCategoria,
 } from './configuracao';
@@ -216,5 +217,71 @@ describe.skipIf(!podeDestruir)('repositorio de configuracao', () => {
     // o update falhar: esta lista viria VAZIA, zero membros absorvendo a sobra
     // — exatamente o estado que a funcao existe para impedir.
     expect(await absorvedores()).toEqual([membroA]);
+  });
+});
+
+describe.skipIf(!podeDestruir)('criarConta', () => {
+  // Conta nao entra no limpar() da suite: ela e fixture do seed, como categoria
+  // e membro. Cada caso apaga o que criou, pelo id.
+  const criadas: string[] = [];
+
+  afterEach(async () => {
+    if (criadas.length === 0) return;
+    await prisma.conta.deleteMany({ where: { id: { in: criadas } } });
+    criadas.length = 0;
+  });
+
+  async function criarOk(dados: Parameters<typeof criarConta>[0]): Promise<string> {
+    const r = await criarConta(dados);
+    if (!r.ok) throw new Error(`criarConta deveria ter sucedido, foi recusado: ${r.motivo}`);
+    criadas.push(r.registro.id);
+    return r.registro.id;
+  }
+
+  it('cria cartao com os dois dias e no fim da ordem', async () => {
+    const maiorAntes = (await prisma.conta.aggregate({ _max: { ordem: true } }))._max.ordem ?? 0;
+
+    const id = await criarOk({
+      nome: 'Cartao de teste',
+      tipo: 'CARTAO',
+      cor: '#123456',
+      diaFechamento: 4,
+      diaVencimento: 10,
+    });
+
+    const salva = await prisma.conta.findUniqueOrThrow({ where: { id } });
+    expect(salva.tipo).toBe('CARTAO');
+    expect(salva.diaFechamento).toBe(4);
+    expect(salva.diaVencimento).toBe(10);
+    expect(salva.ativa).toBe(true);
+    // No fim: conta nova entrando no meio empurraria as colunas do Resumo.
+    expect(salva.ordem).toBe(maiorAntes + 1);
+  });
+
+  it('descarta os dias quando a conta e externa', async () => {
+    // Mesmo recebendo dia, uma conta sem fatura nao pode guarda-lo: viraria
+    // lixo que alguem leria como regra depois.
+    const id = await criarOk({
+      nome: 'Externa de teste',
+      tipo: 'EXTERNA',
+      cor: '#654321',
+      diaFechamento: 4,
+      diaVencimento: 10,
+    });
+
+    const salva = await prisma.conta.findUniqueOrThrow({ where: { id } });
+    expect(salva.tipo).toBe('EXTERNA');
+    expect(salva.diaFechamento).toBeNull();
+    expect(salva.diaVencimento).toBeNull();
+  });
+
+  it('aceita duas contas com o mesmo nome', async () => {
+    // Conta.nome nao e @unique de proposito: duas contas homonimas, uma de cada
+    // pessoa, sao dado legitimo. Ver o comentario de editarConta.
+    await criarOk({ nome: 'Mesmo nome', tipo: 'EXTERNA', cor: '#111111', diaFechamento: null, diaVencimento: null });
+    const segunda = await criarConta({ nome: 'Mesmo nome', tipo: 'EXTERNA', cor: '#222222', diaFechamento: null, diaVencimento: null });
+
+    expect(segunda.ok).toBe(true);
+    if (segunda.ok) criadas.push(segunda.registro.id);
   });
 });

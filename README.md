@@ -1,33 +1,61 @@
 # lancardespesas
 
-Sistema web para o lançamento das despesas do casal, substituindo a planilha do Google Sheets
-que hoje controla a fatura do cartão C6.
+Sistema web que um casal usa para lançar as despesas do mês, substituindo uma planilha do
+Google Sheets com uma aba por mês. Está em produção e em uso real.
 
-Registra despesas por pessoa e em conjunto, gera as parcelas automaticamente, calcula o
-rateio, confere a fatura contra o extrato e responde perguntas que atravessam meses — coisas
-que uma aba por mês não consegue fazer.
+**[lancardespesas.vercel.app](https://lancardespesas.vercel.app)** · acesso restrito a dois
+e-mails
 
-## Situação
+A planilha resolvia o mês corrente e falhava no resto: parcelamento que atravessa meses,
+rateio com sobra de centavos, conferência contra a fatura do cartão, e qualquer pergunta que
+cruzasse abas. O sistema resolve isso e mantém o vocabulário da planilha — quem usava uma
+reconhece o outro.
 
-Fase 1 concluída e o redesenho visual também: o sistema autentica, lança, parcela, rateia,
-confere a fatura contra o extrato e tem tela para cadastrar conta, categoria e membro. Falta a
-conferência visual tela a tela — ela está atrás do login e só o usuário consegue fazer, pelo
-[roteiro](docs/verificacao-visual.md) — e publicar na Vercel.
+## O que ele faz
+
+- **Lança despesa parcelada** e posiciona cada parcela na competência certa, pela regra de
+  fechamento do cartão. Compra depois do dia de fechamento cai na fatura seguinte.
+- **Rateia gasto conjunto** sem perder centavo. A sobra de uma divisão ímpar tem dono
+  definido no banco, não decidido pela ordem de cadastro.
+- **Confere a fatura** contra o valor do extrato e fecha o mês, deixando-o somente-leitura.
+- **Separa reembolso de terceiro**: entra na fatura, porque o dinheiro saiu do cartão, e sai
+  do gasto do casal, porque alguém vai devolver.
+- **Lixeira** com restauração. Nada é apagado de verdade.
+- Tema claro e escuro, seguindo o sistema ou forçado.
+
+## Stack
+
+Next.js 16 (App Router) · TypeScript estrito · PostgreSQL no Neon via Prisma 6 · Auth.js v5
+com Google e allowlist fixa · Tailwind 4 e shadcn/ui · Vitest · Vercel
+
+## O que talvez interesse a quem lê o código
+
+**Dinheiro é inteiro em centavos, em todas as camadas.** Nenhum `float` em lugar nenhum. As
+datas são `String` no formato `AAAA-MM-DD`, e não `DateTime` — com `DateTime`, alguma camada
+aplica fuso e move a compra do dia 4 para o dia 3, jogando-a para a fatura do mês seguinte. O
+casal só descobriria meses depois.
+
+**As regras de cálculo são funções puras em `src/domain/`**, sem Prisma, sem `fetch`, sem
+`Date.now()`. É o que torna cada caso de borda testável em milissegundos.
+
+**Toda gravação passa por lock otimista** e roda dentro de uma transação. São duas pessoas
+mexendo no mesmo mês; sobrescrita silenciosa seria o pior bug possível aqui.
+
+**A documentação registra as decisões, não só o estado.**
+[`docs/decisoes.md`](docs/decisoes.md) existe para as escolhas que parecem melhoráveis e não
+são — cada uma com o motivo e o que acontece se alguém a desfizer. A seção *armadilhas* de
+[`docs/arquitetura.md`](docs/arquitetura.md) tem 22 entradas, cada uma com o sintoma concreto
+que ela custou.
 
 | Documento | Para quê |
 |---|---|
-| [docs/estado.md](docs/estado.md) | **Comece aqui.** Onde paramos, o que funciona, como retomar |
-| [docs/decisoes.md](docs/decisoes.md) | Escolhas técnicas que parecem melhoráveis e não são |
-| [docs/plans/fase-1/](docs/plans/fase-1/README.md) | O plano de execução, uma etapa por arquivo |
-| [docs/specs/](docs/specs/2026-08-08-sistema-despesas-casal-design.md) | O design: modelo, arquitetura, fases |
+| [docs/estado.md](docs/estado.md) | Onde o projeto está, o que falta, como retomar |
+| [docs/decisoes.md](docs/decisoes.md) | Escolhas que parecem melhoráveis e não são |
+| [docs/arquitetura.md](docs/arquitetura.md) | Onde cada coisa mora, e as armadilhas conhecidas |
 | [docs/regras-de-negocio.md](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
-| [docs/arquitetura.md](docs/arquitetura.md) | Onde cada coisa mora no código, camada por camada |
-| [docs/verificacao-visual.md](docs/verificacao-visual.md) | O roteiro da conferência visual, tela a tela |
-| [CLAUDE.md](CLAUDE.md) | Orientação para sessões do Claude Code |
-
-Os mockups da proposta original estão publicados em
-[claude.ai/code/artifact/542e24e6](https://claude.ai/code/artifact/542e24e6-fa0e-4d68-9f86-2d1c84db0c16)
-— refletem a primeira versão do desenho; o que mudou depois está na seção 12 da spec.
+| [docs/verificacao-visual.md](docs/verificacao-visual.md) | O roteiro da conferência tela a tela |
+| [docs/specs/](docs/specs/) | Os dois designs: o sistema e a camada visual |
+| [CLAUDE.md](CLAUDE.md) | Orientação para sessões de IA que trabalhem no código |
 
 ## Rodando
 
@@ -36,26 +64,37 @@ npm install
 npm test
 ```
 
-`npm test` são 118 testes em menos de um segundo, **sem banco e sem rede**. Para subir a
-aplicação é preciso um `.env` na raiz, a partir do [`.env.example`](.env.example), com a
-conexão do Neon e as credenciais do Google.
+São 118 testes em menos de um segundo, **sem banco e sem rede**.
+
+Para subir a aplicação é preciso um `.env` na raiz, a partir do
+[`.env.example`](.env.example), com a conexão do Postgres e as credenciais do Google.
+
+```bash
+npm run dev
+```
 
 ```bash
 npm run test:banco
 ```
 
-Roda os 130, incluindo os 12 que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma
-branch do Neon criada só para isso — **a suíte apaga todo lançamento que encontra**. O runner
-se recusa a rodar se essa variável faltar ou se apontar para o mesmo endpoint da
-`DATABASE_URL`.
-
-## Stack
-
-Next.js 16 App Router, TypeScript estrito, React 19, Postgres no Neon via Prisma 6, Auth.js v5
-com Google e allowlist de dois e-mails, Tailwind 4, Vitest no domínio e Playwright nos fluxos
-críticos, deploy previsto na Vercel.
+Roda os 144, incluindo os que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma base
+criada só para isso — **a suíte apaga todo lançamento que encontra**. O runner se recusa a
+rodar se essa variável faltar ou se apontar para o mesmo endpoint da `DATABASE_URL`.
 
 ## Privacidade
 
-Repositório privado, e não deve receber dados financeiros reais. Exportações da planilha,
-arquivos `.csv` e todo `.env` estão no `.gitignore`.
+Este repositório é público e **não contém dado financeiro real**. A fixture dos testes de
+cálculo é inventada; `.csv`, `.xlsx` e a pasta `/dados-privados/` estão no `.gitignore`; e
+nenhum `.env` jamais foi commitado.
+
+Nem sempre foi assim. Enquanto o repositório era privado, a fixture guardou por meses a lista
+de compras real do casal, e os totais de um mês ficaram espalhados por 22 arquivos. Ao abrir o
+repositório, **o histórico foi reescrito** para remover os dois — editar o estado atual não
+teria resolvido, porque `git log -p` mostra tudo o que já passou por ali.
+
+Fica como lembrete do que é fácil errar: o dado entrou como "fixture de teste", que é
+exatamente o disfarce que faz ninguém olhar duas vezes.
+
+## Licença
+
+Sem licença de uso. O código está público para leitura.

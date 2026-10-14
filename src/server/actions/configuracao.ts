@@ -13,6 +13,7 @@ import {
   editarConta,
   editarMembro,
   type ResultadoConfiguracao,
+  criarConta,
 } from '../repositorios/configuracao';
 
 const identificador = z.string().min(1, 'Identificador obrigatório');
@@ -221,4 +222,53 @@ export async function acaoDefinirQuemAbsorveSobra(
   await exigirSessao();
   const alvo = identificador.parse(membroId);
   return comRevalidacao(await definirQuemAbsorveSobra(alvo));
+}
+
+const esquemaCriacaoDeConta = esquemaContaBase
+  .omit({ ativa: true })
+  .extend({ tipo: z.enum(['CARTAO', 'EXTERNA']) });
+
+/**
+ * Aqui o `tipo` vem do CLIENTE, e isso é a exceção deliberada ao que
+ * `acaoEditarConta` faz.
+ *
+ * Lá, o tipo é lido do banco de propósito: validar contra um tipo enviado pelo
+ * cliente deixaria quem manda os dados escolher a regra que os julga. Na criação
+ * não existe linha no banco para consultar — a escolha do tipo **é** o conteúdo
+ * da operação, e não há verdade anterior a proteger. O `z.enum` fecha o conjunto
+ * de valores possíveis, que é a garantia que sobra.
+ *
+ * `ativa` fica de fora: conta nasce ativa, e desativar é da edição.
+ */
+export async function acaoCriarConta(dados: unknown): Promise<ResultadoEdicaoConta> {
+  await exigirSessao();
+
+  const tipagem = esquemaCriacaoDeConta.safeParse(dados);
+  if (!tipagem.success) throw tipagem.error;
+
+  // A regra do cartão roda depois, contra o tipo já validado — a mesma função
+  // que a edição usa, para as duas telas nunca divergirem na exigência.
+  // Sobre `tipagem.data`, nao sobre `dados`: aquele ja e objeto tipado, este e
+  // `unknown` e nao se espalha. O `tipo` a mais e descartado pelo esquema base.
+  const analise = esquemaDeConta(tipagem.data.tipo).safeParse({ ...tipagem.data, ativa: true });
+  if (!analise.success) {
+    const faltando = camposDeCartaoFaltando(analise.error);
+    if (faltando.length !== analise.error.issues.length) throw analise.error;
+    return {
+      ok: false,
+      motivo: 'CARTAO_SEM_DIAS',
+      campos: faltando,
+      mensagem: mensagemDeCartaoSemDias(faltando),
+    };
+  }
+
+  const resultado = await criarConta({
+    nome: analise.data.nome,
+    tipo: tipagem.data.tipo,
+    cor: analise.data.cor,
+    diaFechamento: analise.data.diaFechamento,
+    diaVencimento: analise.data.diaVencimento,
+  });
+  if (resultado.ok) revalidatePath('/configuracoes');
+  return resultado;
 }

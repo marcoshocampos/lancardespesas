@@ -153,3 +153,41 @@ export async function definirQuemAbsorveSobra(
     return membro;
   });
 }
+
+/**
+ * Conta nova, no fim da ordem.
+ *
+ * `ordem` sai de `max(ordem) + 1` porque e ela que decide a posicao da coluna
+ * no Resumo: conta nova entrando no meio empurraria as outras de lugar sem
+ * ninguem ter pedido.
+ *
+ * `tipo` so existe aqui, e nunca em `editarConta` — trocar o tipo de uma conta
+ * que ja tem fatura conferida nao e edicao, e migracao de dado. Criar e o unico
+ * momento em que essa escolha acontece pela tela.
+ *
+ * `ativa` nasce true: conta criada para nao ser usada nao faz sentido, e
+ * desativar ja existe na edicao.
+ */
+export async function criarConta(dados: {
+  nome: string;
+  tipo: 'CARTAO' | 'EXTERNA';
+  cor: string;
+  diaFechamento: number | null;
+  diaVencimento: number | null;
+}): Promise<ResultadoConfiguracao<Conta>> {
+  return gravar(async () => {
+    const ultima = await prisma.conta.aggregate({ _max: { ordem: true } });
+    return prisma.conta.create({
+      data: {
+        nome: dados.nome,
+        tipo: dados.tipo,
+        cor: dados.cor,
+        // Externa nunca guarda dia: o schema aceita, e um dia pendurado numa
+        // conta sem fatura viraria lixo que alguem leria como regra um dia.
+        diaFechamento: dados.tipo === 'CARTAO' ? dados.diaFechamento : null,
+        diaVencimento: dados.tipo === 'CARTAO' ? dados.diaVencimento : null,
+        ordem: (ultima._max.ordem ?? 0) + 1,
+      },
+    });
+  });
+}

@@ -517,3 +517,40 @@ remédio é um limite na listagem antes de ser apagar o que pediram para guardar
 
 Sem paginação pela mesma razão. Duas pessoas excluindo lançamento não produzem uma lista que
 precise dela tão cedo, e paginar uma lista vazia é código a manter sem nada a mostrar.
+
+## Criar conta escolhe o `tipo`; editar nunca o toca
+
+**Onde:** `criarConta` em `repositorios/configuracao.ts`, e `acaoCriarConta` nas actions.
+
+`editarConta` deixa `tipo` de fora de propósito, e o motivo está no comentário dela: trocar o
+tipo de uma conta que já tem fatura conferida não é edição, é migração de dado. **Criar é o
+único momento em que essa escolha acontece pela tela**, e o formulário diz isso em voz alta.
+
+Daí sai uma exceção que parece contradição e não é. `acaoEditarConta` lê o `tipo` **do banco**,
+nunca do cliente — validar contra um tipo enviado por quem manda os dados deixaria essa pessoa
+escolher a regra que a julga. Na criação **não há linha no banco para consultar**: a escolha do
+tipo *é* o conteúdo da operação, e não existe verdade anterior a proteger. O `z.enum` fecha o
+conjunto de valores, que é a garantia que sobra.
+
+**A regra do cartão roda pela mesma função nas duas telas** (`esquemaDeConta`), para a exigência
+de dia de fechamento e vencimento nunca divergir entre criar e editar. Na tela, os dois campos
+saíram para um `CamposDeCartao` partilhado pelo mesmo motivo: um `required` corrigido só de um
+lado deixaria o outro mandando payload que o servidor rejeita.
+
+`ordem` sai de `max(ordem) + 1`. Conta nova entrando no meio empurraria as colunas do Resumo de
+lugar sem ninguém ter pedido.
+
+Conta externa **nunca guarda dia**, mesmo que o formulário mande um. O schema aceita, e um dia
+pendurado numa conta sem fatura viraria lixo que alguém leria como regra depois.
+
+## Desativar pessoa não será construído
+
+**Decisão do usuário, 2026-10-14.** Saiu da lista de ausências do `estado.md`.
+
+A armadilha 12 de [`arquitetura.md`](arquitetura.md) continua descrevendo três pontos do código
+que se comportam mal com membro desconhecido — `calcularResumo`, `escopoPadrao` no painel, e as
+páginas que carregam membro com `where: { ativo: true }`. Ela deixou de ser um alerta para quem
+for construir e passou a ser a explicação de **por que não construir**: os três precisariam ser
+consertados juntos, e nenhum é alcançável enquanto a tela não existir.
+
+`Membro.ativo` segue no schema como rótulo na lista de Configurações, sem efeito.

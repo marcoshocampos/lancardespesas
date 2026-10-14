@@ -46,7 +46,19 @@ Thumbs.db
 .claude/
 .superpowers/
 
-# dados reais exportados da planilha — nunca versionar
+# Dado financeiro real — nunca versionar.
+#
+# O repositório é PÚBLICO. O que entrar aqui fica no histórico para sempre, e
+# apagar depois não desfaz: só reescrevendo o histórico, o que já foi preciso
+# fazer uma vez (ver README, "Privacidade").
+#
+# A regra é por EXTENSÃO e por PASTA, e não por nome de arquivo, porque export
+# de planilha chega com nome imprevisível.
 /dados-privados/
 *.csv
+*.xlsx
+*.ods
+*.bundle
+# Exceto CSV de exemplo dentro da documentação, se algum dia existir — e esse
+# precisa ser inventado, nunca um recorte do real.
 !docs/**/*.csv
