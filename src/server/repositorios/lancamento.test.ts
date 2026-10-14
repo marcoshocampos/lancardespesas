@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { prisma } from '../db';
-import { criarLancamento, editarLancamento, type EntradaLancamento } from './lancamento';
+import {
+  criarLancamento,
+  editarLancamento,
+  marcarReembolso,
+  type EntradaLancamento,
+} from './lancamento';
 
 // Este teste APAGA lancamentos, parcelas e rateios do banco apontado por
 // DATABASE_URL. Fica atras de um opt-in explicito para que um `npm test`
@@ -227,6 +232,56 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     // Quem ja devolveu continua tendo devolvido depois de alguem corrigir a
     // descricao do lancamento.
     expect(salvo.statusReembolso).toBe('RECEBIDO');
+  });
+
+  it('marca um reembolso como recebido, e de volta para pendente', async () => {
+    const id = await criarOk({ ...entrada(), ehReembolso: true, devedorNome: 'Tia Cida' });
+
+    const marcado = await marcarReembolso(id, 1, true);
+    expect(marcado.ok).toBe(true);
+    expect((await prisma.lancamento.findUniqueOrThrow({ where: { id } })).statusReembolso).toBe('RECEBIDO');
+
+    // A versao subiu na marcacao, entao desmarcar usa a 2.
+    const desmarcado = await marcarReembolso(id, 2, false);
+    expect(desmarcado.ok).toBe(true);
+    expect((await prisma.lancamento.findUniqueOrThrow({ where: { id } })).statusReembolso).toBe('PENDENTE');
+  });
+
+  it('marcar como recebido nao mexe no valor nem nas parcelas', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 3, ehReembolso: true });
+    const antes = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    const parcelasAntes = await prisma.parcela.findMany({ where: { lancamentoId: id }, orderBy: { numero: 'asc' } });
+
+    await marcarReembolso(id, 1, true);
+
+    const depois = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    const parcelasDepois = await prisma.parcela.findMany({ where: { lancamentoId: id }, orderBy: { numero: 'asc' } });
+    expect(depois.valorCentavos).toBe(antes.valorCentavos);
+    expect(parcelasDepois.map((p) => p.valorCentavos)).toEqual(parcelasAntes.map((p) => p.valorCentavos));
+    expect(parcelasDepois.map((p) => p.competencia)).toEqual(parcelasAntes.map((p) => p.competencia));
+  });
+
+  it('recusa a segunda marcacao concorrente em vez de sobrescrever', async () => {
+    const id = await criarOk({ ...entrada(), ehReembolso: true });
+
+    const primeira = await marcarReembolso(id, 1, true);
+    const segunda = await marcarReembolso(id, 1, false);
+
+    expect(primeira.ok).toBe(true);
+    expect(segunda.ok).toBe(false);
+    if (!segunda.ok) expect(segunda.motivo).toBe('CONFLITO');
+    expect((await prisma.lancamento.findUniqueOrThrow({ where: { id } })).statusReembolso).toBe('RECEBIDO');
+  });
+
+  it('recusa marcar lancamento que nao e reembolso', async () => {
+    const id = await criarOk();
+
+    const resultado = await marcarReembolso(id, 1, true);
+
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) expect(resultado.motivo).toBe('NAO_E_REEMBOLSO');
+    // Marcar o que ninguem deve criaria reembolso pela porta dos fundos.
+    expect((await prisma.lancamento.findUniqueOrThrow({ where: { id } })).statusReembolso).toBeNull();
   });
 
   it('mantem a parcela cancelada depois de editar o lancamento', async () => {

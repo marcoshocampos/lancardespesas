@@ -79,8 +79,8 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 
 | Arquivo | Interface |
 |---|---|
-| `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento` |
-| `repositorios/resumo.ts` | `LinhaGrade`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade` |
+| `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento`, `marcarReembolso` |
+| `repositorios/resumo.ts` | `LinhaGrade`, `LinhaAReceber`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade`, `carregarReembolsosDaCompetencia` |
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 
@@ -169,6 +169,7 @@ simplificar qualquer coisa ali.
 | `cartoes-resumo.tsx` | não | Os cartões do topo: total por membro e fatura por cartão |
 | `matriz-resumo.tsx` | não | A matriz de pessoas por contas, em bandas |
 | `conferencia-fatura.tsx` | **sim** | O valor do extrato e a diferença |
+| `secao-a-receber.tsx` | **sim** | A lista de reembolsos do mês, com o interruptor de recebido |
 | `trava-fatura.tsx` | **sim** | Fechar e reabrir o mês, com confirmação nos dois |
 | `selo-conferencia.tsx` | não | Texto e cor para cada situação que `conferir` devolve |
 
@@ -493,3 +494,17 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     o de produção — o runner já compara, mas o `deleteMany` que se escreve na hora não.
 
     Categorias, membros e contas ficam: a suíte os lê como fixture pelo `findFirstOrThrow`.
+
+20. **A linha *A receber* da matriz e a seção abaixo dela leem de lugares diferentes.** O total
+    vem de `calcularResumo`, sobre `ParcelaResumo`; a lista vem de
+    `carregarReembolsosDaCompetencia`, uma consulta própria. Os dois números **têm** que bater,
+    e nada no código garante isso — o filtro é o mesmo (`statusReembolso != null` e
+    `PARCELA_VISIVEL`) em dois lugares.
+
+    Mexeu num, confira o outro. Foi medido uma vez contra os dados reais: setembro deu
+    R$ 54,00 nos dois.
+
+    Juntá-los numa consulta só foi considerado e descartado — a matriz precisa das parcelas
+    todas do mês para somar as outras linhas, e a lista precisa de descrição, conta e devedor,
+    que a matriz não usa. Uma consulta servindo os dois carregaria o mês inteiro com campos que
+    metade dos consumidores ignora.

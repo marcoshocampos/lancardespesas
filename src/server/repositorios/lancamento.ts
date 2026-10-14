@@ -297,3 +297,43 @@ export async function excluirLancamento(id: string, versao: number): Promise<Res
     return { ok: true };
   });
 }
+
+/**
+ * Liga ou desliga a marca de "ja devolveram" num reembolso.
+ *
+ * **Nao altera valor nenhum.** O lancamento ja esta fora do gasto do casal e
+ * dentro do Somado nos dois estados: ou alguem ainda vai devolver, ou ja
+ * devolveu. A marca responde de quem ainda cobrar, e nada mais.
+ *
+ * Mesmo lock otimista das outras gravacoes — sao duas pessoas no mesmo mes, e
+ * duas marcando ao mesmo tempo nao podem se sobrescrever em silencio. Uma
+ * escrita so, entao sem transacao: nao ha o que ficar pela metade.
+ *
+ * `NAO_E_REEMBOLSO` recusa lancamento comum em vez de inventar um status nele.
+ * Marcar como recebido o que ninguem deve seria criar reembolso pela porta dos
+ * fundos, sem devedor e sem a pessoa ter pedido.
+ */
+export async function marcarReembolso(
+  id: string,
+  versao: number,
+  recebido: boolean,
+): Promise<ResultadoGravacao | { ok: false; motivo: 'NAO_E_REEMBOLSO' }> {
+  const atual = await prisma.lancamento.findUnique({
+    where: { id },
+    select: { statusReembolso: true },
+  });
+  if (atual && atual.statusReembolso === null) {
+    return { ok: false, motivo: 'NAO_E_REEMBOLSO' };
+  }
+
+  const alteradas = await prisma.lancamento.updateMany({
+    where: { id, versao, deletadoEm: null, statusReembolso: { not: null } },
+    data: { statusReembolso: recebido ? 'RECEBIDO' : 'PENDENTE', versao: { increment: 1 } },
+  });
+
+  if (alteradas.count === 0) {
+    const encontrado = await prisma.lancamento.findUnique({ where: { id } });
+    return { ok: false, motivo: 'CONFLITO', atual: encontrado };
+  }
+  return { ok: true };
+}

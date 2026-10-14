@@ -80,6 +80,13 @@ Abra `http://localhost:3000`. Deve cair em `/despesas` sozinho.
       destravar**, que era a mensagem apontando para o nada.
 - [ ] **Reabrir** pede confirmação. Depois: se o extrato batia, o estado volta a *Fatura
       conferida* — e não a *aberta*. Lançar volta a funcionar.
+- [ ] **Num mês sem reembolso, a seção "A receber de terceiros" não existe.** Em mês com, ela
+      aparece abaixo da matriz, e a soma dela bate com a linha *A receber* da matriz.
+- [ ] Ligue **Recebido** num item: o valor fica riscado, o item **continua na lista**, e o
+      cabeçalho passa a mostrar quanto sobrou em aberto. **Nenhum total da matriz se move** —
+      recebido ou não, o valor está fora do gasto de vocês e dentro do Somado.
+- [ ] Desligue de novo: volta ao estado anterior. Abra a mesma tela em duas abas e marque nas
+      duas — a segunda tem que recusar, avisando que alguém mexeu.
 - [ ] **Sem reembolso no mês, não existe linha "A receber"** — e o `Somado` fecha com a soma
       dos dois `Cabe a`.
 - [ ] Marque um lançamento como reembolso de terceiro e volte ao Resumo. Agora: duas linhas

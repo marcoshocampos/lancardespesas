@@ -56,12 +56,12 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 118 passando e 16 pulados.** Com banco, `npm run test:banco`, são **134
+**`npm test` hoje: 118 passando e 20 pulados.** Com banco, `npm run test:banco`, são **138
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
  Test Files  10 passed | 3 skipped (13)        Test Files  13 passed (13)
-      Tests  118 passed | 16 skipped (134)          Tests  134 passed (134)
+      Tests  118 passed | 20 skipped (138)          Tests  138 passed (138)
 ```
 
 Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
@@ -134,14 +134,10 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 - **Não há tela de resolução de conflito.** A proteção contra sobrescrita existe e a recusa
   aparece — e desde `35ba027` a recusa não apaga mais o que foi digitado —, mas sem o
   comparativo lado a lado
-- **Não há tela para marcar reembolso como RECEBIDO.** Marcar um lançamento *como reembolso*
-  passou a existir — o interruptor "Alguém vai devolver" no painel grava `statusReembolso` e
-  `devedorNome`. O que falta é o outro lado: dizer que a pessoa **já devolveu**. O status
-  `RECEBIDO` existe no enum, o repositório o preserva numa edição, e nada o grava
-- **Não há "A receber" fora do Resumo.** A regra fala de uma visão de pendências; o que existe
-  é a linha na matriz do mês. **O usuário pediu essa seção** ao decidir a semântica da marca de
-  terceiros — "posteriormente deve criar uma sessão de valores de terceiros" — e ela é a próxima
-  tarefa natural, junto com marcar como recebido
+- **Não há visão de pendências que atravesse meses.** A seção *A receber* é por competência, e
+  uma dívida de agosto não reaparece em outubro — foi decisão explícita, não lacuna. Ver
+  [`decisoes.md`](decisoes.md)
+- **Não há busca.** Achar um lançamento antigo exige lembrar o mês dele
 - **Não há histórico de auditoria na tela.** A tabela `Auditoria` passou a receber linhas —
   travar e destravar fatura, com quem e quando —, mas nada as mostra. Hoje só por SQL
 - **Não há tema escuro.** Os tokens estão prontos para receber um, o bloco escuro não foi

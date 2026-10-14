@@ -444,3 +444,30 @@ existe duplica parcela, porque o `createMany` roda sem o `deleteMany` antes. Só
 `criarLancamento` pode passar `true`, e só porque criou o registro na transação corrente. Os
 testes de banco do caminho de gravação são a rede — rode `npm run test:banco` antes de mexer
 aqui.
+
+## A seção "A receber" não guarda data, e não atravessa meses
+
+**Onde:** `secao-a-receber.tsx` e `carregarReembolsosDaCompetencia`.
+
+A regra de negócio dizia que marcar como recebido **registra a data**, e o schema nunca teve
+onde. Seria uma migration.
+
+**O usuário decidiu que não:** *"dívidas são mais para visualização do que para cálculos, então
+dívidas em aberto são apenas informações, não precisam persistir para meses seguintes"*. Uma
+dívida de agosto que ninguém pagou **não** reaparece em outubro.
+
+Isso derruba a utilidade da data junto: o mês já é o contexto, e a lista sai de vista quando se
+vira a página. A regra foi ajustada ao sistema, como em "editar uma parcela".
+
+Também derruba o que era a parte difícil: **seria a primeira consulta do sistema a atravessar
+meses.** Toda leitura hoje é por competência, e uma lista corrente de pendências exigiria outra
+forma de consulta, outra tela e outro lugar na navegação. Nada disso foi construído, e a razão
+está aqui para não parecer esquecimento.
+
+**Por que no Resumo e não em tela própria:** o total já está na matriz, na linha *A receber por
+‹pessoa›*. A lista explica aquele número, e os dois ficam a um palmo um do outro. Uma entrada
+na barra lateral para uma lista de duas ou três linhas por mês seria navegação sem conteúdo.
+
+**Marcar como recebido não altera número nenhum** — pendente ou recebido, o valor está fora do
+gasto do casal e dentro do `Somado`. Quem for mexer no cálculo por causa desta marca está
+resolvendo um problema que não existe.

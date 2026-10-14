@@ -134,3 +134,76 @@ export async function carregarLinhasDaGrade(
     devedorNome: p.lancamento.devedorNome,
   }));
 }
+
+export type LinhaAReceber = {
+  lancamentoId: string;
+  versao: number;
+  descricao: string;
+  /** O valor DA PARCELA, nao o do lancamento: e o que cai neste mes. */
+  valorCentavos: number;
+  numero: number;
+  numeroParcelas: number;
+  escopo: 'PESSOAL' | 'CONJUNTO';
+  /** Quem pagou. `null` em lancamento de conjunto. */
+  membroNome: string | null;
+  /** Quem vai devolver. `null` quando ninguem anotou. */
+  devedorNome: string | null;
+  recebido: boolean;
+  contaNome: string;
+};
+
+/**
+ * Os reembolsos de terceiro que caem nesta competencia.
+ *
+ * Consulta propria, e nao `carregarLinhasDaGrade` filtrada depois: aquela traz
+ * o mes inteiro — dezenas de linhas com categoria, conta e membro — para a tela
+ * ficar com duas ou tres. O `where` no banco custa uma ida so e diz o que quer.
+ *
+ * Traz PENDENTE e RECEBIDO. O recebido continua na lista, com a marca ligada:
+ * sumir perderia o registro do mes e tiraria a chance de desfazer um clique
+ * errado. E `recebido` nao muda numero nenhum — o valor esta fora do gasto do
+ * casal e dentro do Somado nos dois estados.
+ */
+export async function carregarReembolsosDaCompetencia(
+  competencia: string,
+): Promise<LinhaAReceber[]> {
+  const parcelas = await prisma.parcela.findMany({
+    where: {
+      competencia,
+      ...PARCELA_VISIVEL,
+      lancamento: { deletadoEm: null, statusReembolso: { not: null } },
+    },
+    select: {
+      numero: true,
+      valorCentavos: true,
+      lancamento: {
+        select: {
+          id: true,
+          versao: true,
+          descricao: true,
+          numeroParcelas: true,
+          escopo: true,
+          devedorNome: true,
+          statusReembolso: true,
+          membro: { select: { nome: true } },
+          conta: { select: { nome: true } },
+        },
+      },
+    },
+    orderBy: [{ lancamento: { dataCompra: 'asc' } }, { numero: 'asc' }],
+  });
+
+  return parcelas.map((p) => ({
+    lancamentoId: p.lancamento.id,
+    versao: p.lancamento.versao,
+    descricao: p.lancamento.descricao,
+    valorCentavos: p.valorCentavos,
+    numero: p.numero,
+    numeroParcelas: p.lancamento.numeroParcelas,
+    escopo: p.lancamento.escopo,
+    membroNome: p.lancamento.membro?.nome ?? null,
+    devedorNome: p.lancamento.devedorNome,
+    recebido: p.lancamento.statusReembolso === 'RECEBIDO',
+    contaNome: p.lancamento.conta.nome,
+  }));
+}

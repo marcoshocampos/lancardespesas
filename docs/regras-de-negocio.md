@@ -265,9 +265,30 @@ O status é **por lançamento**, não por parcela — decidido, e o schema já e
 de uma vez; não há como marcar recebida a parcela 3 e pendente a 4. Ver
 [`decisoes.md`](decisoes.md).
 
-Marcar como recebido registra a data e não altera valor nenhum na fatura. **Qualquer status
-tira do gasto do casal, `PENDENTE` ou `RECEBIDO`** — receber encerra a cobrança, não
-transforma a despesa em gasto deles.
+Marcar como recebido **não altera valor nenhum, em lugar nenhum**. O lançamento já está fora
+do gasto do casal e dentro do `Somado` nos dois estados: ou alguém ainda vai devolver, ou já
+devolveu. A marca responde *de quem ainda cobrar*, e nada mais.
+
+**A data do recebimento não é registrada**, ao contrário do que esta seção dizia. Decidido:
+dívida aqui é visualização, não contabilidade, e **não persiste para o mês seguinte** — o mês
+já é o contexto, e a lista sai de vista quando se vira a página. Guardar a data exigiria uma
+coluna nova para informação que ninguém consultaria. Ver [`decisoes.md`](decisoes.md).
+
+### A seção *A receber de terceiros*
+
+Fica no Resumo, logo abaixo da matriz, e lista os reembolsos **daquela competência**: o que
+foi, quanto, quem pagou, quem vai devolver, e um interruptor **Recebido**.
+
+- **Não aparece em mês sem reembolso.** Sem nada a receber, o `Somado` fecha com a soma dos
+  *Cabe a*, e uma seção vazia permanente sugeriria uma lacuna inexistente
+- **O item recebido continua na lista**, com a marca ligada e o valor riscado. Sumir perderia o
+  registro do mês e tiraria a chance de desfazer um clique errado
+- O cabeçalho mostra **quanto ainda está em aberto**, e o total do mês quando os dois diferem
+- Um parcelado aparece **uma vez por mês**, com o valor da parcela — o mesmo critério da grade
+
+Marcar passa pelo **lock otimista** como qualquer gravação de lançamento: são duas pessoas no
+mesmo mês. Marcar um lançamento que **não é** reembolso é recusado — criaria reembolso pela
+porta dos fundos, sem devedor e sem ninguém ter pedido.
 
 ---
 

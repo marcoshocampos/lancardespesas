@@ -3,7 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { auth } from '../auth';
-import { criarLancamento, editarLancamento, excluirLancamento } from '../repositorios/lancamento';
+import {
+  criarLancamento,
+  editarLancamento,
+  excluirLancamento,
+  marcarReembolso,
+} from '../repositorios/lancamento';
 
 const esquema = z.object({
   descricao: z.string().trim().min(1, 'Descrição obrigatória').max(120),
@@ -46,5 +51,23 @@ export async function acaoExcluirLancamento(id: string, versao: number) {
   await exigirSessao();
   const resultado = await excluirLancamento(id, versao);
   revalidatePath('/despesas');
+  return resultado;
+}
+
+const esquemaReembolso = z.object({
+  id: z.string().min(1),
+  versao: z.number().int().min(1),
+  recebido: z.boolean(),
+});
+
+export async function acaoMarcarReembolso(dados: unknown) {
+  await exigirSessao();
+  const { id, versao, recebido } = esquemaReembolso.parse(dados);
+  const resultado = await marcarReembolso(id, versao, recebido);
+  if (resultado.ok) {
+    // O Resumo mostra a lista; a grade mostra o selo de reembolso na linha.
+    revalidatePath('/resumo');
+    revalidatePath('/despesas');
+  }
   return resultado;
 }

@@ -2,10 +2,14 @@ import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
 import { CartoesResumo } from '@/components/resumo/cartoes-resumo';
 import { ConferenciaFatura } from '@/components/resumo/conferencia-fatura';
 import { MatrizResumo } from '@/components/resumo/matriz-resumo';
+import { SecaoAReceber } from '@/components/resumo/secao-a-receber';
 import { calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { carregarFatura } from '@/server/repositorios/fatura';
-import { carregarParcelasDaCompetencia } from '@/server/repositorios/resumo';
+import {
+  carregarParcelasDaCompetencia,
+  carregarReembolsosDaCompetencia,
+} from '@/server/repositorios/resumo';
 import { competenciaAtual } from '@/app/competencia-atual';
 
 type Props = { searchParams: Promise<{ competencia?: string }> };
@@ -13,13 +17,14 @@ type Props = { searchParams: Promise<{ competencia?: string }> };
 export default async function Resumo({ searchParams }: Props) {
   const { competencia = competenciaAtual() } = await searchParams;
 
-  const [membros, todasAsContas, parcelas] = await Promise.all([
+  const [membros, todasAsContas, parcelas, aReceber] = await Promise.all([
     prisma.membro.findMany({ where: { ativo: true }, orderBy: { criadoEm: 'asc' } }),
     // Sem `where: { ativa: true }`, pelo mesmo motivo de `despesas/page.tsx`:
     // uma conta desativada que ainda tem parcela nesta competencia precisa
     // estar no conjunto que alimenta `calcularResumo`, ou o mes nao abre.
     prisma.conta.findMany({ orderBy: { ordem: 'asc' } }),
     carregarParcelasDaCompetencia(competencia),
+    carregarReembolsosDaCompetencia(competencia),
   ]);
 
   const membroIds = membros.map((m) => m.id);
@@ -71,6 +76,8 @@ export default async function Resumo({ searchParams }: Props) {
         // faltasse aqui viraria um cuid cru no cabecalho da coluna.
         nomesDeConta={Object.fromEntries(contasDoMes.map((c) => [c.id, c.nome]))}
       />
+      <SecaoAReceber linhas={aReceber} />
+
       <div className="mt-4 space-y-3">
         {contasCartao.map((c) => (
           <ConferenciaFatura
