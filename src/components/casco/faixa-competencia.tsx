@@ -7,7 +7,8 @@ type TotalDeFatura = { contaId: string; nome: string; centavos: number };
 
 type Props = {
   competencia: string;
-  rota: '/despesas' | '/resumo';
+  /** As telas que tem faixa de mes. Lixeira e Configuracoes nao tem, de proposito. */
+  rota: '/despesas' | '/resumo' | '/graficos';
   conta?: string | undefined;
   totais?: { membros: TotalDeMembro[]; faturas: TotalDeFatura[] } | undefined;
   filtroAtivo?: boolean;

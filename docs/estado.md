@@ -56,12 +56,12 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 118 passando e 26 pulados.** Com banco, `npm run test:banco`, são **144
+**`npm test` hoje: 131 passando e 26 pulados.** Com banco, `npm run test:banco`, são **157
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
- Test Files  10 passed | 3 skipped (13)        Test Files  13 passed (13)
-      Tests  118 passed | 26 skipped (144)          Tests  144 passed (144)
+ Test Files  11 passed | 3 skipped (14)        Test Files  14 passed (14)
+      Tests  131 passed | 26 skipped (157)          Tests  157 passed (157)
 ```
 
 Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
@@ -131,9 +131,9 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 
 - **Não há apagar definitivo.** A lixeira só restaura; nada sai do banco. Escolha explícita,
   fiel ao invariante 6 — ver [`decisoes.md`](decisoes.md)
-- **Não há tela de resolução de conflito.** A proteção contra sobrescrita existe e a recusa
-  aparece — e desde `35ba027` a recusa não apaga mais o que foi digitado —, mas sem o
-  comparativo lado a lado
+- **Não há tela de resolução de conflito, e NÃO SERÁ construída** — decisão do usuário em
+  2026-10-19: o casal lança junto, então a colisão não acontece. O lock otimista continua
+  (invariante 7), a recusa aparece e não apaga o que foi digitado. Ver [`decisoes.md`](decisoes.md)
 - **Não há visão de pendências que atravesse meses.** A seção *A receber* é por competência, e
   uma dívida de agosto não reaparece em outubro — foi decisão explícita, não lacuna. Ver
   [`decisoes.md`](decisoes.md)
@@ -143,8 +143,9 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 - **Não há tema por pessoa.** O escuro existe e segue o sistema operacional, com um botão que
   força claro ou escuro — mas a escolha forçada é por aparelho, num cookie. Preferência que
   segue a pessoa depende da tabela `Preferencia`, de Fase 2
-- **Não há gráficos.** O destino existe na barra lateral, desabilitado. Precisa de Recharts,
-  consultas que atravessam meses e decisões de regra em aberto
+- **Não há rosca de categorias nem evolução por pessoa.** Os gráficos existem — ranking,
+  evolução mensal e projeção —, mas a rosca saiu por decisão e não por esquecimento. Ver
+  [`decisoes.md`](decisoes.md)
 - **Desativar pessoa não existe e NÃO SERÁ construído** — decisão do usuário em 2026-10-14.
   `editarMembro` grava só `nome` e `cor`, e `Membro.ativo` segue como rótulo na lista. A
   armadilha 12 de [`arquitetura.md`](arquitetura.md) continua valendo, mas como *não construa*:

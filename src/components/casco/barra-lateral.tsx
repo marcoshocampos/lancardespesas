@@ -15,10 +15,10 @@ type Destino = {
 };
 
 /**
- * Destinos da barra, nesta ordem exata. So Graficos segue desabilitado: a
- * pagina nao existe, e `docs/arquitetura.md` e explicito em que um destino so
- * entra na navegacao depois que a pagina existir. Configuracoes entrou na
- * Etapa 06; Lixeira, quando a tela passou a existir.
+ * Destinos da barra, nesta ordem exata. **Nenhum segue desabilitado** — todas
+ * as paginas existem. A regra que valia ate aqui continua valendo para quem
+ * acrescentar destino novo: ele so entra na navegacao depois que a pagina
+ * existir (`docs/arquitetura.md`).
  *
  * Configuracoes nao tem filtro de competencia, e ainda assim recebe o
  * `?competencia=` que o link monta logo abaixo — a pagina ignora o parametro
@@ -30,7 +30,7 @@ type Destino = {
 const DESTINOS: Destino[] = [
   { rotulo: 'Despesas', rota: '/despesas', Icone: Receipt },
   { rotulo: 'Resumo', rota: '/resumo', Icone: ClipboardList },
-  { rotulo: 'Gráficos', rota: null, Icone: BarChart3 },
+  { rotulo: 'Gráficos', rota: '/graficos', Icone: BarChart3 },
   { rotulo: 'Configurações', rota: '/configuracoes', Icone: Settings },
   { rotulo: 'Lixeira', rota: '/lixeira', Icone: Trash2 },
 ];

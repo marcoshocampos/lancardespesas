@@ -554,3 +554,72 @@ for construir e passou a ser a explicação de **por que não construir**: os tr
 consertados juntos, e nenhum é alcançável enquanto a tela não existir.
 
 `Membro.ativo` segue no schema como rótulo na lista de Configurações, sem efeito.
+
+## A tela de resolução de conflito não será construída
+
+**Decisão do usuário, 2026-10-19.** O casal lança junto, na mesma mesa, então dois navegadores
+editando o mesmo lançamento ao mesmo tempo não é uma situação que eles vivam.
+
+**O lock otimista continua e não é opcional** — é o invariante 7, e protege contra o caso em
+que alguém deixa uma aba aberta e volta nela horas depois. O que não será construído é a
+*tela* que compara campo a campo e oferece resolver.
+
+O que existe hoje basta para esse uso: a recusa aparece, o que foi digitado **não se perde**
+(ver a nota sobre `action={}` do React 19 em `painel-lancamento.tsx`), e uma linha mostra o
+estado gravado — descrição e valor. Sair do impasse é recarregar a página.
+
+Se um dia virar problema, a forma estava desenhada: dois botões, *manter o meu* — que grava
+por cima com a versão nova — e *usar o que está gravado*. Sobrescrever depois de ver o que a
+outra pessoa gravou não viola o invariante 7, que proíbe a sobrescrita **silenciosa**.
+
+## Os gráficos: três, e por que não os quatro da spec
+
+**Onde:** `src/domain/graficos.ts`, `components/graficos/`, `/graficos`.
+
+A spec original esboçou quatro — ranking de categorias, categoria em rosca, evolução mensal e
+projeção futura. **A rosca saiu**, por decisão do usuário: mostra exatamente o mesmo dado do
+ranking, e rosca com treze categorias é ilegível. Duas formas para uma pergunta é desperdício.
+
+Saiu também por um motivo que só apareceu ao validar a paleta, abaixo.
+
+### A evolução mensal é empilhada para não mentir
+
+Uma linha única desenharia uma montanha: sobe até setembro de 2026 e desce depois. **As duas
+metades são artefato.** A subida é parcela retroativa — o casal só começou a lançar em
+setembro, e o que existe antes é reconstrução feita pela importação. A descida é parcelado
+terminando, não gasto diminuindo.
+
+Empilhar **compras novas** (parcela de número 1) sobre **parcelas de compras anteriores**
+resolve sem texto explicativo: um mês feito só de compromisso antigo aparece com a faixa de
+novas vazia, e diz sozinho o que é.
+
+**Não troque por uma linha única nem por uma série só** achando que simplifica. A separação é
+a única coisa que torna este gráfico honesto com estes dados.
+
+### A paleta das categorias reprovou no validador, e mesmo assim ficou
+
+`scripts/validate_palette.js` do skill de dataviz reprovou as cores de categoria: `Casa Doce`
+e `Beleza` têm ΔE 8,6 — pouco até para visão normal —, e `Jogo` e `Casa Doce` somem uma na
+outra para daltonismo protan. Quatro cores lêem como cinza.
+
+Ficaram assim mesmo por dois motivos. As cores são **dado do banco**, escolhidas pelo casal em
+Configurações, e são as mesmas que a grade usa na bolinha de categoria — trocá-las no gráfico
+quebraria a correspondência entre as telas. E no ranking a cor é **reforço, não identidade**:
+cada barra leva o nome ao lado e o valor na ponta.
+
+**Numa rosca isso teria sido grave**, porque lá a cor é a única identidade. Foi o segundo
+motivo para a rosca sair.
+
+Se incomodar, o conserto é no banco, não no código: trocar a cor de `Casa Doce` em
+Configurações resolve os dois pares de uma vez.
+
+### As cores das séries são token, não literal
+
+`--color-grafico-novas` e `--color-grafico-anteriores`, definidas no claro e nos dois blocos
+escuros do `globals.css`. O Recharts recebe `var(--color-grafico-novas)`, que o SVG resolve em
+tempo de execução — então o tema escuro vem de graça pelo mecanismo que já existia, sem
+JavaScript lendo tema.
+
+O par passou em separação para daltonismo (ΔE 16 protan) e para visão normal (ΔE 22,8).
+**Reprovou no piso de croma**, e isso é deliberado: a paleta desta casa é dessaturada desde o
+redesenho, e um gráfico vivo sobre uma interface apagada pareceria colado de outro lugar.

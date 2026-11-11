@@ -43,6 +43,7 @@ Funções puras. Argumentos entram, valor sai. **Nada de Prisma, `fetch`, `Date.
 | `competencia.ts` | Em qual fatura um lançamento cai | `Competencia`, `competenciaDeCartao`, `competenciaDeContaExterna`, `competenciaDeDataISO`, `avancarCompetencia`, `compararCompetencias`, `formatarCompetencia` |
 | `parcelamento.ts` | A soma das parcelas é exatamente o total | `OrigemValor`, `EntradaParcelamento`, `ParcelaGerada`, `gerarParcelas` |
 | `rateio.ts` | A soma das cotas é exatamente o valor rateado | `PesoRateio`, `Cota`, `pesosMeioAMeio`, `ratear` |
+| `graficos.ts` | As três agregações dos gráficos, puras | `ParcelaDeGrafico`, `rankingDeCategorias`, `evolucaoMensal`, `projecao` |
 | `totais.ts` | A matriz de pessoas por contas, reproduzindo a planilha | `COLUNA_TOTAL`, `ParcelaResumo`, `LinhaMatriz`, `ResumoMes`, `calcularResumo` |
 | `conferencia.ts` | O somado contra o valor real do extrato | `SituacaoConferencia`, `Conferencia`, `conferir` |
 | `agrupamento.ts` | Agrupa e soma por chave, para a tela não precisar contar | `ItemAgrupavel`, `Grupo`, `agrupar` |
@@ -82,6 +83,7 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 | `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento`, `marcarReembolso`, `restaurarLancamento` |
 | `repositorios/resumo.ts` | `LinhaGrade`, `LinhaAReceber`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade`, `carregarReembolsosDaCompetencia` |
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
+| `repositorios/graficos.ts` | `carregarParcelasParaGraficos` — a única leitura sem filtro de competência |
 | `repositorios/lixeira.ts` | `ItemDaLixeira`, `carregarLixeira` |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarConta`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 

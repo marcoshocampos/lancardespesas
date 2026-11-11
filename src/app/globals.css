@@ -35,6 +35,16 @@
   --color-tinta-fraca: #6b6760;
   --color-tinta-apagada: #a8a39b;
 
+  /* Gráficos.
+     Par validado com scripts/validate_palette.js do skill de dataviz: passa em
+     separação para daltonismo (ΔE 16 protan) e para visão normal (ΔE 22,8), que
+     é o que decide se dá para distinguir as duas séries empilhadas.
+     Reprova no piso de croma, e isso é deliberado: a paleta desta casa é
+     dessaturada desde o redesenho, e um gráfico vivo sobre uma interface
+     apagada pareceria colado de outro lugar. */
+  --color-grafico-novas: #0c6e79;
+  --color-grafico-anteriores: #a8710f;
+
   /* Semânticos */
   --color-acento: #155e63;
   --color-positivo: #166534;
@@ -90,7 +100,15 @@
     --color-tinta-fraca: #a39d93;
     --color-tinta-apagada: #6e685f;
 
-    --color-acento: #5fb3bb;
+    /* Passos mais claros, como o tema escuro pede — validados contra a
+       superfície escura, e não invertidos automaticamente. */
+    --color-grafico-novas: #5fb3bb;
+    --color-grafico-anteriores: #d9a05b;
+
+    --color-grafico-novas: #5fb3bb;
+  --color-grafico-anteriores: #d9a05b;
+
+  --color-acento: #5fb3bb;
     --color-positivo: #6fbf8b;
     --color-positivo-fundo: #1b2e22;
     --color-negativo: #f0867d;
