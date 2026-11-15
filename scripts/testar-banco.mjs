@@ -22,7 +22,7 @@
  * Sem dependencia nova de proposito: `dotenv` e `cross-env` nao estao no
  * projeto, e ler uma chave de um arquivo de texto nao justifica instalar nada.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -76,6 +76,30 @@ if (urlProducao && endpoint(urlProducao) === endpoint(urlTeste)) {
 }
 
 console.log(`Testes de banco contra o endpoint ${endpoint(urlTeste)} (nao o de producao).\n`);
+
+/**
+ * Traz o banco de teste para o schema atual ANTES de rodar a suite.
+ *
+ * Sem isto, toda migration nova exigia alguem lembrar de aplica-la tambem no
+ * banco de teste — e o esquecimento aparecia como dezenas de testes quebrando
+ * com "column does not exist", que parece bug de codigo e e so banco atrasado.
+ * `migrate deploy` e idempotente: sem migration pendente, nao faz nada.
+ *
+ * A URL direta sai da de teste tirando o `-pooler` do host, que e a convencao
+ * do Neon. Migration nao pode ir pelo pooler: ela usa advisory lock, que o
+ * PgBouncer em modo transacao nao sustenta. As duas variaveis sao passadas
+ * explicitamente porque o schema declara `directUrl = env("DIRECT_URL")`, e
+ * sem sobrescrever o CLI leria a DIRECT_URL do .env — a de PRODUCAO.
+ */
+const urlTesteDireta = urlTeste.replace('-pooler.', '.');
+const prismaCli = fileURLToPath(new URL('../node_modules/prisma/build/index.js', import.meta.url));
+const migracao = spawnSync(process.execPath, [prismaCli, 'migrate', 'deploy'], {
+  stdio: 'inherit',
+  env: { ...process.env, DATABASE_URL: urlTesteDireta, DIRECT_URL: urlTesteDireta },
+});
+if (migracao.status !== 0) {
+  abortar('Nao consegui aplicar as migrations no banco de teste. A suite nao rodou.');
+}
 
 /**
  * `--no-file-parallelism` nao e opcional aqui.

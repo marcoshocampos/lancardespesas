@@ -43,6 +43,7 @@ Funções puras. Argumentos entram, valor sai. **Nada de Prisma, `fetch`, `Date.
 | `competencia.ts` | Em qual fatura um lançamento cai | `Competencia`, `competenciaDeCartao`, `competenciaDeContaExterna`, `competenciaDeDataISO`, `avancarCompetencia`, `compararCompetencias`, `formatarCompetencia` |
 | `parcelamento.ts` | A soma das parcelas é exatamente o total | `OrigemValor`, `EntradaParcelamento`, `ParcelaGerada`, `gerarParcelas` |
 | `rateio.ts` | A soma das cotas é exatamente o valor rateado | `PesoRateio`, `Cota`, `pesosMeioAMeio`, `ratear` |
+| `recorrencia.ts` | A data da recorrente e a triagem do que falta lançar, puras | `dataDaRecorrente`, `recorrentesPendentes` |
 | `graficos.ts` | As três agregações dos gráficos, puras | `ParcelaDeGrafico`, `rankingDeCategorias`, `evolucaoMensal`, `projecao` |
 | `totais.ts` | A matriz de pessoas por contas, reproduzindo a planilha | `COLUNA_TOTAL`, `ParcelaResumo`, `LinhaMatriz`, `ResumoMes`, `calcularResumo` |
 | `conferencia.ts` | O somado contra o valor real do extrato | `SituacaoConferencia`, `Conferencia`, `conferir` |
@@ -83,6 +84,7 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 | `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento`, `marcarReembolso`, `restaurarLancamento` |
 | `repositorios/resumo.ts` | `LinhaGrade`, `LinhaAReceber`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade`, `carregarReembolsosDaCompetencia` |
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
+| `repositorios/recorrente.ts` | `carregarRecorrentes`, `criarRecorrente`, `editarRecorrente`, `carregarRecorrentesPendentes`, `lancarRecorrentes` |
 | `repositorios/graficos.ts` | `carregarParcelasParaGraficos` — a única leitura sem filtro de competência |
 | `repositorios/lixeira.ts` | `ItemDaLixeira`, `carregarLixeira` |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarConta`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
@@ -549,3 +551,19 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     O contrato mora em `casco/tema-compartilhado.ts`, **sem `'use client'`** — um componente de
     servidor não importa de módulo de cliente, e duplicar o nome do cookie faria as duas pontas
     divergirem em silêncio.
+
+23. **Migration nova vai para o banco ANTES do código que a usa.** O deploy na Vercel acontece a
+    cada push na `main`, e o código das recorrentes consulta a tabela `Recorrente` e as colunas
+    novas de `Lancamento` já na renderização do Despesas. Publicar o código com o banco de
+    produção ainda no schema antigo **derruba a tela principal do sistema** com "relation does
+    not exist".
+
+    A ordem é: `migrate deploy` no banco de teste pelo `npm run test:banco` (o runner faz isso
+    sozinho), testes passando, `migrate deploy` em produção com a palavra do usuário, e só então
+    o push. Toda migration até aqui foi só de adição, para que o código ANTIGO continue
+    funcionando com o banco NOVO — é isso que torna a ordem segura. Migration que remove ou
+    renomeia coluna quebra essa garantia, e precisa de duas etapas.
+
+    O `npm run test:banco` aplica as migrations no banco de teste antes de rodar, pela URL
+    **direta** (sem `-pooler`): migration usa advisory lock, que o PgBouncer do pooler não
+    sustenta.

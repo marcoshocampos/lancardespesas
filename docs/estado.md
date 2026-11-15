@@ -56,18 +56,18 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 131 passando e 26 pulados.** Com banco, `npm run test:banco`, são **157
+**`npm test` hoje: 145 passando e 33 pulados.** Com banco, `npm run test:banco`, são **178
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
- Test Files  11 passed | 3 skipped (14)        Test Files  14 passed (14)
-      Tests  131 passed | 26 skipped (157)          Tests  157 passed (157)
+ Test Files  12 passed | 4 skipped (16)        Test Files  16 passed (16)
+      Tests  145 passed | 33 skipped (178)          Tests  178 passed (178)
 ```
 
-Os 12 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em três
-arquivos: `repositorios/configuracao.test.ts` (5), `repositorios/lancamento.test.ts` (6) e
-`repositorios/resumo.test.ts` (1). Eles **passaram a rodar** — `npm run test:banco`, 130
-passando, nenhum pulado; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
+Os 33 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em quatro
+arquivos: `repositorios/configuracao.test.ts` (8), `repositorios/lancamento.test.ts` (17),
+`repositorios/recorrente.test.ts` (7) e `repositorios/resumo.test.ts` (1). Eles rodam com
+`npm run test:banco`; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
 propósito, para que a suíte rápida continue sem rede e sem banco.
 
 O Playwright de `e2e/` é pulado à parte e **não** entra no `npm test`, que é `vitest run`.
@@ -152,7 +152,8 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
   são três pontos do código que se comportam mal com membro desconhecido, e nenhum deles é
   alcançável enquanto a tela não existir
 - **`Categoria.icone` existe no schema e não é usado em lugar nenhum**
-- **`Recorrente` e `Preferencia` não existem no banco**, por serem de Fase 2. É a `Preferencia`
+- **`Preferencia` não existe no banco**, por ser de Fase 2 — `Recorrente` passou a existir com a
+  tela de recorrentes. É a `Preferencia`
   que segura o tema escuro por pessoa e o layout A da grade
 - **O layout A da grade — painéis lado a lado — continua adiado.** As seções por pessoa **não**
   são ele: é um renderizador só. Ver [`decisoes.md`](decisoes.md)
@@ -174,9 +175,10 @@ abaixo.
 npm run test:banco
 ```
 
-**130 passando, nenhum pulado.** O usuário criou uma branch no Neon só para teste, e a conexão
-dela mora em `DATABASE_URL_TESTE` no `.env`. O `npm test` continua sem tocar banco: 118
-passando e 12 pulados, em menos de um segundo.
+**Na estreia, 130 passando e nenhum pulado** — a contagem de hoje está em *O que já funciona*.
+O usuário criou uma branch no Neon só para teste, e a conexão dela mora em
+`DATABASE_URL_TESTE` no `.env`. O `npm test` continua sem tocar banco, em menos de um
+segundo.
 
 O runner é [`scripts/testar-banco.mjs`](../scripts/testar-banco.mjs) e existe para que apontar
 a suíte destrutiva para produção **deixe de ser possível**: ele lê a variável de teste, ignora
@@ -280,7 +282,7 @@ verdadeira quando o conjunto é ímpar.
 | Serviço | Situação |
 |---|---|
 | Neon (Postgres) | Criado, migration aplicada, seed rodado, **planilha reimportada como `2026-09`** (58 lançamentos, fatura conferida contra a linha `FATURA:`). É o banco de produção do casal, com dado financeiro real |
-| Neon — banco de teste | **Criado**, como branch do projeto. Conexão em `DATABASE_URL_TESTE`; os 130 testes rodam com `npm run test:banco` |
+| Neon — banco de teste | **Criado**, como branch do projeto. Conexão em `DATABASE_URL_TESTE`; a suíte inteira roda com `npm run test:banco` |
 | Google OAuth | Credenciais criadas; os dois e-mails constam como *test users* em Público-alvo. URIs de redirecionamento de `localhost` e de produção cadastrados. **Login verificado nos dois sentidos** |
 | Vercel | **Publicado e funcionando** em https://lancardespesas.vercel.app. Variáveis importadas do `.env` local. O `DATABASE_URL_TESTE`, que veio junto na importação do `.env`, já foi removido de lá |
 | GitHub | Repositório privado `marcoshocampos/lancardespesas`. `main` enviada e única; branches de trabalho apagadas |

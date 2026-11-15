@@ -1,7 +1,10 @@
 import { ListaCategorias } from '@/components/configuracoes/lista-categorias';
 import { ListaContas } from '@/components/configuracoes/lista-contas';
 import { ListaMembros } from '@/components/configuracoes/lista-membros';
+import { ListaRecorrentes } from '@/components/configuracoes/lista-recorrentes';
+import { competenciaAtual } from '@/app/competencia-atual';
 import { prisma } from '@/server/db';
+import { carregarRecorrentes } from '@/server/repositorios/recorrente';
 
 /**
  * Sem `searchParams`: configuracao nao pertence a um mes. A barra lateral
@@ -25,10 +28,11 @@ export default async function Configuracoes() {
   // A ordem de cada lista e a mesma das outras telas, para a pessoa reencontrar
   // aqui o que viu la: categoria por nome, conta pela `ordem` (que e a ordem das
   // colunas da matriz do Resumo, e nao se edita), pessoa por `criadoEm`.
-  const [categorias, contas, membros] = await Promise.all([
+  const [categorias, contas, membros, recorrentes] = await Promise.all([
     prisma.categoria.findMany({ orderBy: { nome: 'asc' } }),
     prisma.conta.findMany({ orderBy: { ordem: 'asc' } }),
     prisma.membro.findMany({ orderBy: { criadoEm: 'asc' } }),
+    carregarRecorrentes(),
   ]);
 
   return (
@@ -42,6 +46,17 @@ export default async function Configuracoes() {
         <ListaCategorias categorias={categorias} />
         <ListaContas contas={contas} />
         <ListaMembros membros={membros} />
+        {/* As opcoes do formulario sao as mesmas que o painel de lancamento
+            oferece para lancamento novo: conta ativa, categoria nao arquivada,
+            pessoa ativa. As tres listas completas acima continuam servindo as
+            proprias secoes. */}
+        <ListaRecorrentes
+          recorrentes={recorrentes}
+          contas={contas.filter((c) => c.ativa)}
+          categorias={categorias.filter((c) => !c.arquivada)}
+          membros={membros.filter((m) => m.ativo)}
+          competenciaPadrao={competenciaAtual()}
+        />
       </div>
     </div>
   );

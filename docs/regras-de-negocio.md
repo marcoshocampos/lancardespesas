@@ -307,18 +307,57 @@ Lançamento de valor negativo, para devolução de compra, cashback ou desconto.
 
 ## 8. Despesas recorrentes
 
-Cadastradas uma vez, viram lançamento em toda competência nova. Exemplos reais: `google`
-R$ 88,00 e `seguro anual` R$ 95,00.
+Cadastradas uma vez em **Configurações → Recorrentes**, viram lançamento a cada competência —
+**quando alguém pede**. Exemplos: assinatura de nuvem, seguro anual parcelado pela seguradora,
+mensalidade.
 
-- **Geradas quando a competência é aberta pela primeira vez** — na primeira vez que alguém
-  abre aquele mês no sistema, não por um agendamento de servidor. Menos peça móvel e nenhum
-  risco de lançamento fantasma em mês que ninguém olhou. **[a confirmar]**
-- O lançamento gerado é **normal e editável**: dá para mudar o valor do mês, ou apagar.
-- Alterar o valor da recorrente vale para as **próximas** competências; não retroage.
-- Encerrar preenche `dataFim`; competências posteriores não geram mais.
-- Recorrente **não gera parcelamento**. Assinatura é uma cobrança por mês, não uma compra
-  parcelada — a diferença importa na projeção, que só conta parcelas de compras reais.
-  **[a confirmar]**
+### Nada nasce sozinho
+
+Ao abrir o Despesas num mês que tem recorrentes ainda não lançadas, aparece uma faixa com a
+lista e o total, e o botão **Lançar todas**. Sem o clique, nada é gravado.
+
+A regra original propunha gerar "na primeira vez que alguém abre o mês", e foi trocada — **decidido**.
+Para o framework, renderizar a página não é o mesmo que alguém abri-la: ele renderiza de novo
+após cada gravação e pode renderizar adiantado a página de um link que ninguém clicou. Gerar
+na renderização seria lançar despesa sem ninguém pedir, que é exatamente o lançamento fantasma
+que a regra queria evitar. Ver [`decisoes.md`](decisoes.md).
+
+### O que a faixa oferece
+
+Uma recorrente é oferecida numa competência quando está **ativa**, já **começou** (a
+competência de início é igual ou anterior), a **conta está ativa**, a fatura dessa conta **não
+está travada** naquele mês, e ela **ainda não gerou lançamento** para aquela competência.
+
+- **Não oferece duas vezes.** Cada lançamento gerado guarda a recorrente e a competência de
+  origem, e o par é único no banco. Clique duplo, duas pessoas ao mesmo tempo ou voltar no mês
+  depois não duplicam.
+- **Excluir o lançamento gerado é pular o mês.** Como nada é apagado de verdade, o par de
+  origem sobrevive na lixeira e o mês conta como tratado. Restaurar traz o lançamento de volta.
+- **Fatura travada não recebe oferta.** Oferecer o clique para o servidor recusar seria pior que
+  não oferecer.
+
+### O lançamento gerado
+
+É **normal e editável**, à vista, com parcela única — recorrente **não parcela**, e por isso fica
+fora da projeção de "já comprometido", que só conta parcela de compra feita. **Decidido.**
+
+A data segue o dia da cobrança pela regra do cartão: cobrança no dia 15, num cartão que fecha
+dia 4, pertence à fatura do mês seguinte — então a recorrente de dezembro é datada de 15 de
+novembro, como no extrato. Conta externa usa o dia no próprio mês.
+
+**A data sempre reproduz a competência pela regra de fechamento**, e isso é verificado antes de
+gravar: editar um lançamento recalcula o mês a partir da data, e uma data inconsistente o
+mudaria de mês na primeira edição. No único canto em que o calendário não fecha — dia 31,
+fechamento 30, competência de março, onde a cobrança cairia num fevereiro de 28 dias e entraria
+na fatura de fevereiro — a data vira o dia 1 do mês da competência.
+
+### Alterar e encerrar
+
+- Mudar o valor vale para as **próximas** competências; os lançamentos já gerados são cópias
+  independentes e não mudam.
+- **Encerrar é desativar.** Não há data de fim: "termina em março" se resolve desativando em
+  março, e um campo de data de fim seria formulário a mais para algo que quase nunca se sabe de
+  antemão. **Decidido.**
 
 ---
 

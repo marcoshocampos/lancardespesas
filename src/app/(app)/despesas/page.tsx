@@ -1,7 +1,9 @@
 import { FaixaCompetencia } from '@/components/casco/faixa-competencia';
+import { FaixaRecorrentes } from '@/components/despesas/faixa-recorrentes';
 import { GradeLancamentos } from '@/components/despesas/grade-lancamentos';
 import { COLUNA_TOTAL, calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
+import { carregarRecorrentesPendentes } from '@/server/repositorios/recorrente';
 import { carregarLinhasDaGrade, carregarParcelasDaCompetencia } from '@/server/repositorios/resumo';
 import { competenciaAtual } from '@/app/competencia-atual';
 
@@ -10,7 +12,7 @@ type Props = { searchParams: Promise<{ competencia?: string; conta?: string }> }
 export default async function Despesas({ searchParams }: Props) {
   const { competencia = competenciaAtual(), conta } = await searchParams;
 
-  const [todasAsContas, categorias, membros, linhas, parcelas] = await Promise.all([
+  const [todasAsContas, categorias, membros, linhas, parcelas, recorrentesPendentes] = await Promise.all([
     // Sem `where: { ativa: true }`, de proposito. Filtrar por `ativa` aqui era
     // o bug: uma conta desativada que ainda tem parcela nesta competencia
     // ficava de fora do conjunto que alimenta `calcularResumo`, e o mes inteiro
@@ -31,6 +33,9 @@ export default async function Despesas({ searchParams }: Props) {
     prisma.membro.findMany({ where: { ativo: true }, orderBy: { criadoEm: 'asc' } }),
     carregarLinhasDaGrade(competencia, conta),
     carregarParcelasDaCompetencia(competencia),
+    // So LEITURA: a pagina descobre o que falta lancar, e quem lanca e o clique
+    // na faixa. Nada e gerado durante a renderizacao — ver `faixa-recorrentes.tsx`.
+    carregarRecorrentesPendentes(competencia),
   ]);
 
   // Duas listas, e nao uma. `ativa` quer dizer "nao ofereca esta conta para
@@ -78,6 +83,10 @@ export default async function Despesas({ searchParams }: Props) {
       />
 
       <h1 className="mt-4 text-xl font-semibold">Despesas</h1>
+
+      {/* Do mes inteiro, mesmo com filtro de conta ligado: o que e fixo no mes
+          nao deixa de faltar porque a pessoa esta olhando um cartao so. */}
+      <FaixaRecorrentes pendentes={recorrentesPendentes} competencia={competencia} />
 
       {/* Chips e cartao levam sua propria margem (mt-4) dentro de
           GradeLancamentos — o cartao (borda arredondada) nao pode mais

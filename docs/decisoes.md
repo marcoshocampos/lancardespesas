@@ -623,3 +623,60 @@ JavaScript lendo tema.
 O par passou em separação para daltonismo (ΔE 16 protan) e para visão normal (ΔE 22,8).
 **Reprovou no piso de croma**, e isso é deliberado: a paleta desta casa é dessaturada desde o
 redesenho, e um gráfico vivo sobre uma interface apagada pareceria colado de outro lugar.
+
+## Recorrente vira lançamento por clique, não por abrir o mês
+
+**Onde:** `faixa-recorrentes.tsx`, `lancarRecorrentes` em `repositorios/recorrente.ts`.
+
+A regra de negócio propunha gerar os lançamentos "na primeira vez que alguém abre aquele mês",
+sem agendamento de servidor. A intenção era boa — menos peça móvel —, mas o mecanismo não
+existe do jeito que a frase sugere.
+
+**Para o Next, renderizar a página não é o mesmo que alguém abri-la.** A página é renderizada de
+novo depois de cada gravação (`revalidatePath`), e o `<Link>` pode renderizar adiantado a página
+de um mês que ninguém clicou. Gravar durante a renderização transformaria "passar o mouse na seta
+de mês anterior" em "lançar as recorrentes de outubro". É o lançamento fantasma que a regra queria
+evitar, entrando por outra porta.
+
+A alternativa automática de verdade — disparar do navegador quando a tela já abriu — também foi
+posta ao usuário e descartada: a tela abriria sem as recorrentes e elas apareceriam um instante
+depois, e consultar um mês antigo passaria a gravar coisa nele.
+
+**Escolha do usuário: uma faixa com um clique.** O casal lança junto, e o clique vira parte do
+ritual; a faixa ainda serve de lembrete do que é fixo no mês. Em sistema de dinheiro, "apareceu
+sozinho" é pior de explicar do que "eu cliquei".
+
+**Não construa geração automática na renderização da página**, nem em `useEffect` sem a palavra
+do usuário. A página do Despesas só **lê** as pendentes.
+
+### A trava contra duplicata é o índice, não a triagem
+
+`Lancamento` ganhou `recorrenteId` e `competenciaRecorrente`, e o par tem índice único. A triagem
+evita oferecer o que já foi feito; o índice segura dois cliques no mesmo instante, quando as duas
+triagens ainda viam a recorrente como pendente. A segunda gravação bate no índice e conta como
+pulada, não como erro.
+
+O par vai no **mesmo `create`** do lançamento, nunca num update depois — entre os dois passos o
+lançamento existiria sem marca e um segundo clique o geraria de novo.
+
+A busca de "já gerada" **não filtra `deletadoEm`**, de propósito: é assim que excluir o
+lançamento gerado vira "pular este mês". O Postgres trata `NULL` como distinto em índice único,
+então lançamento comum não é afetado.
+
+### Uma transação por recorrente, e não uma em volta de todas
+
+Se a quinta de oito falhar, as quatro primeiras ficam e as outras continuam pendentes — a faixa
+reaparece com o que sobrou. Tudo-ou-nada só desfaria trabalho bom por causa de um problema alheio
+a ele.
+
+### A data é conferida contra a regra de competência
+
+`dataDaRecorrente` inverte `competenciaDeCartao` e confere o resultado com ela antes de devolver.
+Editar um lançamento recalcula a competência a partir da data, sem competência manual; uma data
+que não a reproduza faria o lançamento **mudar de mês sozinho** na primeira edição — a família da
+armadilha 1. Há teste que varre 36 meses × 31 fechamentos × 31 dias.
+
+### Sem data de fim
+
+A spec previa `dataFim`. Encerrar virou desativar, igual às contas: data de fim é campo a mais
+para algo que quase nunca se sabe de antemão.

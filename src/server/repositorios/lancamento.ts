@@ -29,6 +29,17 @@ export type EntradaLancamento = {
   ehReembolso?: boolean | undefined;
   /** Quem vai devolver. So faz sentido com `ehReembolso`. */
   devedorNome?: string | undefined;
+  /**
+   * A recorrente e a competencia de onde este lancamento nasceu. So
+   * `lancarRecorrentes` preenche; o esquema da action de lancamento nao tem
+   * estes campos, entao a tela nao consegue forjar a marca.
+   *
+   * Vao no MESMO `create` do lancamento, nunca num update depois: entre os
+   * dois passos o lancamento existiria sem marca, a recorrente continuaria
+   * pendente, e um segundo clique a geraria de novo.
+   */
+  recorrenteId?: string | undefined;
+  competenciaRecorrente?: string | undefined;
 };
 
 export type ResultadoGravacao =
@@ -221,6 +232,14 @@ export async function criarLancamento(entrada: EntradaLancamento): Promise<Resul
         categoriaId: entrada.categoriaId,
         membroId: entrada.escopo === 'PESSOAL' ? (entrada.membroId ?? null) : null,
         ...camposDeReembolso(entrada),
+        // So entram juntos: marca pela metade nao identifica nada, e o indice
+        // unico e sobre o par.
+        ...(entrada.recorrenteId && entrada.competenciaRecorrente
+          ? {
+              recorrenteId: entrada.recorrenteId,
+              competenciaRecorrente: entrada.competenciaRecorrente,
+            }
+          : {}),
       },
     });
 

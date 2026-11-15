@@ -55,6 +55,7 @@ model Membro {
 
   lancamentos Lancamento[]
   rateios     Rateio[]
+  recorrentes Recorrente[]
 
   @@index([ativo])
 }
@@ -71,6 +72,7 @@ model Conta {
 
   lancamentos Lancamento[]
   faturas     Fatura[]
+  recorrentes Recorrente[]
 
   @@index([ativa, ordem])
 }
@@ -83,6 +85,7 @@ model Categoria {
   arquivada Boolean @default(false)
 
   lancamentos Lancamento[]
+  recorrentes Recorrente[]
 }
 
 model Lancamento {
@@ -105,14 +108,52 @@ model Lancamento {
   categoriaId String
   membroId    String?
 
-  conta     Conta     @relation(fields: [contaId], references: [id])
-  categoria Categoria @relation(fields: [categoriaId], references: [id])
-  membro    Membro?   @relation(fields: [membroId], references: [id])
-  parcelas  Parcela[]
-  rateios   Rateio[]
+  // De qual recorrente e de qual competencia este lancamento nasceu. Os dois
+  // sao nulos em lancamento digitado a mao. O par e UNICO: e a trava que impede
+  // a mesma recorrente de gerar dois lancamentos no mesmo mes — clique duplo,
+  // duas pessoas ao mesmo tempo, ou voltar no mes depois. Como nada e apagado
+  // de verdade (deletadoEm), o par sobrevive a exclusao, e e assim que excluir
+  // o lancamento gerado vira "pular este mes". O Postgres trata NULL como
+  // distinto em indice unico, entao lancamento comum nao e afetado.
+  recorrenteId          String?
+  competenciaRecorrente String? // AAAA-MM
 
+  conta      Conta       @relation(fields: [contaId], references: [id])
+  categoria  Categoria   @relation(fields: [categoriaId], references: [id])
+  membro     Membro?     @relation(fields: [membroId], references: [id])
+  recorrente Recorrente? @relation(fields: [recorrenteId], references: [id])
+  parcelas   Parcela[]
+  rateios    Rateio[]
+
+  @@unique([recorrenteId, competenciaRecorrente])
   @@index([deletadoEm])
   @@index([contaId, deletadoEm])
+}
+
+// Despesa que se repete todo mes: assinatura, seguro, mensalidade. Nao gera
+// nada sozinha — a faixa do Despesas oferece, e alguem clica (docs/decisoes.md).
+// Sem dataFim: encerrar e desativar. Sem parcelamento: e uma cobranca por mes,
+// e por isso fica fora da projecao de "ja comprometido".
+model Recorrente {
+  id                String           @id @default(cuid())
+  descricao         String
+  valorCentavos     Int
+  escopo            EscopoLancamento
+  diaDoMes          Int
+  competenciaInicio String // AAAA-MM, a primeira competencia em que ela vale
+  ativa             Boolean          @default(true)
+  criadoEm          DateTime         @default(now())
+
+  contaId     String
+  categoriaId String
+  membroId    String?
+
+  conta       Conta        @relation(fields: [contaId], references: [id])
+  categoria   Categoria    @relation(fields: [categoriaId], references: [id])
+  membro      Membro?      @relation(fields: [membroId], references: [id])
+  lancamentos Lancamento[]
+
+  @@index([ativa])
 }
 
 model Parcela {

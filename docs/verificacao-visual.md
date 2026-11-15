@@ -171,3 +171,17 @@ escuro**.
 - [ ] Tente criar um cartão deixando *Fecha dia* vazio: o navegador barra antes de enviar. Se
       passar, o servidor recusa dizendo qual dia falta.
 - [ ] A conta criada já nasce **ativa** e aparece nas opções de lançamento novo.
+
+## Passo 11 — Recorrentes
+
+- [ ] Em Configurações, **Nova recorrente** abre o formulário. Crie uma de cartão com dia de
+      cobrança **depois** do fechamento (no C6, que fecha dia 4, use dia 15).
+- [ ] Vá ao Despesas no mês corrente: aparece a faixa *"1 recorrente para lançar neste mês"*,
+      com nome e valor. **Nada foi lançado ainda.**
+- [ ] Clique **Lançar**: a faixa some e a recorrente aparece na grade, com data do **mês
+      anterior** — dia 15 do mês passado, como no extrato.
+- [ ] Recarregue a página: a faixa **não volta**.
+- [ ] Edite esse lançamento (mude o valor) e salve: ele **continua no mesmo mês**.
+- [ ] Exclua o lançamento: a faixa **não volta** para este mês — excluir é pular o mês. Vá ao
+      mês seguinte: lá ela aparece normalmente.
+- [ ] Desative a recorrente em Configurações: ela some da faixa dos meses seguintes.
