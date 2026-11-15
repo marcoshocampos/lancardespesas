@@ -567,3 +567,24 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     O `npm run test:banco` aplica as migrations no banco de teste antes de rodar, pela URL
     **direta** (sem `-pooler`): migration usa advisory lock, que o PgBouncer do pooler não
     sustenta.
+
+24. **O build tem que gerar o client do Prisma: `prisma generate && next build`.** A Vercel
+    reaproveita o `node_modules` entre deploys, e com ele o client gerado em
+    `node_modules/.prisma`. O `postinstall` do `@prisma/client`, que gera o client na
+    instalação, **não roda de novo** quando o cache já satisfaz o lockfile. Mudou o schema sem
+    mudar dependência, e o build compila contra o client do schema **anterior**.
+
+    Foi assim que o deploy das recorrentes (`59e92c6`) falhou. Com o client velho, o
+    `next build` morre na checagem de tipos: *"Property 'recorrente' does not exist on type
+    'PrismaClient'"*. Aqui nada acusa, porque a máquina local regenera o client toda vez que o
+    schema muda. A causa foi **reproduzida localmente** — client gerado a partir do schema do
+    commit anterior, mesmo erro — e não lida do log da Vercel, que exige login.
+
+    Dois motivos para ter ficado invisível até então. Dos dez deploys que o GitHub registra,
+    aquele foi o único que tocava o schema. E a guarda do próprio Prisma contra isto — o erro
+    *"built on Vercel, which caches dependencies"* — não dispara na 6.19: a condição dela
+    dispensa todo client com `output` resolvido, e o `output` vem sempre preenchido.
+
+    A falha cai do lado seguro: build quebrado não publica, e o deploy anterior segue no ar.
+    Com o banco já migrado, é o código antigo sobre o banco novo — exatamente o caso que a
+    armadilha 23 garante ser compatível.

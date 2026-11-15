@@ -64,7 +64,7 @@ npm install
 npm test
 ```
 
-São 118 testes em menos de um segundo, **sem banco e sem rede**.
+São 145 testes em cerca de um segundo, **sem banco e sem rede**.
 
 Para subir a aplicação é preciso um `.env` na raiz, a partir do
 [`.env.example`](.env.example), com a conexão do Postgres e as credenciais do Google.
