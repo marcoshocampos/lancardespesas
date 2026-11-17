@@ -20,6 +20,11 @@ reconhece o outro.
 - **Confere a fatura** contra o valor do extrato e fecha o mês, deixando-o somente-leitura.
 - **Separa reembolso de terceiro**: entra na fatura, porque o dinheiro saiu do cartão, e sai
   do gasto do casal, porque alguém vai devolver.
+- **Lança as recorrentes por clique**: assinatura e conta fixa aparecem como pendentes no mês,
+  e só viram lançamento quando alguém confirma.
+- **Mostra gráficos**: evolução mês a mês, ranking por categoria e a projeção do que as
+  parcelas já comprometem nos meses seguintes.
+- **Busca em todos os meses**, por descrição ou pelo valor do extrato, sem exigir acento.
 - **Lixeira** com restauração. Nada é apagado de verdade.
 - Tema claro e escuro, seguindo o sistema ou forçado.
 
@@ -44,7 +49,7 @@ mexendo no mesmo mês; sobrescrita silenciosa seria o pior bug possível aqui.
 **A documentação registra as decisões, não só o estado.**
 [`docs/decisoes.md`](docs/decisoes.md) existe para as escolhas que parecem melhoráveis e não
 são — cada uma com o motivo e o que acontece se alguém a desfizer. A seção *armadilhas* de
-[`docs/arquitetura.md`](docs/arquitetura.md) tem 22 entradas, cada uma com o sintoma concreto
+[`docs/arquitetura.md`](docs/arquitetura.md) tem 24 entradas, cada uma com o sintoma concreto
 que ela custou.
 
 | Documento | Para quê |
@@ -54,7 +59,7 @@ que ela custou.
 | [docs/arquitetura.md](docs/arquitetura.md) | Onde cada coisa mora, e as armadilhas conhecidas |
 | [docs/regras-de-negocio.md](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
 | [docs/verificacao-visual.md](docs/verificacao-visual.md) | O roteiro da conferência tela a tela |
-| [docs/specs/](docs/specs/) | Os dois designs: o sistema e a camada visual |
+| [docs/specs/](docs/specs/) | Os designs: o sistema, a camada visual e a busca |
 | [CLAUDE.md](CLAUDE.md) | Orientação para sessões de IA que trabalhem no código |
 
 ## Rodando
@@ -77,7 +82,7 @@ npm run dev
 npm run test:banco
 ```
 
-Roda os 144, incluindo os que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma base
+Roda os 202, incluindo os que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma base
 criada só para isso — **a suíte apaga todo lançamento que encontra**. O runner se recusa a
 rodar se essa variável faltar ou se apontar para o mesmo endpoint da `DATABASE_URL`.
 
