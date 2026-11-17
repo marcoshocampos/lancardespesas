@@ -680,3 +680,28 @@ armadilha 1. Há teste que varre 36 meses × 31 fechamentos × 31 dias.
 
 A spec previa `dataFim`. Encerrar virou desativar, igual às contas: data de fim é campo a mais
 para algo que quase nunca se sabe de antemão.
+
+## A busca: em memória, no Despesas, e sem categoria no texto
+
+**Em memória, não no Postgres.** `ILIKE` e o `mode: 'insensitive'` do Prisma ignoram caixa e
+não ignoram acento — `farmacia` não acharia *Farmácia*, e é assim que se digita com pressa. A
+extensão `unaccent` resolveria, ao custo de migration, extensão no Neon e um índice a manter,
+para duas pessoas. Carregar os lançamentos fora da lixeira e filtrar com `src/domain/busca.ts`
+resolve o acento sem nada disso, e deixa cada caso de borda testável sem banco. O volume
+sustenta: ~600 lançamentos por ano. Quando pesar, pré-filtre no banco antes de normalizar — não
+troque a regra.
+
+**No Despesas, não numa tela própria.** Foi o primeiro desenho, e o usuário trocou: o uso que
+motiva a busca — ver um valor no extrato e procurar se já foi lançado — acontece com o Despesas
+aberto. Custou um estado a mais na página (com termo, os resultados tomam o lugar de
+recorrentes, chips e grade) e poupou um destino na barra lateral e uma troca de tela no clique.
+
+**Categoria fora do texto pesquisado.** Buscar `mercado` acha a compra descrita como mercado,
+não toda compra da categoria Mercado. A pergunta "quanto foi em Mercado" tem resposta melhor no
+ranking dos Gráficos, e misturar as duas transformaria toda busca por uma palavra comum numa
+lista de centenas.
+
+**A guarda de forma de valor.** `reaisParaCentavos` descarta tudo o que não é dígito antes de
+ler, o que é certo no campo de valor do painel. Na busca seria errado: `uber 89` viraria
+R$ 89,00. Por isso o termo só é lido como valor se tiver forma de valor, e nada mais. Não
+"simplifique" chamando o parser direto.

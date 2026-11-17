@@ -43,6 +43,8 @@ type Props = {
   membros: Membro[];
   /** Id da conta filtrada na URL, se houver — decide qual estado vazio mostrar. */
   contaSelecionada?: string | undefined;
+  /** Lancamento que a busca mandou mostrar (`?destaque=`). Desce ate a linha. */
+  destaque?: string | undefined;
 };
 
 const CABECALHOS = ['Data', 'Descrição', 'Categoria', 'Parc.', 'Valor', 'Ações'];
@@ -105,6 +107,7 @@ export function GradeLancamentos({
   categorias,
   membros,
   contaSelecionada,
+  destaque,
 }: Props) {
   const [estado, setEstado] = useState<ModoPainel | null>(null);
 
@@ -177,6 +180,7 @@ export function GradeLancamentos({
                 colSpan={CABECALHOS.length}
                 competencia={competencia}
                 categorias={categorias}
+                destaque={destaque}
                 onEditar={(linha) => setEstado({ modo: 'editar', linha })}
               />
             );

@@ -56,17 +56,18 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 145 passando e 33 pulados.** Com banco, `npm run test:banco`, são **178
+**`npm test` hoje: 165 passando e 37 pulados.** Com banco, `npm run test:banco`, são **202
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
- Test Files  12 passed | 4 skipped (16)        Test Files  16 passed (16)
-      Tests  145 passed | 33 skipped (178)          Tests  178 passed (178)
+ Test Files  13 passed | 5 skipped (18)        Test Files  18 passed (18)
+      Tests  165 passed | 37 skipped (202)          Tests  202 passed (202)
 ```
 
-Os 33 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em quatro
-arquivos: `repositorios/configuracao.test.ts` (8), `repositorios/lancamento.test.ts` (17),
-`repositorios/recorrente.test.ts` (7) e `repositorios/resumo.test.ts` (1). Eles rodam com
+Os 37 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
+arquivos: `repositorios/busca.test.ts` (4), `repositorios/configuracao.test.ts` (8),
+`repositorios/lancamento.test.ts` (17), `repositorios/recorrente.test.ts` (7) e
+`repositorios/resumo.test.ts` (1). Eles rodam com
 `npm run test:banco`; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
 propósito, para que a suíte rápida continue sem rede e sem banco.
 
@@ -99,6 +100,8 @@ O produto, ponta a ponta:
 - Resumo em `/resumo`, com a matriz de pessoas por contas e a conferência da fatura
 - Gravação com lock otimista e barreira de fatura travada em criar, editar e excluir
 - Importador da planilha, que aborta alto em vez de descartar linha em silêncio
+- **Busca** numa barra do Despesas: texto (sem acento) ou valor exato, em todos os meses, com o
+  clique levando à linha destacada no mês certo
 
 O que a branch `navegacao` acrescentou — **camada visual, sem tocar em nenhum cálculo**:
 
@@ -137,7 +140,6 @@ Nenhuma dessas ausências é esquecimento; todas foram decididas ou registradas 
 - **Não há visão de pendências que atravesse meses.** A seção *A receber* é por competência, e
   uma dívida de agosto não reaparece em outubro — foi decisão explícita, não lacuna. Ver
   [`decisoes.md`](decisoes.md)
-- **Não há busca.** Achar um lançamento antigo exige lembrar o mês dele
 - **Não há histórico de auditoria na tela.** A tabela `Auditoria` passou a receber linhas —
   travar e destravar fatura, com quem e quando —, mas nada as mostra. Hoje só por SQL
 - **Não há tema por pessoa.** O escuro existe e segue o sistema operacional, com um botão que
@@ -295,16 +297,19 @@ commit, o que foi verificado na árvore inteira.
 ## Como retomar
 
 ```bash
-git switch navegacao
+git switch main
 npm install
-npm test          # esperado: 109 passando, 12 pulados
+npm test            # sem banco nem rede; a contagem atual está em "O que já funciona"
+npm run test:banco  # contra a branch de teste do Neon, em DATABASE_URL_TESTE
 ```
 
-O `DATABASE_URL` aponta para o **banco de produção do casal**, com a planilha já importada.
-Nada de `TESTE_DESTRUTIVO=1` aqui, e nenhum `UPDATE` sem a palavra do usuário.
+O `DATABASE_URL` aponta para o **banco de produção do casal**. Nada de `TESTE_DESTRUTIVO=1` à
+mão, e nenhum `UPDATE` sem a palavra do usuário. **Não rode `scripts/dados-ficticios.ts`
+contra ele**: os fictícios cairiam nos mesmos meses que a finança real — ver
+[`verificacao-visual.md`](verificacao-visual.md).
 
-Para ver as telas com conteúdo, `npx tsx scripts/dados-ficticios.ts criar` insere dez
-lançamentos inventados e `... limpar` os remove — ele só apaga o que ele mesmo criou.
+Todo push na `main` publica na Vercel. Migration nova vai para o banco **antes** do push
+(armadilha 23 de [`arquitetura.md`](arquitetura.md)).
 
 Leia [`docs/decisoes.md`](decisoes.md) antes de mudar qualquer escolha estrutural, e as
 armadilhas de [`docs/arquitetura.md`](arquitetura.md) antes de mexer no casco, no painel de

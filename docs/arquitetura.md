@@ -44,6 +44,7 @@ Funções puras. Argumentos entram, valor sai. **Nada de Prisma, `fetch`, `Date.
 | `parcelamento.ts` | A soma das parcelas é exatamente o total | `OrigemValor`, `EntradaParcelamento`, `ParcelaGerada`, `gerarParcelas` |
 | `rateio.ts` | A soma das cotas é exatamente o valor rateado | `PesoRateio`, `Cota`, `pesosMeioAMeio`, `ratear` |
 | `recorrencia.ts` | A data da recorrente e a triagem do que falta lançar, puras | `dataDaRecorrente`, `recorrentesPendentes` |
+| `busca.ts` | A busca por texto ou valor, sem acento, e o mês para onde o clique leva | `Busca`, `CandidatoDaBusca`, `normalizarTexto`, `interpretarBusca`, `correspondeABusca`, `competenciaDeDestino` |
 | `graficos.ts` | As três agregações dos gráficos, puras | `ParcelaDeGrafico`, `rankingDeCategorias`, `evolucaoMensal`, `projecao` |
 | `totais.ts` | A matriz de pessoas por contas, reproduzindo a planilha | `COLUNA_TOTAL`, `ParcelaResumo`, `LinhaMatriz`, `ResumoMes`, `calcularResumo` |
 | `conferencia.ts` | O somado contra o valor real do extrato | `SituacaoConferencia`, `Conferencia`, `conferir` |
@@ -85,8 +86,9 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 | `repositorios/resumo.ts` | `LinhaGrade`, `LinhaAReceber`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade`, `carregarReembolsosDaCompetencia` |
 | `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
 | `repositorios/recorrente.ts` | `carregarRecorrentes`, `criarRecorrente`, `editarRecorrente`, `carregarRecorrentesPendentes`, `lancarRecorrentes` |
-| `repositorios/graficos.ts` | `carregarParcelasParaGraficos` — a única leitura sem filtro de competência |
+| `repositorios/graficos.ts` | `carregarParcelasParaGraficos` — lê parcelas de todas as competências, como a lixeira e a busca leem lançamentos |
 | `repositorios/lixeira.ts` | `ItemDaLixeira`, `carregarLixeira` |
+| `repositorios/busca.ts` | `LIMITE_DA_BUSCA`, `ItemDaBusca`, `ResultadoDaBusca`, `buscarLancamentos` — carrega todo lançamento fora da lixeira e filtra em memória |
 | `repositorios/configuracao.ts` | `ResultadoConfiguracao`, `criarConta`, `criarCategoria`, `editarCategoria`, `arquivarCategoria`, `editarConta`, `editarMembro`, `definirQuemAbsorveSobra` |
 
 **As três gravações de lançamento rodam dentro de `prisma.$transaction`**, e todo helper do
@@ -160,10 +162,16 @@ de um componente de servidor viver dentro de um de cliente sem virar prop serial
 | `secao-pessoa.tsx` | **sim** | Um grupo da grade: cabeçalho com a cor do membro, as linhas, e o subtotal |
 | `painel-lancamento.tsx` | **sim** | Criar **e** editar no mesmo painel, com a dica de em qual fatura a compra cai |
 | `dialogo-exclusao.tsx` | **sim** | A confirmação de exclusão, desenhada — não o `window.confirm` do navegador |
+| `barra-busca.tsx` | não | A busca: um formulário GET para o próprio Despesas, com `q` |
+| `resultados-busca.tsx` | não | Os resultados de todos os meses, um por **lançamento**, no lugar da grade |
 
 Os dois estados vazios da grade são de propósito: mês sem lançamento nenhum e filtro de conta
 que não bateu com nada têm causas diferentes, e a saída de um é lançar, a do outro é limpar o
 filtro.
+
+Com `?q=`, a página do Despesas troca recorrentes, chips e grade pelos resultados e deixa de
+carregar a grade e as recorrentes. Com `?destaque=<lancamentoId>`, a linha desse lançamento
+realça e rola até a vista — é o destino do clique num resultado.
 
 `painel-lancamento.tsx` é o arquivo mais denso desta camada: as armadilhas **10** e **11** e o
 caso latente do membro (armadilha 12) moram todos nele. Leia os comentários antes de

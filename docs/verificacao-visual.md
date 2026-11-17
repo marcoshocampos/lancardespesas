@@ -185,3 +185,22 @@ escuro**.
 - [ ] Exclua o lançamento: a faixa **não volta** para este mês — excluir é pular o mês. Vá ao
       mês seguinte: lá ela aparece normalmente.
 - [ ] Desative a recorrente em Configurações: ela some da faixa dos meses seguintes.
+
+## Passo 12 — Busca
+
+- [ ] No Despesas, a barra de busca aparece abaixo do título, e o campo **não** pega o foco
+      sozinho ao abrir a tela.
+- [ ] Busque uma palavra **sem acento** de uma descrição que tem acento (`farmacia`): acha.
+      O cabeçalho diz *em todos os meses*, e recorrentes, chips e grade sumiram.
+- [ ] Busque um valor do extrato, com vírgula (`89,90`): acha o lançamento, e num parcelado a
+      linha mostra o total, `em Nx` e a faixa de meses.
+- [ ] Busque `89.90`, com ponto: **não** acha pelo valor.
+- [ ] Clique num resultado: abre o mês dele, com a linha **realçada e rolada até a vista**, e a
+      barra de busca **vazia**. O voltar do navegador devolve os resultados.
+- [ ] Estando num mês em que um parcelado tem parcela, busque-o e clique: abre **esse** mês, e
+      não o da primeira parcela.
+- [ ] Com um filtro de conta ligado, busque algo de **outra** conta: acha. **Limpar busca**
+      volta ao mês com o filtro.
+- [ ] Exclua um lançamento e busque por ele: não aparece.
+- [ ] Busque algo que não existe: a mensagem diz que não achou e que a lixeira fica de fora.
+- [ ] Com uma busca aberta, troque de mês pelas setas: a busca termina e o mês aparece.

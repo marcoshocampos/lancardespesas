@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,8 @@ type Props = {
   colSpan: number;
   competencia: string;
   categorias: Categoria[];
+  /** Lancamento que a busca mandou mostrar (`?destaque=`): a linha dele realca e rola ate a vista. */
+  destaque?: string | undefined;
   /** Abre o painel de edicao (`painel-lancamento.tsx`) para esta linha. */
   onEditar: (linha: LinhaGrade) => void;
 };
@@ -85,13 +88,33 @@ type LinhaProps = {
   esmaecida: boolean;
   categoriaCor: string | undefined;
   competencia: string;
+  /** E o lancamento que a busca mandou mostrar. */
+  destacada: boolean;
   onEditar: (linha: LinhaGrade) => void;
 };
 
-function LinhaDaSecao({ linha, esmaecida, categoriaCor, competencia, onEditar }: LinhaProps) {
+function LinhaDaSecao({ linha, esmaecida, categoriaCor, competencia, destacada, onEditar }: LinhaProps) {
+  const ref = useRef<HTMLTableRowElement>(null);
+
+  // Uma vez, ao abrir: quem chega da busca precisa achar a linha sem procurar
+  // de novo. `block: 'center'` deixa contexto acima e abaixo. O realce fica
+  // enquanto o `?destaque=` estiver na URL; trocar de mes pelas setas o solta,
+  // porque a faixa monta os links so com competencia e conta.
+  useEffect(() => {
+    if (destacada) ref.current?.scrollIntoView({ block: 'center' });
+  }, [destacada]);
+
   return (
-    <tr className="group border-b border-borda-suave last:border-0 hover:bg-realce">
-      <td className={`px-3 py-2 ${esmaecida ? 'text-tinta-apagada' : 'text-tinta-fraca'}`}>
+    <tr
+      ref={ref}
+      data-destaque={destacada || undefined}
+      className={`group border-b border-borda-suave last:border-0 hover:bg-realce ${destacada ? 'bg-acento/10' : ''}`}
+    >
+      {/* A barra de acento na primeira celula, e nao borda no <tr>: borda e
+          sombra em linha de tabela nao desenham igual em todo navegador. */}
+      <td
+        className={`px-3 py-2 ${destacada ? 'shadow-[inset_3px_0_0_var(--color-acento)]' : ''} ${esmaecida ? 'text-tinta-apagada' : 'text-tinta-fraca'}`}
+      >
         {linha.dataCompra.slice(8, 10)}/{linha.dataCompra.slice(5, 7)}
       </td>
       <td className="px-3 py-2">
@@ -132,7 +155,16 @@ function LinhaDaSecao({ linha, esmaecida, categoriaCor, competencia, onEditar }:
  * estado vazio em vez das secoes e `GradeLancamentos`, olhando todos os grupos
  * de uma vez.
  */
-export function SecaoPessoa({ titulo, cores, grupo, colSpan, competencia, categorias, onEditar }: Props) {
+export function SecaoPessoa({
+  titulo,
+  cores,
+  grupo,
+  colSpan,
+  competencia,
+  categorias,
+  destaque,
+  onEditar,
+}: Props) {
   const vazia = grupo.quantidade === 0;
 
   return (
@@ -165,6 +197,7 @@ export function SecaoPessoa({ titulo, cores, grupo, colSpan, competencia, catego
             esmaecida={esmaecida}
             categoriaCor={categoriaCor}
             competencia={competencia}
+            destacada={item.linha.lancamentoId === destaque}
             onEditar={onEditar}
           />
         );

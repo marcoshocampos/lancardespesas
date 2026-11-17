@@ -79,7 +79,7 @@ Quebrar qualquer um destes é bug, não escolha de estilo.
 - **Commits** em português, no imperativo, explicando o porquê e não o quê.
 - **Testes** com Vitest no domínio, cobrindo os casos de borda de
   [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md). Playwright só nos fluxos críticos.
-  `npm test` roda 145 sem banco nem rede; `npm run test:banco` roda os 178, contra a branch de
+  `npm test` roda 165 sem banco nem rede; `npm run test:banco` roda os 202, contra a branch de
   teste do Neon em `DATABASE_URL_TESTE`. **Nunca ligue `TESTE_DESTRUTIVO=1` à mão** — a suíte
   apaga todo lançamento que encontra, e o runner existe para que apontá-la para produção não
   seja possível.
@@ -121,11 +121,14 @@ isso mora na planilha do casal, e não aqui.
 ## Ambiente
 
 Node 24.19 e npm 11.17 instalados; git 2.55; GitHub CLI 2.97 autenticado como `marcoshocampos`.
-Repositório privado.
+Repositório **público**, como portfólio — por isso nenhum dado financeiro real entra nele, nem
+como fixture (ver a seção *Privacidade* do `README.md`).
 
-Neon e as credenciais OAuth do Google **já existem e estão configurados**; a Vercel ainda não,
-e só é necessária para publicar. Segredos ficam em `.env` na raiz, a partir do `.env.example`
-— **`.env`, e não `.env.local`**, porque o CLI do Prisma lê o primeiro e não lê o segundo.
+Neon, as credenciais OAuth do Google e a Vercel **já existem e estão configurados**. Todo push
+na `main` publica em https://lancardespesas.vercel.app.
+
+Segredos ficam em `.env` na raiz, a partir do `.env.example` — **`.env`, e não `.env.local`**,
+porque o CLI do Prisma lê o primeiro e não lê o segundo.
 Nunca peça um segredo em conversa nem o escreva em arquivo versionado. Conta em serviço
 externo é o usuário que cria, não faça no lugar dele.
 

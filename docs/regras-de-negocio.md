@@ -444,3 +444,29 @@ valores, mesmas competências. Não regera nada, porque nada foi apagado.
 Não há apagar definitivo, nem expiração automática. **Decisão explícita**, fiel ao invariante 6:
 ver [`decisoes.md`](decisoes.md). A lista cresce na velocidade em que duas pessoas excluem
 lançamento, que é quase nenhuma.
+
+---
+
+## 13. Busca
+
+A busca fica numa barra do Despesas e procura em **todos os meses e todas as contas** — o filtro
+de conta ligado não a restringe. Termo vazio, ou só de espaços, não busca.
+
+Um lançamento corresponde por **texto ou por valor**:
+
+- **Texto:** todas as palavras do termo, em qualquer ordem, aparecem na descrição ou no nome do
+  terceiro, sem diferença de acento nem de caixa. Categoria, conta e pessoa não entram.
+- **Valor:** se o termo tem forma de valor (`89,90`, `R$ 89,90`, `89`, `1.025,51`), o valor
+  exato, **sem sinal**, de uma parcela não cancelada ou do total — a soma de todas as parcelas,
+  canceladas inclusive. `89.90`, com ponto, é ambíguo e vale só como texto. Texto com número no
+  meio (`uber 89`) não vira valor.
+
+Lançamento na lixeira não aparece. Um resultado por lançamento, do mais recente para o mais
+antigo, no máximo 50; havendo mais, a tela diz quantos.
+
+O clique leva ao Despesas com a linha destacada, na competência:
+
+1. que o Despesas estava mostrando, se o lançamento tiver parcela ativa nela;
+2. senão, na primeira competência com parcela ativa.
+
+Sem parcela ativa, o resultado aparece sem link. O link vai sem filtro de conta.
