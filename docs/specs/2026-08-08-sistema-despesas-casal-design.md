@@ -121,7 +121,8 @@ Instâncias iniciais: C6 (cartão, fechamento 04, vencimento 10), Nu (cartão), 
 - `escopo`: `PESSOAL` (com `membroId`) ou `CONJUNTO`
 - `meioPagamento` para contas externas: `PIX` / `DEBITO` / `BOLETO` / `DINHEIRO`
 - `numeroParcelas`, e a origem do valor digitado (`POR_PARCELA` ou `TOTAL`)
-- `reembolso` opcional: `devedorNome`, `status` (`PENDENTE` / `RECEBIDO`)
+- `reembolso` opcional: `devedorNome`, e se já foi devolvido **por parcela** — cada mês de um
+  parcelado se devolve no seu (ver `docs/decisoes.md`)
 - `versao` (lock otimista), `deletadoEm` (lixeira)
 
 **Parcela** — filha do lançamento: `numero`, `valorCentavos`, `competencia` (`AAAA-MM`),

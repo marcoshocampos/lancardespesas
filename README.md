@@ -82,7 +82,7 @@ npm run dev
 npm run test:banco
 ```
 
-Roda os 202, incluindo os que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma base
+Roda os 205, incluindo os que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma base
 criada só para isso — **a suíte apaga todo lançamento que encontra**. O runner se recusa a
 rodar se essa variável faltar ou se apontar para o mesmo endpoint da `DATABASE_URL`.
 

@@ -56,17 +56,17 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 165 passando e 37 pulados.** Com banco, `npm run test:banco`, são **202
+**`npm test` hoje: 165 passando e 40 pulados.** Com banco, `npm run test:banco`, são **205
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
  Test Files  13 passed | 5 skipped (18)        Test Files  18 passed (18)
-      Tests  165 passed | 37 skipped (202)          Tests  202 passed (202)
+      Tests  165 passed | 40 skipped (205)          Tests  205 passed (205)
 ```
 
-Os 37 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
+Os 40 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
 arquivos: `repositorios/busca.test.ts` (4), `repositorios/configuracao.test.ts` (8),
-`repositorios/lancamento.test.ts` (17), `repositorios/recorrente.test.ts` (7) e
+`repositorios/lancamento.test.ts` (20), `repositorios/recorrente.test.ts` (7) e
 `repositorios/resumo.test.ts` (1). Eles rodam com
 `npm run test:banco`; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
 propósito, para que a suíte rápida continue sem rede e sem banco.

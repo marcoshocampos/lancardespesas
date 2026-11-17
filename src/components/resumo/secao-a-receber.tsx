@@ -23,6 +23,9 @@ import type { LinhaAReceber } from '@/server/repositorios/resumo';
  * Marcar como recebido **não altera número nenhum**. O valor está fora do gasto
  * do casal e dentro do `Somado` nos dois estados; a marca responde de quem
  * ainda cobrar. Dívida aqui é informação, não contabilidade.
+ *
+ * A marca é **da parcela deste mês**: num parcelado, receber outubro não diz
+ * nada sobre novembro.
  */
 export function SecaoAReceber({ linhas }: { linhas: LinhaAReceber[] }) {
   if (linhas.length === 0) return null;
@@ -77,6 +80,7 @@ function ItemAReceber({ linha }: { linha: LinhaAReceber }) {
         const resultado = await acaoMarcarReembolso({
           id: linha.lancamentoId,
           versao: linha.versao,
+          numero: linha.numero,
           recebido: proximo,
         });
         if (!resultado.ok) {

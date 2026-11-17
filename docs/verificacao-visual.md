@@ -87,6 +87,9 @@ Abra `http://localhost:3000`. Deve cair em `/despesas` sozinho.
       recebido ou não, o valor está fora do gasto de vocês e dentro do Somado.
 - [ ] Desligue de novo: volta ao estado anterior. Abra a mesma tela em duas abas e marque nas
       duas — a segunda tem que recusar, avisando que alguém mexeu.
+- [ ] Num reembolso **parcelado**, ligue **Recebido** num mês e avance para o seguinte: lá a
+      parcela continua **em aberto**. Volte: o primeiro mês continua recebido. Desligar um não
+      desliga o outro.
 - [ ] **Sem reembolso no mês, não existe linha "A receber"** — e o `Somado` fecha com a soma
       dos dois `Cabe a`.
 - [ ] Marque um lançamento como reembolso de terceiro e volte ao Resumo. Agora: duas linhas

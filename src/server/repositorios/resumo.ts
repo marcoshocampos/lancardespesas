@@ -62,8 +62,8 @@ export async function carregarParcelasDaCompetencia(
 
   return parcelas.map((p) => {
     const { lancamento } = p;
-    // Qualquer status — PENDENTE ou RECEBIDO — tira do gasto do casal. Receber
-    // nao transforma em gasto deles: so muda de quem e a cobranca pendente.
+    // Ser reembolso tira do gasto do casal, devolvida a parcela ou nao. Receber
+    // nao transforma em gasto deles: so encerra a cobranca daquele mes.
     const ehReembolso = lancamento.statusReembolso !== null;
     if (lancamento.escopo === 'PESSOAL') {
       return {
@@ -148,6 +148,7 @@ export type LinhaAReceber = {
   membroNome: string | null;
   /** Quem vai devolver. `null` quando ninguem anotou. */
   devedorNome: string | null;
+  /** Se ja devolveram ESTA parcela. Num parcelado, cada mes tem o seu. */
   recebido: boolean;
   contaNome: string;
 };
@@ -159,10 +160,10 @@ export type LinhaAReceber = {
  * o mes inteiro — dezenas de linhas com categoria, conta e membro — para a tela
  * ficar com duas ou tres. O `where` no banco custa uma ida so e diz o que quer.
  *
- * Traz PENDENTE e RECEBIDO. O recebido continua na lista, com a marca ligada:
- * sumir perderia o registro do mes e tiraria a chance de desfazer um clique
- * errado. E `recebido` nao muda numero nenhum — o valor esta fora do gasto do
- * casal e dentro do Somado nos dois estados.
+ * Traz a parcela devolvida e a em aberto. A devolvida continua na lista, com a
+ * marca ligada: sumir perderia o registro do mes e tiraria a chance de desfazer
+ * um clique errado. E `recebido` nao muda numero nenhum — o valor esta fora do
+ * gasto do casal e dentro do Somado nos dois estados.
  */
 export async function carregarReembolsosDaCompetencia(
   competencia: string,
@@ -176,6 +177,7 @@ export async function carregarReembolsosDaCompetencia(
     select: {
       numero: true,
       valorCentavos: true,
+      reembolsoRecebido: true,
       lancamento: {
         select: {
           id: true,
@@ -184,7 +186,6 @@ export async function carregarReembolsosDaCompetencia(
           numeroParcelas: true,
           escopo: true,
           devedorNome: true,
-          statusReembolso: true,
           membro: { select: { nome: true } },
           conta: { select: { nome: true } },
         },
@@ -203,7 +204,9 @@ export async function carregarReembolsosDaCompetencia(
     escopo: p.lancamento.escopo,
     membroNome: p.lancamento.membro?.nome ?? null,
     devedorNome: p.lancamento.devedorNome,
-    recebido: p.lancamento.statusReembolso === 'RECEBIDO',
+    // Da parcela, e nao do lancamento: lido do lancamento, receber outubro
+    // aparecia como recebido em todos os meses do parcelado.
+    recebido: p.reembolsoRecebido,
     contaNome: p.lancamento.conta.nome,
   }));
 }

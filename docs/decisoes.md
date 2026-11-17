@@ -296,20 +296,44 @@ regra de que a matriz mostra toda linha com travessão quando zero, e tem motivo
 reembolso o `Somado` fecha com a soma dos *Cabe a*, e duas linhas vazias permanentes
 sugeririam uma lacuna inexistente.
 
-### O status é por lançamento, não por parcela
+### Ser reembolso é do lançamento; ter sido devolvido é da parcela
 
-A seção 6 descrevia status **por parcela**, marcado `[a confirmar]`, com o argumento de um
-parcelado que a pessoa devolve mês a mês. O schema sempre teve `statusReembolso` em
-`Lancamento`. **O usuário confirmou por lançamento**, e a regra se ajustou ao schema em vez do
-contrário — não há migration aqui.
+**Onde:** `Parcela.reembolsoRecebido`, `marcarReembolso` e `gravarFilhos` em
+`repositorios/lancamento.ts`, e `carregarReembolsosDaCompetencia`.
 
-Consequência aceita: um reembolso parcelado é reembolso em **todas** as parcelas dele, de uma
-vez. Não há como marcar recebida a parcela 3 e pendente a 4. Se um dia isso incomodar, é
-migration de `statusReembolso` para `Parcela`, e aí a leitura em `carregarParcelasDaCompetencia`
-passa a vir da parcela e não do lançamento.
+Foi por lançamento até 2026-11-17. A seção 6 já pedia **por parcela**, pelo argumento de um
+parcelado devolvido mês a mês, mas o schema tinha `statusReembolso` só em `Lancamento`, e o
+usuário aceitou a consequência: não havia como marcar recebida a parcela 3 e pendente a 4. **No
+uso, incomodou** — marcar outubro como recebido marcava novembro junto, e desmarcar um
+desmarcava todos. A migration `reembolso_recebido_por_parcela` levou a marca para a parcela.
 
-Qualquer status tira do gasto, `PENDENTE` ou `RECEBIDO`. Receber não transforma a despesa em
-gasto do casal: só encerra a cobrança.
+Ficaram duas coisas em dois lugares, e de propósito:
+
+- **Ser reembolso** é do lançamento (`statusReembolso` não nulo): é da compra, vale para todas
+  as parcelas, e é o que tira o valor do gasto do casal.
+- **Já ter sido devolvido** é da parcela (`reembolsoRecebido`): é de cada mês.
+
+**`RECEBIDO` continua no enum, e nada o grava nem lê.** A migration passou todo lançamento
+`RECEBIDO` para `PENDENTE`, depois de marcar recebidas todas as parcelas dele — o que a tela já
+mostrava. Tirar o valor do enum, ou trocar a coluna por um booleano `ehReembolso`, seria a
+forma limpa, e não foi feito pela ordem do deploy: a migration vai para o banco **antes** do
+código (armadilha 23), e o código ainda no ar lê e grava `statusReembolso` com os dois valores.
+Uma migration que mexesse no que ele usa o derrubaria na janela entre as duas coisas. Esta só
+acrescenta uma coluna, e o código velho segue funcionando até o novo entrar. Se um dia valer a
+limpeza, é migration própria, com o código que já não usa `RECEBIDO` no ar antes dela.
+
+**O lock continua sendo o do lançamento.** Marcar a parcela de novembro gasta a versão do
+lançamento, e quem estiver com outubro aberto numa versão velha recebe conflito. É raro — o
+mesmo lançamento aparece uma vez por mês —, e é o que o invariante 7 pede de toda gravação de
+lançamento.
+
+**A edição preserva o recebido pelo número da parcela**, como já preservava o cancelamento:
+`gravarFilhos` recria as parcelas do zero, e sem isso corrigir a descrição faria quem já
+devolveu voltar a dever. Desligar a marca de reembolso apaga o recebido junto, como apaga o
+devedor.
+
+Ser reembolso tira do gasto, devolvida a parcela ou não. Receber não transforma a despesa em
+gasto do casal: só encerra a cobrança daquele mês.
 
 ## Travar fatura exige o extrato preenchido
 

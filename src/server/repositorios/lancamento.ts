@@ -57,21 +57,18 @@ export type ResultadoCriacao = { ok: true; id: string } | { ok: false; motivo: '
  * lancamento comum carregando o nome de quem devia, que reapareceria do nada
  * se alguem religasse a marca.
  *
- * `statusAtual` existe para a EDICAO nao rebaixar um reembolso ja recebido de
- * volta para pendente. Quem ja devolveu continua tendo devolvido depois de
- * alguem corrigir a descricao do lancamento.
+ * Sempre PENDENTE, nunca RECEBIDO: se ja devolveram e por parcela
+ * (`Parcela.reembolsoRecebido`), e quem preserva isso na edicao e
+ * `gravarFilhos`.
  */
-function camposDeReembolso(
-  entrada: EntradaLancamento,
-  statusAtual?: 'PENDENTE' | 'RECEBIDO' | null,
-): { statusReembolso: 'PENDENTE' | 'RECEBIDO' | null; devedorNome: string | null } {
+function camposDeReembolso(entrada: EntradaLancamento): {
+  statusReembolso: 'PENDENTE' | null;
+  devedorNome: string | null;
+} {
   if (!entrada.ehReembolso) return { statusReembolso: null, devedorNome: null };
 
   const nome = entrada.devedorNome?.trim();
-  return {
-    statusReembolso: statusAtual === 'RECEBIDO' ? 'RECEBIDO' : 'PENDENTE',
-    devedorNome: nome ? nome : null,
-  };
+  return { statusReembolso: 'PENDENTE', devedorNome: nome ? nome : null };
 }
 
 async function competenciaBaseDe(db: ClienteBanco, entrada: EntradaLancamento): Promise<string> {
@@ -168,17 +165,22 @@ async function gravarFilhos(
     competenciaBase,
   });
 
-  // Parcela cancelada (quitacao antecipada) nao pode "ressuscitar" so porque
-  // o lancamento foi editado e as parcelas foram recriadas do zero.
-  // Preservamos o cancelamento pelo numero, a chave estavel entre a versao
-  // antiga e a nova (unique com o lancamentoId).
+  // Parcela cancelada (quitacao antecipada) nao pode "ressuscitar", nem
+  // parcela de reembolso ja devolvida voltar a ser devida, so porque o
+  // lancamento foi editado e as parcelas foram recriadas do zero. Preservamos
+  // as duas marcas pelo numero, a chave estavel entre a versao antiga e a nova
+  // (unique com o lancamentoId).
   const numerosCancelados = new Set<number>();
+  const numerosRecebidos = new Set<number>();
   if (!recemCriado) {
-    const canceladas = await db.parcela.findMany({
-      where: { lancamentoId, cancelada: true },
-      select: { numero: true },
+    const marcadas = await db.parcela.findMany({
+      where: { lancamentoId, OR: [{ cancelada: true }, { reembolsoRecebido: true }] },
+      select: { numero: true, cancelada: true, reembolsoRecebido: true },
     });
-    for (const p of canceladas) numerosCancelados.add(p.numero);
+    for (const p of marcadas) {
+      if (p.cancelada) numerosCancelados.add(p.numero);
+      if (p.reembolsoRecebido) numerosRecebidos.add(p.numero);
+    }
 
     await db.parcela.deleteMany({ where: { lancamentoId } });
   }
@@ -188,6 +190,9 @@ async function gravarFilhos(
       ...p,
       lancamentoId,
       cancelada: numerosCancelados.has(p.numero),
+      // Desligar a marca de reembolso apaga o recebido, como apaga o devedor:
+      // religa-la depois nao pode trazer de volta o estado de outra epoca.
+      reembolsoRecebido: entrada.ehReembolso === true && numerosRecebidos.has(p.numero),
     })),
   });
 
@@ -263,13 +268,6 @@ export async function editarLancamento(
       return { ok: false, motivo: 'FATURA_TRAVADA' };
     }
 
-    // Lido antes da gravacao, dentro da mesma transacao: e o que impede a
-    // edicao de rebaixar um reembolso ja RECEBIDO de volta para PENDENTE.
-    const anterior = await tx.lancamento.findUnique({
-      where: { id },
-      select: { statusReembolso: true },
-    });
-
     const alteradas = await tx.lancamento.updateMany({
       where: { id, versao, deletadoEm: null },
       data: {
@@ -282,7 +280,7 @@ export async function editarLancamento(
         contaId: entrada.contaId,
         categoriaId: entrada.categoriaId,
         membroId: entrada.escopo === 'PESSOAL' ? (entrada.membroId ?? null) : null,
-        ...camposDeReembolso(entrada, anterior?.statusReembolso ?? null),
+        ...camposDeReembolso(entrada),
         versao: { increment: 1 },
       },
     });
@@ -318,15 +316,21 @@ export async function excluirLancamento(id: string, versao: number): Promise<Res
 }
 
 /**
- * Liga ou desliga a marca de "ja devolveram" num reembolso.
+ * Liga ou desliga a marca de "ja devolveram" numa parcela de reembolso.
+ *
+ * **Por parcela, nao por lancamento.** Um parcelado se devolve mes a mes:
+ * quando a marca era do lancamento, receber outubro marcava novembro junto.
+ * `numero` e a chave estavel da parcela — o id muda a cada edicao, porque
+ * `gravarFilhos` recria as parcelas.
  *
  * **Nao altera valor nenhum.** O lancamento ja esta fora do gasto do casal e
  * dentro do Somado nos dois estados: ou alguem ainda vai devolver, ou ja
  * devolveu. A marca responde de quem ainda cobrar, e nada mais.
  *
- * Mesmo lock otimista das outras gravacoes — sao duas pessoas no mesmo mes, e
- * duas marcando ao mesmo tempo nao podem se sobrescrever em silencio. Uma
- * escrita so, entao sem transacao: nao ha o que ficar pela metade.
+ * O lock otimista continua sendo o do LANCAMENTO, como em toda gravacao dele:
+ * sao duas pessoas no mesmo mes, e duas marcando ao mesmo tempo nao podem se
+ * sobrescrever em silencio. Lock e marca vao na mesma transacao — separados,
+ * uma parcela inexistente gastaria a versao sem marcar nada.
  *
  * `NAO_E_REEMBOLSO` recusa lancamento comum em vez de inventar um status nele.
  * Marcar como recebido o que ninguem deve seria criar reembolso pela porta dos
@@ -335,26 +339,38 @@ export async function excluirLancamento(id: string, versao: number): Promise<Res
 export async function marcarReembolso(
   id: string,
   versao: number,
+  numero: number,
   recebido: boolean,
 ): Promise<ResultadoGravacao | { ok: false; motivo: 'NAO_E_REEMBOLSO' }> {
-  const atual = await prisma.lancamento.findUnique({
-    where: { id },
-    select: { statusReembolso: true },
-  });
-  if (atual && atual.statusReembolso === null) {
-    return { ok: false, motivo: 'NAO_E_REEMBOLSO' };
-  }
+  return prisma.$transaction(async (tx) => {
+    const atual = await tx.lancamento.findUnique({
+      where: { id },
+      select: { statusReembolso: true },
+    });
+    if (atual && atual.statusReembolso === null) {
+      return { ok: false, motivo: 'NAO_E_REEMBOLSO' } as const;
+    }
 
-  const alteradas = await prisma.lancamento.updateMany({
-    where: { id, versao, deletadoEm: null, statusReembolso: { not: null } },
-    data: { statusReembolso: recebido ? 'RECEBIDO' : 'PENDENTE', versao: { increment: 1 } },
-  });
+    const alteradas = await tx.lancamento.updateMany({
+      where: { id, versao, deletadoEm: null, statusReembolso: { not: null } },
+      data: { versao: { increment: 1 } },
+    });
+    if (alteradas.count === 0) {
+      const encontrado = await tx.lancamento.findUnique({ where: { id } });
+      return { ok: false, motivo: 'CONFLITO', atual: encontrado } as const;
+    }
 
-  if (alteradas.count === 0) {
-    const encontrado = await prisma.lancamento.findUnique({ where: { id } });
-    return { ok: false, motivo: 'CONFLITO', atual: encontrado };
-  }
-  return { ok: true };
+    const marcadas = await tx.parcela.updateMany({
+      where: { lancamentoId: id, numero },
+      data: { reembolsoRecebido: recebido },
+    });
+    // A tela so oferece parcela que existe; chegar aqui e defeito, nao
+    // conflito. O throw desfaz o incremento da versao junto.
+    if (marcadas.count === 0) {
+      throw new Error(`Lancamento ${id} nao tem parcela ${numero}`);
+    }
+    return { ok: true } as const;
+  });
 }
 
 /**

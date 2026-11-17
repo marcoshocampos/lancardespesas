@@ -260,10 +260,14 @@ linhas vazias permanentes sugeririam uma lacuna que não existe.
 
 ### Parcelado
 
-O status é **por lançamento**, não por parcela — decidido, e o schema já era assim
-(`Lancamento.statusReembolso`). Um reembolso parcelado é reembolso em todas as parcelas dele,
-de uma vez; não há como marcar recebida a parcela 3 e pendente a 4. Ver
-[`decisoes.md`](decisoes.md).
+**Ser reembolso é do lançamento; ter sido devolvido é da parcela.** Um reembolso parcelado é
+reembolso em todas as parcelas, de uma vez — a marca está na compra. Mas cada parcela é
+devolvida no seu mês: marcar recebida a de outubro não diz nada sobre a de novembro, e
+desmarcar uma não desmarca as outras. Ver [`decisoes.md`](decisoes.md).
+
+- **Editar o lançamento preserva o recebido de cada parcela**, pelo número dela, como preserva
+  o cancelamento. Corrigir a descrição não faz quem já devolveu voltar a dever
+- **Desligar a marca de reembolso apaga o recebido de todas as parcelas**, como apaga o devedor
 
 Marcar como recebido **não altera valor nenhum, em lugar nenhum**. O lançamento já está fora
 do gasto do casal e dentro do `Somado` nos dois estados: ou alguém ainda vai devolver, ou já

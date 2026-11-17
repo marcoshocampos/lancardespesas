@@ -58,13 +58,15 @@ export async function acaoExcluirLancamento(id: string, versao: number) {
 const esquemaReembolso = z.object({
   id: z.string().min(1),
   versao: z.number().int().min(1),
+  /** Qual parcela: o recebido e de cada mes, nao do lancamento inteiro. */
+  numero: z.number().int().min(1),
   recebido: z.boolean(),
 });
 
 export async function acaoMarcarReembolso(dados: unknown) {
   await exigirSessao();
-  const { id, versao, recebido } = esquemaReembolso.parse(dados);
-  const resultado = await marcarReembolso(id, versao, recebido);
+  const { id, versao, numero, recebido } = esquemaReembolso.parse(dados);
+  const resultado = await marcarReembolso(id, versao, numero, recebido);
   if (resultado.ok) {
     // O Resumo mostra a lista; a grade mostra o selo de reembolso na linha.
     revalidatePath('/resumo');
