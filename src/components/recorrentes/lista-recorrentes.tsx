@@ -321,8 +321,12 @@ function LinhaRecorrente({ recorrente, onEditar }: { recorrente: Recorrente; onE
  *
  * **Cadastrar aqui não lança nada.** A recorrente só vira lançamento quando
  * alguém clica na faixa do Despesas, mês a mês — decisão registrada em
- * `docs/decisoes.md`. O texto do cabeçalho diz isso em voz alta, porque
- * "cadastrei e não apareceu" seria a primeira dúvida de quem usa.
+ * `docs/decisoes.md`. O subtítulo da página `/recorrentes` diz isso em voz
+ * alta, porque "cadastrei e não apareceu" seria a primeira dúvida de quem usa.
+ *
+ * Sem título próprio: a lista é a página inteira, e o `h1` dela já diz
+ * *Recorrentes*. Quando morava em Configurações era uma seção entre quatro e
+ * tinha o seu `h2`.
  */
 export function ListaRecorrentes({ recorrentes, contas, categorias, membros, competenciaPadrao }: Props) {
   // `null` fechado, 'nova' criando, ou o id de quem esta sendo editada.
@@ -332,19 +336,11 @@ export function ListaRecorrentes({ recorrentes, contas, categorias, membros, com
 
   return (
     <section
-      aria-labelledby="titulo-recorrentes"
+      aria-label="Recorrentes cadastradas"
       className="rounded-caixa border border-borda bg-superficie"
     >
       <div className="border-b border-borda px-5 py-4">
-        <h2 id="titulo-recorrentes" className="text-sm font-medium text-tinta">
-          Recorrentes
-        </h2>
-        <p className="mt-1 text-xs text-tinta-fraca">
-          O que se repete todo mês: assinatura, seguro, mensalidade. Cadastrar aqui não lança
-          nada sozinho — a cada mês, o Despesas mostra o que falta e vocês lançam com um clique.
-        </p>
-
-        <div className="mt-3">
+        <div>
           {aberto === 'nova' ? (
             <FormularioRecorrente recorrente={null} onFechar={fechar} {...comuns} />
           ) : (

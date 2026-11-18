@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { BotaoTema } from './tema';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { BarChart3, ClipboardList, Receipt, Settings, Trash2 } from 'lucide-react';
+import { BarChart3, ClipboardList, Receipt, Repeat, Settings, Trash2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -20,15 +20,19 @@ type Destino = {
  * acrescentar destino novo: ele so entra na navegacao depois que a pagina
  * existir (`docs/arquitetura.md`).
  *
- * Configuracoes nao tem filtro de competencia, e ainda assim recebe o
- * `?competencia=` que o link monta logo abaixo — a pagina ignora o parametro
- * (ver o comentario em `configuracoes/page.tsx`). E de proposito: e desta
- * mesma query string que a barra le a competencia para o proximo destino, e
- * derruba-la aqui faria a volta para Despesas cair no mes corrente em vez do
- * mes que a pessoa estava olhando.
+ * Recorrentes e Configuracoes nao tem filtro de competencia, e ainda assim
+ * recebem o `?competencia=` que o link monta logo abaixo — as paginas ignoram o
+ * parametro (ver o comentario em `configuracoes/page.tsx`). E de proposito: e
+ * desta mesma query string que a barra le a competencia para o proximo
+ * destino, e derruba-la aqui faria a volta para Despesas cair no mes corrente
+ * em vez do mes que a pessoa estava olhando.
+ *
+ * Recorrentes vem logo depois de Despesas, e nao junto de Configuracoes: e da
+ * faixa de pendentes do Despesas que a pessoa vem cadastrar uma.
  */
 const DESTINOS: Destino[] = [
   { rotulo: 'Despesas', rota: '/despesas', Icone: Receipt },
+  { rotulo: 'Recorrentes', rota: '/recorrentes', Icone: Repeat },
   { rotulo: 'Resumo', rota: '/resumo', Icone: ClipboardList },
   { rotulo: 'Gráficos', rota: '/graficos', Icone: BarChart3 },
   { rotulo: 'Configurações', rota: '/configuracoes', Icone: Settings },

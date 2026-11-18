@@ -177,7 +177,10 @@ escuro**.
 
 ## Passo 11 — Recorrentes
 
-- [ ] Em Configurações, **Nova recorrente** abre o formulário. Crie uma de cartão com dia de
+- [ ] Na barra lateral, **Recorrentes** aparece logo abaixo de Despesas, e Configurações não tem
+      mais a seção. Trocar de tela por ali **mantém o mês**: de Recorrentes de volta a
+      Despesas, cai no mês em que você estava.
+- [ ] Em Recorrentes, **Nova recorrente** abre o formulário. Crie uma de cartão com dia de
       cobrança **depois** do fechamento (no C6, que fecha dia 4, use dia 15).
 - [ ] Vá ao Despesas no mês corrente: aparece a faixa *"1 recorrente para lançar neste mês"*,
       com nome e valor. **Nada foi lançado ainda.**
@@ -187,7 +190,7 @@ escuro**.
 - [ ] Edite esse lançamento (mude o valor) e salve: ele **continua no mesmo mês**.
 - [ ] Exclua o lançamento: a faixa **não volta** para este mês — excluir é pular o mês. Vá ao
       mês seguinte: lá ela aparece normalmente.
-- [ ] Desative a recorrente em Configurações: ela some da faixa dos meses seguintes.
+- [ ] Desative a recorrente em Recorrentes: ela some da faixa dos meses seguintes.
 
 ## Passo 12 — Busca
 

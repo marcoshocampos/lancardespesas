@@ -34,9 +34,9 @@ async function exigirSessao() {
   if (!sessao?.user) throw new Error('Não autenticado');
 }
 
-/** A lista muda em Configuracoes; a faixa de pendentes muda no Despesas. */
+/** A lista muda em /recorrentes; a faixa de pendentes muda no Despesas. */
 function revalidarCadastro() {
-  revalidatePath('/configuracoes');
+  revalidatePath('/recorrentes');
   revalidatePath('/despesas');
 }
 

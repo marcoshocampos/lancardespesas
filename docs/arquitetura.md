@@ -224,6 +224,14 @@ As travas não são estilo. O `nome` da action é `z.string().trim().min(1).max(
 nome só de espaços passa pelo `required` do HTML, chega vazio ao servidor, faz o `parse`
 lançar, e o Next entrega ao cliente só um digest: a tela diria "erro" sem dizer o quê.
 
+### `recorrentes/` — o cadastro do que se repete
+
+| Componente | Cliente? | Papel |
+|---|---|---|
+| `lista-recorrentes.tsx` | **sim** | Criar, editar e desativar recorrente. É a página `/recorrentes` inteira, sem título próprio |
+
+Morou em `configuracoes/` até ganhar destino na barra, logo depois de Despesas.
+
 ### `ui/` — as primitivas do shadcn
 
 `alert-dialog`, `badge`, `button`, `input`, `label`, `select`, `sheet`, `sonner`, `switch`.
@@ -252,6 +260,8 @@ Rotas do App Router e as fronteiras com o mundo.
     são `async` e consultam o banco
   - `(app)/despesas/` — a grade do mês
   - `(app)/resumo/` — os cartões, a matriz e a conferência
+  - `(app)/recorrentes/` — o cadastro das recorrentes. Também `force-dynamic`, pelo mesmo
+    motivo de Configurações logo abaixo
   - `(app)/configuracoes/` — categorias, contas e pessoas. É a **única** tela que mostra
     categoria arquivada, conta inativa e pessoa inativa, e a única de onde se volta atrás.
     Precisa de `export const dynamic = 'force-dynamic'`: ela não usa `searchParams` nem
@@ -281,7 +291,8 @@ as contas C6 e Externa, e as oito categorias.
 **Datas e competências são `String` no banco, de propósito.** `DateTime` faria alguma camada
 aplicar fuso e mover a compra do dia do fechamento para a fatura errada.
 
-`Recorrente` e `Preferencia` estão na spec mas **não existem no banco** — são de Fase 2.
+`Preferencia` está na spec mas **não existe no banco** — é de Fase 2. `Recorrente` existe desde
+a migration `recorrentes`.
 
 ### `scripts/`
 

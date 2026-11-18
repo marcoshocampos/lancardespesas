@@ -311,7 +311,7 @@ Lançamento de valor negativo, para devolução de compra, cashback ou desconto.
 
 ## 8. Despesas recorrentes
 
-Cadastradas uma vez em **Configurações → Recorrentes**, viram lançamento a cada competência —
+Cadastradas uma vez em **Recorrentes**, na barra lateral, viram lançamento a cada competência —
 **quando alguém pede**. Exemplos: assinatura de nuvem, seguro anual parcelado pela seguradora,
 mensalidade.
 
