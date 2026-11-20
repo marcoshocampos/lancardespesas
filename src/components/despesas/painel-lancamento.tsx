@@ -214,6 +214,9 @@ function Formulario({
   const travaDaLinha = editando ? travaDoAlcance(editando.linha, competencia, travadas, 'SO_ESTA') : null;
   /** Em "so esta" so o valor muda; os outros campos ficam desabilitados. */
   const soValor = mostraAlcance && alcance === 'SO_ESTA';
+  /** Nenhum alcance pode ser escolhido (ex.: valor TOTAL com uma parcela travada): nao ha o que salvar. */
+  const semAlcance = mostraAlcance && alcanceInicial(opcoes) === null;
+  const motivoSemAlcance = opcoes.find((o) => o.valor === 'TODAS')?.bloqueio ?? null;
 
   /**
    * O que o select de conta oferece. Criar so pode escolher conta ATIVA — e o
@@ -487,6 +490,12 @@ function Formulario({
           </p>
         )}
 
+        {semAlcance && !travaDaLinha && motivoSemAlcance && (
+          <p role="alert" className="rounded-caixa border border-atencao bg-atencao-fundo p-3 text-sm text-atencao">
+            {motivoSemAlcance}
+          </p>
+        )}
+
         {mostraAlcance && !travaDaLinha && (
           <ControleAlcance
             nome="alcance-edicao"
@@ -711,7 +720,7 @@ function Formulario({
           <Button type="button" variant="outline" onClick={onFechar} disabled={pendente}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={pendente || travaDaLinha !== null}>
+          <Button type="submit" disabled={pendente || travaDaLinha !== null || semAlcance}>
             {pendente ? 'Salvando…' : editando ? 'Salvar' : 'Adicionar'}
           </Button>
         </div>
