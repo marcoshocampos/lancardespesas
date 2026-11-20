@@ -6,6 +6,7 @@ import { ResultadosBusca } from '@/components/despesas/resultados-busca';
 import { COLUNA_TOTAL, calcularResumo } from '@/domain/totais';
 import { prisma } from '@/server/db';
 import { buscarLancamentos } from '@/server/repositorios/busca';
+import { carregarTravadasAoRedor } from '@/server/repositorios/fatura';
 import { carregarRecorrentesPendentes } from '@/server/repositorios/recorrente';
 import { carregarLinhasDaGrade, carregarParcelasDaCompetencia } from '@/server/repositorios/resumo';
 import { competenciaAtual } from '@/app/competencia-atual';
@@ -20,7 +21,7 @@ export default async function Despesas({ searchParams }: Props) {
   const termo = q?.trim() ?? '';
   const buscando = termo !== '';
 
-  const [todasAsContas, categorias, membros, linhas, parcelas, recorrentesPendentes, resultadoBusca] =
+  const [todasAsContas, categorias, membros, linhas, parcelas, recorrentesPendentes, resultadoBusca, travadas] =
     await Promise.all([
       // Sem `where: { ativa: true }`, de proposito. Filtrar por `ativa` aqui era
       // o bug: uma conta desativada que ainda tem parcela nesta competencia
@@ -50,6 +51,9 @@ export default async function Despesas({ searchParams }: Props) {
       // A busca e de todos os meses e de todas as contas: o filtro de conta nao
       // entra, para um filtro esquecido nao fazer um "nao achei" mentir.
       buscando ? buscarLancamentos(termo, competencia) : Promise.resolve(null),
+      // Para o painel desabilitar os meses travados da Fatura e o alcance que
+      // esbarraria numa trava. Com termo, o painel nao abre — nao carrega.
+      buscando ? Promise.resolve([]) : carregarTravadasAoRedor(competencia),
     ]);
 
   // Duas listas, e nao uma. `ativa` quer dizer "nao ofereca esta conta para
@@ -121,6 +125,7 @@ export default async function Despesas({ searchParams }: Props) {
             contasAtivas={contasAtivas}
             categorias={categorias}
             membros={membros}
+            travadas={travadas}
             contaSelecionada={conta}
             destaque={destaque}
           />

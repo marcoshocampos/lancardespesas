@@ -8,16 +8,6 @@ import {
   type FormEvent,
   type TransitionStartFunction,
 } from 'react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,10 +27,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { competenciaDeCartao, competenciaDeContaExterna, formatarCompetencia } from '@/domain/competencia';
+import { formatarCompetencia, mesesAoRedor } from '@/domain/competencia';
+import { alcanceDaFaixa, minimoDeParcelas, type Alcance } from '@/domain/divisao';
+import {
+  RAIO_DA_FATURA,
+  competenciasTravadasDaConta,
+  descreverTrava,
+  divergenciaDaData,
+  type FaturaTravada,
+} from '@/domain/trava';
 import { formatarBRL, reaisParaCentavos } from '@/domain/money';
 import { acaoCriarLancamento, acaoEditarLancamento } from '@/server/actions/lancamento';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
+import { alcanceInicial, faixaDaLinha, opcoesDeAlcance, temAlcance, travaDoAlcance } from './alcance-da-linha';
+import { ControleAlcance } from './controle-alcance';
 
 type Membro = { id: string; nome: string; cor: string };
 // `arquivada` viaja junto porque quem decide oferecer ou nao a categoria e este
@@ -81,13 +81,7 @@ export function idBotaoEditar(parcelaId: string): string {
 
 type EstadoAtual = { descricao: string; valorCentavos: number };
 
-// Formato do que `enviar` monta a partir do FormData, comum a criar e editar
-// (so `origemValor` fica de fora — cada modo o resolve do seu jeito, ver
-// `enviarEdicao` e o modo criar dentro de `enviar`). Existe como tipo nomeado
-// porque tambem e o formato do estado que segura os dados capturados
-// enquanto o AlertDialog de confirmacao espera a pessoa decidir
-// (`confirmacaoRegeracao`, dentro de `Formulario`) — precisa ser o MESMO
-// objeto que `enviar` montou, nao um recalculado depois. (comportamento 4)
+// O que `enviar` monta, comum a criar e editar (so `origemValor` fica de fora — cada modo o resolve do seu jeito).
 type CamposComuns = {
   descricao: string;
   valorCentavos: number;
@@ -99,6 +93,7 @@ type CamposComuns = {
   membroId?: string;
   ehReembolso: boolean;
   devedorNome?: string;
+  fatura: string;
 };
 
 // `atual` chega tipado `unknown` (ResultadoGravacao) porque e o registro cru do
@@ -121,27 +116,38 @@ function extrairAtual(atual: unknown): EstadoAtual | null {
 }
 
 /**
- * Em qual fatura o lancamento cai, e por que — a regra existe em `@/domain/competencia`
- * desde a Fase 1 e nunca apareceu na tela. So mostra quando data e conta tem valor; as
- * duas funcoes de dominio validam calendario de verdade e lancam para data incompleta,
- * entao qualquer erro aqui so esconde a dica, nunca quebra o painel.
+ * O aviso de que a data aponta outra Fatura. Nao impede nada: a Fatura e quem
+ * decide o mes, e a data e informacao. Diz o porque — o dia do fechamento, ou
+ * o mes do pagamento —, como a antiga dica de competencia dizia.
  */
-function calcularDica(dataCompra: string, contaId: string, contas: readonly Conta[]): string | null {
-  if (!dataCompra || !contaId) return null;
-  const conta = contas.find((c) => c.id === contaId);
-  if (!conta) return null;
+function avisoDaData(pelaData: string, numero: number, conta: Conta): string {
+  const quem = numero > 1 ? `a parcela ${numero} cairia` : 'cairia';
+  const porque =
+    conta.tipo === 'CARTAO' && conta.diaFechamento !== null
+      ? `o ${conta.nome} fecha dia ${conta.diaFechamento}`
+      : 'é o mês do pagamento';
+  return `Pela data, ${quem} na fatura de ${formatarCompetencia(pelaData)} — ${porque}.`;
+}
 
-  try {
-    if (conta.tipo === 'CARTAO' && conta.diaFechamento !== null) {
-      const competencia = competenciaDeCartao(dataCompra, conta.diaFechamento);
-      return `Cai na fatura de ${formatarCompetencia(competencia)} — o ${conta.nome} fecha dia ${conta.diaFechamento}.`;
-    }
-
-    const competencia = competenciaDeContaExterna(dataCompra);
-    return `Cai na fatura de ${formatarCompetencia(competencia)} — é o mês do pagamento.`;
-  } catch {
-    return null;
-  }
+/**
+ * Em "so esta", os campos fora o valor ficam desabilitados e nao vao no
+ * FormData: saem da propria linha. O servidor copia tudo do original de
+ * qualquer jeito; isto existe porque o esquema da action exige o formato
+ * inteiro.
+ */
+function camposDaLinha(linha: LinhaGrade, fatura: string): Omit<CamposComuns, 'valorCentavos'> {
+  return {
+    descricao: linha.descricao,
+    dataCompra: linha.dataCompra,
+    numeroParcelas: linha.numeroParcelas,
+    escopo: linha.escopo,
+    contaId: linha.contaId,
+    categoriaId: linha.categoriaId,
+    ...(linha.escopo === 'PESSOAL' && linha.membroId ? { membroId: linha.membroId } : {}),
+    ehReembolso: linha.ehReembolso,
+    ...(linha.ehReembolso && linha.devedorNome ? { devedorNome: linha.devedorNome } : {}),
+    fatura,
+  };
 }
 
 type FormularioProps = {
@@ -153,6 +159,10 @@ type FormularioProps = {
   contasDoMes: Conta[];
   categorias: Categoria[];
   membros: Membro[];
+  /** O mes aberto na tela: e a Fatura inicial, e o mes da linha editada. */
+  competencia: string;
+  /** Faturas travadas perto da tela, de todas as contas. */
+  travadas: readonly FaturaTravada[];
   /** Levantados para `PainelLancamento`: o `Sheet` precisa saber se ha uma
    * gravacao em voo para recusar fechar por Esc, clique fora ou o X, o que
    * fica fora do alcance deste componente. (achado 1 da revisao de bc54df3) */
@@ -175,19 +185,35 @@ function Formulario({
   contasDoMes,
   categorias,
   membros,
+  competencia,
+  travadas,
   pendente,
   iniciar,
   onFechar,
 }: FormularioProps) {
   const [erro, setErro] = useState<string | null>(null);
   const [conflito, setConflito] = useState<EstadoAtual | null>(null);
-  // Nao-null so enquanto o AlertDialog "vai regerar as parcelas" espera
-  // decisao — guarda o `camposComuns` exato que `enviar` capturou do
-  // FormData antes de abrir o dialogo, para `confirmarRegeracao` reenviar
-  // sem reler nem recalcular nada. (comportamento 4)
-  const [confirmacaoRegeracao, setConfirmacaoRegeracao] = useState<CamposComuns | null>(null);
 
   const editando = estado.modo === 'editar' ? estado : null;
+
+  // Alcance: so existe editando uma linha de parcelado com mais de uma parcela
+  // na faixa. O padrao e o primeiro livre, do menos ao mais abrangente. Valor
+  // TOTAL so se edita inteiro (o campo mostra o total da compra; ver a spec).
+  const opcoes = editando
+    ? opcoesDeAlcance(editando.linha, competencia, travadas).map((o) =>
+        editando.linha.origemValor === 'TOTAL' && o.valor !== 'TODAS' && o.bloqueio === null
+          ? { ...o, bloqueio: 'O valor foi digitado como total da compra: só dá para editar todas as parcelas.' }
+          : o,
+      )
+    : [];
+  const mostraAlcance = editando !== null && temAlcance(editando.linha);
+  const [alcance, setAlcance] = useState<Alcance>(
+    mostraAlcance ? (alcanceInicial(opcoes) ?? 'SO_ESTA') : 'TODAS',
+  );
+  /** O mes da propria linha esta travado: nada aqui pode ser salvo. */
+  const travaDaLinha = editando ? travaDoAlcance(editando.linha, competencia, travadas, 'SO_ESTA') : null;
+  /** Em "so esta" so o valor muda; os outros campos ficam desabilitados. */
+  const soValor = mostraAlcance && alcance === 'SO_ESTA';
 
   /**
    * O que o select de conta oferece. Criar so pode escolher conta ATIVA — e o
@@ -239,6 +265,13 @@ function Formulario({
   const [dataCompra, setDataCompra] = useState(editando?.linha.dataCompra ?? '');
   const [contaId, setContaId] = useState(editando?.linha.contaId ?? contasOferecidas[0]?.id ?? '');
 
+  // A Fatura: comeca no mes da tela. Na edicao, o mes da tela e o da linha.
+  const [fatura, setFatura] = useState(competencia);
+  // Rastreados so para o seletor de parcela inicial e o `min` das parcelas;
+  // o campo de parcelas continua nao controlado, como os outros.
+  const [numeroParcelas, setNumeroParcelas] = useState(editando?.linha.numeroParcelas ?? 1);
+  const [parcelaInicial, setParcelaInicial] = useState(1);
+
   /**
    * Marca de "alguem de fora vai devolver". Mora em estado, e nao no FormData,
    * porque o Switch do shadcn e um `button[role=switch]` — nao e campo de
@@ -275,7 +308,20 @@ function Formulario({
     if (ligado && categoriaTerceiros) setCategoriaId(categoriaTerceiros.id);
   }
 
-  const dica = calcularDica(dataCompra, contaId, contasOferecidas);
+  const meses = mesesAoRedor(competencia, RAIO_DA_FATURA);
+  const travadasDaConta = competenciasTravadasDaConta(travadas, contaId);
+  const numeroDaFatura = editando ? editando.linha.numero : parcelaInicial;
+  const contaEscolhida = contasOferecidas.find((c) => c.id === contaId);
+  const pelaData = contaEscolhida
+    ? divergenciaDaData(dataCompra, contaEscolhida, fatura, numeroDaFatura)
+    : null;
+  const aviso = pelaData && contaEscolhida ? avisoDaData(pelaData, numeroDaFatura, contaEscolhida) : null;
+  const minimoParcelas = editando
+    ? minimoDeParcelas(
+        alcanceDaFaixa(faixaDaLinha(editando.linha), editando.linha.numero, alcance),
+        editando.linha.numeroParcelas,
+      )
+    : 1;
 
   // ATENCAO, terceiro caso da mesma familia, hoje inalcancavel: `membros` chega
   // so com os ativos (`where: { ativo: true }` em `despesas/page.tsx`), e
@@ -330,48 +376,43 @@ function Formulario({
     }
 
     const escopo = String(dados.get('escopo'));
-    const numeroParcelas = Number(dados.get('numeroParcelas') ?? 1);
-    const camposComuns: CamposComuns = {
-      descricao: String(dados.get('descricao') ?? ''),
-      valorCentavos,
-      dataCompra: String(dados.get('dataCompra') ?? ''),
-      numeroParcelas,
-      escopo: escopo === 'CONJUNTO' ? 'CONJUNTO' : 'PESSOAL',
-      contaId: String(dados.get('contaId') ?? ''),
-      categoriaId,
-      ...(escopo === 'CONJUNTO' ? {} : { membroId: escopo }),
-      ehReembolso,
-      // O nome so viaja junto com a marca ligada. Desligar e salvar tem que
-      // limpar o devedor no banco, nao deixa-lo pendurado num lancamento comum.
-      ...(ehReembolso ? { devedorNome: String(dados.get('devedorNome') ?? '') } : {}),
-    };
+    const camposComuns: CamposComuns =
+      soValor && editando
+        ? { ...camposDaLinha(editando.linha, competencia), valorCentavos }
+        : {
+            descricao: String(dados.get('descricao') ?? ''),
+            valorCentavos,
+            dataCompra: String(dados.get('dataCompra') ?? ''),
+            numeroParcelas: Number(dados.get('numeroParcelas') ?? 1),
+            escopo: escopo === 'CONJUNTO' ? 'CONJUNTO' : 'PESSOAL',
+            contaId: String(dados.get('contaId') ?? ''),
+            categoriaId,
+            ...(escopo === 'CONJUNTO' ? {} : { membroId: escopo }),
+            ehReembolso,
+            // O nome so viaja junto com a marca ligada. Desligar e salvar tem que
+            // limpar o devedor no banco, nao deixa-lo pendurado num lancamento comum.
+            ...(ehReembolso ? { devedorNome: String(dados.get('devedorNome') ?? '') } : {}),
+            fatura,
+          };
 
+    // O alcance ja foi escolhido no topo do painel: nao ha mais o que
+    // confirmar antes de mandar. O antigo aviso "regera as N parcelas"
+    // existia porque editar regerava tudo, sempre.
     if (editando) {
-      // O lancamento ja tem mais de uma parcela: editar QUALQUER campo regera
-      // todas elas (`gravarFilhos` recria do zero, sem opcao de meio-termo).
-      // Avisa antes de mandar pro servidor, nao depois — abrindo o
-      // AlertDialog abaixo em vez do antigo dialogo sincrono do navegador,
-      // que bloqueava a thread inteira. `camposComuns`, ja montado ali em
-      // cima a partir do FormData, vai pro estado exatamente como esta:
-      // `confirmarRegeracao` (mais abaixo) reenvia esse mesmo objeto, nunca
-      // um recalculado depois da decisao. Nada e enviado ao servidor daqui
-      // pra baixo — so decide esperar (`return`) ou seguir direto.
-      // (comportamento 4)
-      if (editando.linha.numeroParcelas > 1) {
-        setConfirmacaoRegeracao(camposComuns);
-        return;
-      }
-
       enviarEdicao(camposComuns);
       return;
     }
 
     iniciar(async () => {
       try {
-        const resultado = await acaoCriarLancamento({ ...camposComuns, origemValor: 'POR_PARCELA' });
+        const resultado = await acaoCriarLancamento({
+          ...camposComuns,
+          origemValor: 'POR_PARCELA',
+          parcelaInicial: camposComuns.numeroParcelas > 1 ? parcelaInicial : 1,
+        });
 
         if (!resultado.ok) {
-          setErro('Esse mês já está fechado. Destrave a fatura para lançar.');
+          setErro(descreverTrava(resultado.travada));
           return;
         }
 
@@ -385,22 +426,25 @@ function Formulario({
     });
   }
 
-  // O envio de fato de uma edicao — extraida de `enviar` porque agora tem
-  // dois jeitos de chegar aqui: direto (uma parcela so) ou so depois que
-  // `confirmarRegeracao` recebe o aceite do AlertDialog (mais de uma). Em
-  // qualquer um dos dois `campos` e o mesmo objeto que `enviar` capturou do
-  // FormData — esta funcao nunca le o formulario de novo.
+  // O envio de uma edicao: `campos` e o objeto que `enviar` capturou do
+  // FormData (ou da linha, em "so esta") — esta funcao nunca le o formulario de novo.
   function enviarEdicao(campos: CamposComuns) {
     if (!editando) return;
 
     iniciar(async () => {
       try {
-        const resultado = await acaoEditarLancamento(editando.linha.lancamentoId, editando.linha.versao, {
-          ...campos,
-          // origemValor viaja escondido, igual ao que ja estava gravado — o
-          // formulario nao oferece troca-lo. (comportamento 5)
-          origemValor: editando.linha.origemValor,
-        });
+        const resultado = await acaoEditarLancamento(
+          editando.linha.lancamentoId,
+          editando.linha.versao,
+          {
+            ...campos,
+            // origemValor viaja escondido, igual ao que ja estava gravado — o
+            // formulario nao oferece troca-lo. (comportamento 5)
+            origemValor: editando.linha.origemValor,
+          },
+          alcance,
+          editando.linha.numero,
+        );
 
         if (!resultado.ok) {
           // Em caso de recusa o formulario nunca reseta — so a mensagem
@@ -409,7 +453,7 @@ function Formulario({
           // ao fim da transicao e a recusa chegava com o formulario ja em
           // branco (ver o comentario de `enviar`). (comportamento 1)
           if (resultado.motivo === 'FATURA_TRAVADA') {
-            setErro('Esse mês já está fechado. Destrave a fatura para editar.');
+            setErro(descreverTrava(resultado.travada));
           } else {
             setErro(
               'Alguém salvou uma mudança nesse lançamento enquanto você editava. ' +
@@ -427,30 +471,6 @@ function Formulario({
     });
   }
 
-  // A pessoa aceitou no AlertDialog: fecha a confirmacao e manda pro
-  // servidor o MESMO `campos` que estava guardado — nao le o formulario de
-  // novo. (comportamento 4)
-  function confirmarRegeracao() {
-    if (!confirmacaoRegeracao) return;
-    const campos = confirmacaoRegeracao;
-    setConfirmacaoRegeracao(null);
-    enviarEdicao(campos);
-  }
-
-  // Mesmo padrao de guarda de `PainelLancamento` (achado 1 da revisao de
-  // bc54df3) e de `DialogoExclusao`: Esc e o Cancelar pedem fechar via
-  // `onOpenChange` direto (clique fora o proprio AlertDialogContent do
-  // radix-ui ja recusa sozinho, incondicionalmente). Na pratica esse dialogo
-  // nunca chega a ficar aberto com `pendente` verdadeiro — ele fecha antes
-  // de `confirmarRegeracao` chamar `enviarEdicao`/`iniciar`, do mesmo jeito
-  // que o antigo dialogo sincrono do navegador ja tinha retornado antes do
-  // `iniciar` original rodar — mas a guarda fica, pelo mesmo motivo do resto
-  // do arquivo: nunca fechar em cima de uma gravacao em voo.
-  function aoMudarConfirmacao(aberto: boolean) {
-    if (!aberto && pendente) return;
-    if (!aberto) setConfirmacaoRegeracao(null);
-  }
-
   return (
     <form onSubmit={enviar} className="flex h-full flex-col overflow-hidden">
       <SheetHeader>
@@ -461,11 +481,28 @@ function Formulario({
       </SheetHeader>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+        {travaDaLinha && (
+          <p role="alert" className="rounded-caixa border border-atencao bg-atencao-fundo p-3 text-sm text-atencao">
+            {descreverTrava(travaDaLinha)}
+          </p>
+        )}
+
+        {mostraAlcance && !travaDaLinha && (
+          <ControleAlcance
+            nome="alcance-edicao"
+            valor={alcance}
+            opcoes={opcoes}
+            onMudar={setAlcance}
+            desabilitado={pendente}
+          />
+        )}
+
         <div className="space-y-1.5">
           <Label htmlFor="campo-descricao">Descrição</Label>
           <Input
             id="campo-descricao"
             name="descricao"
+            disabled={soValor}
             required
             placeholder="Ex.: Supermercado"
             defaultValue={editando?.linha.descricao ?? ''}
@@ -481,6 +518,7 @@ function Formulario({
               type="date"
               required
               defaultValue={editando?.linha.dataCompra ?? ''}
+              disabled={soValor}
               onChange={(evento) => setDataCompra(evento.target.value)}
             />
           </div>
@@ -501,7 +539,7 @@ function Formulario({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="campo-escopo">De quem</Label>
-            <Select name="escopo" required defaultValue={escopoPadrao}>
+            <Select name="escopo" required defaultValue={escopoPadrao} disabled={soValor}>
               <SelectTrigger id="campo-escopo" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -521,11 +559,49 @@ function Formulario({
               id="campo-parcelas"
               name="numeroParcelas"
               type="number"
-              min={1}
+              min={minimoParcelas}
               max={72}
               defaultValue={editando?.linha.numeroParcelas ?? 1}
+              disabled={soValor}
+              onChange={(evento) => setNumeroParcelas(Number(evento.target.value))}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="campo-fatura">Fatura</Label>
+            {/* Sem `name`: a Fatura mora no estado, e e o estado que vai para a action. */}
+            <Select value={fatura} onValueChange={setFatura} disabled={soValor}>
+              <SelectTrigger id="campo-fatura" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {meses.map((mes) => {
+                  const travada = travadasDaConta.has(mes);
+                  return (
+                    <SelectItem key={mes} value={mes} disabled={travada}>
+                      {formatarCompetencia(mes)}
+                      {travada ? ' · travada' : ''}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+          {!editando && numeroParcelas > 1 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="campo-parcela-inicial">Começa na parcela</Label>
+              <Input
+                id="campo-parcela-inicial"
+                type="number"
+                min={1}
+                max={numeroParcelas}
+                value={parcelaInicial}
+                onChange={(evento) => setParcelaInicial(Number(evento.target.value))}
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -536,6 +612,7 @@ function Formulario({
               required
               defaultValue={editando?.linha.contaId ?? contasOferecidas[0]?.id ?? ''}
               onValueChange={setContaId}
+              disabled={soValor}
             >
               <SelectTrigger id="campo-conta" className="w-full">
                 <SelectValue placeholder="Selecionar" />
@@ -551,7 +628,13 @@ function Formulario({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="campo-categoria">Categoria</Label>
-            <Select name="categoriaId" required value={categoriaId} onValueChange={setCategoriaId}>
+            <Select
+              name="categoriaId"
+              required
+              value={categoriaId}
+              onValueChange={setCategoriaId}
+              disabled={soValor}
+            >
               <SelectTrigger id="campo-categoria" className="w-full">
                 <SelectValue placeholder="Selecionar" />
               </SelectTrigger>
@@ -583,6 +666,7 @@ function Formulario({
             <Switch
               id="campo-reembolso"
               checked={ehReembolso}
+              disabled={soValor}
               onCheckedChange={alternarReembolso}
               aria-describedby="ajuda-reembolso"
             />
@@ -600,6 +684,7 @@ function Formulario({
                 key={editando?.linha.lancamentoId ?? 'novo'}
                 id="campo-devedor"
                 name="devedorNome"
+                disabled={soValor}
                 maxLength={80}
                 placeholder="Nome ou descrição"
                 defaultValue={editando?.linha.devedorNome ?? ''}
@@ -610,7 +695,7 @@ function Formulario({
       </div>
 
       <SheetFooter className="gap-3 border-t border-borda-suave">
-        {dica && <p className="text-xs text-tinta-fraca">{dica}</p>}
+        {aviso && <p className="text-xs text-atencao">{aviso}</p>}
         {erro && (
           <p role="alert" className="text-sm text-negativo">
             {erro}
@@ -626,57 +711,11 @@ function Formulario({
           <Button type="button" variant="outline" onClick={onFechar} disabled={pendente}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={pendente}>
+          <Button type="submit" disabled={pendente || travaDaLinha !== null}>
             {pendente ? 'Salvando…' : editando ? 'Salvar' : 'Adicionar'}
           </Button>
         </div>
       </SheetFooter>
-
-      {/* Confirmacao de que editar regera as parcelas (comportamento 4). So
-         existe no modo editar — `confirmacaoRegeracao` nunca fica setado no
-         modo criar. Fica dentro do <form> na leitura do codigo, mas o
-         AlertDialog em si nao desenha nada na propria posicao (so contexto)
-         e o AlertDialogContent e portalizado pelo radix-ui: nada disto
-         aninha elemento nenhum dentro do <form> no DOM real. */}
-      {editando && (
-        <AlertDialog open={confirmacaoRegeracao !== null} onOpenChange={aoMudarConfirmacao}>
-          <AlertDialogContent
-            onEscapeKeyDown={(evento) => {
-              if (pendente) evento.preventDefault();
-            }}
-            onCloseAutoFocus={(evento) => {
-              // Sem AlertDialogTrigger (o dialogo abre por causa do submit
-              // do formulario, nao de um clique num gatilho fixo), o
-              // fallback padrao do radix-ui — focar quem abriu — nao acha
-              // nada pra focar. Devolve pro primeiro campo do formulario,
-              // que continua montado e habilitado tanto na recusa quanto na
-              // aceitacao. (a armadilha de foco de dialogo dentro de
-              // dialogo avisada para esta tarefa)
-              evento.preventDefault();
-              document.getElementById('campo-descricao')?.focus();
-            }}
-          >
-            <AlertDialogHeader>
-              <AlertDialogTitle>Editar lançamento parcelado</AlertDialogTitle>
-              <AlertDialogDescription>
-                {`Editar "${editando.linha.descricao}" regera as ${editando.linha.numeroParcelas} parcelas deste lançamento. Continuar?`}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={pendente}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                disabled={pendente}
-                onClick={(evento) => {
-                  evento.preventDefault();
-                  confirmarRegeracao();
-                }}
-              >
-                Continuar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </form>
   );
 }
@@ -689,6 +728,10 @@ type Props = {
   contasDoMes: Conta[];
   categorias: Categoria[];
   membros: Membro[];
+  /** O mes aberto na tela: e a Fatura inicial, e o mes da linha editada. */
+  competencia: string;
+  /** Faturas travadas perto da tela, de todas as contas. */
+  travadas: readonly FaturaTravada[];
   onFechar: () => void;
 };
 
@@ -707,6 +750,8 @@ export function PainelLancamento({
   contasDoMes,
   categorias,
   membros,
+  competencia,
+  travadas,
   onFechar,
 }: Props) {
   const [pendente, iniciar] = useTransition();
@@ -770,6 +815,8 @@ export function PainelLancamento({
             contasDoMes={contasDoMes}
             categorias={categorias}
             membros={membros}
+            competencia={competencia}
+            travadas={travadas}
             pendente={pendente}
             iniciar={iniciar}
             onFechar={onFechar}
