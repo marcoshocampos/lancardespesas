@@ -78,8 +78,8 @@ export type ResultadoCriacao = { ok: true; id: string } | RecusaTravada;
  * se alguem religasse a marca.
  *
  * Sempre PENDENTE, nunca RECEBIDO: se ja devolveram e por parcela
- * (`Parcela.reembolsoRecebido`), e quem preserva isso na edicao e
- * `gravarFilhos`.
+ * (`Parcela.reembolsoRecebido`), e quem preserva isso na edicao sao
+ * as marcas que `marcasDe` carrega para `gravarParcelas`.
  */
 function camposDeReembolso(entrada: EntradaLancamento): {
   statusReembolso: 'PENDENTE' | null;
@@ -459,21 +459,46 @@ export async function editarLancamento(
   });
 }
 
-export async function excluirLancamento(id: string, versao: number): Promise<ResultadoGravacao> {
+/**
+ * Manda para a lixeira um lancamento inteiro, ou so parte de um parcelado.
+ *
+ * Excluir parte e dividir: o pedaco do alcance vira um lancamento proprio,
+ * com as linhas que ja tinha, e nasce excluido — a lixeira o restaura como
+ * qualquer outro. A barreira olha so as linhas que saem dos meses.
+ */
+export async function excluirLancamento(
+  id: string,
+  versao: number,
+  alcance: Alcance = 'TODAS',
+  numero?: number,
+): Promise<ResultadoGravacao> {
   return prisma.$transaction(async (tx) => {
     const original = await lerOriginal(tx, id);
     if (!original || original.deletadoEm !== null || original.versao !== versao) {
       return conflito(tx, id);
     }
 
-    const travada = await travaEntre(tx, original.contaId, original.numeroParcelas, original.parcelas);
+    const faixa = faixaDoLancamento(original);
+    const plano = planejarDivisao(faixa, numero ?? faixa.inicial, alcance);
+    const saem = original.parcelas.filter((p) => dentro(plano.alcance, p.numero));
+
+    const travada = await travaEntre(tx, original.contaId, original.numeroParcelas, saem);
     if (travada) return recusa(travada);
 
+    const agora = new Date();
     const alteradas = await tx.lancamento.updateMany({
       where: { id, versao, deletadoEm: null },
-      data: { deletadoEm: new Date(), versao: { increment: 1 } },
+      data:
+        plano.tipo === 'NO_LUGAR'
+          ? { deletadoEm: agora, versao: { increment: 1 } }
+          : { ...colunasDaFaixa(plano.original, original.numeroParcelas), versao: { increment: 1 } },
     });
     if (alteradas.count === 0) return conflito(tx, id);
+
+    if (plano.tipo === 'DIVIDIR') {
+      if (plano.depois) await separar(tx, original, plano.depois, null);
+      await separar(tx, original, plano.alcance, agora);
+    }
     return { ok: true };
   });
 }
@@ -484,7 +509,7 @@ export async function excluirLancamento(id: string, versao: number): Promise<Res
  * **Por parcela, nao por lancamento.** Um parcelado se devolve mes a mes:
  * quando a marca era do lancamento, receber outubro marcava novembro junto.
  * `numero` e a chave estavel da parcela — o id muda a cada edicao, porque
- * `gravarFilhos` recria as parcelas.
+ * `gravarParcelas` recria as parcelas ao reescreve-las.
  *
  * **Nao altera valor nenhum.** O lancamento ja esta fora do gasto do casal e
  * dentro do Somado nos dois estados: ou alguem ainda vai devolver, ou ja

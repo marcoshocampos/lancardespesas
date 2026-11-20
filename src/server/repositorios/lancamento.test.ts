@@ -849,4 +849,110 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     ).rejects.toThrow('valor total');
     expect(await prisma.lancamento.count()).toBe(1);
   });
+
+  it('exclui esta e as seguintes com novembro travado, e o pedaco vai para a lixeira', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 4, competenciaManual: '2026-10' });
+    const antes = await linhasDe(id);
+    await travarFatura('2026-11');
+
+    const resultado = await excluirLancamento(id, 1, 'ESTA_E_SEGUINTES', 3);
+
+    expect(resultado).toEqual({ ok: true });
+    const original = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    expect(original).toMatchObject({ deletadoEm: null, parcelaInicial: 1, parcelaFinal: 2, versao: 2 });
+    const naLixeira = await prisma.lancamento.findFirstOrThrow({
+      where: { deletadoEm: { not: null } },
+      include: { parcelas: { orderBy: { numero: 'asc' } } },
+    });
+    expect(naLixeira).toMatchObject({ parcelaInicial: 3, parcelaFinal: null });
+    expect(naLixeira.parcelas.map((p) => p.id)).toEqual(antes.slice(2).map((p) => p.id));
+  });
+
+  it('exclui so a parcela do meio, deixando as de antes e as de depois', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 3, competenciaManual: '2026-10' });
+
+    expect((await excluirLancamento(id, 1, 'SO_ESTA', 2)).ok).toBe(true);
+
+    const vivos = await prisma.lancamento.findMany({
+      where: { deletadoEm: null },
+      orderBy: { parcelaInicial: 'asc' },
+    });
+    expect(vivos.map((l) => [l.parcelaInicial, l.parcelaFinal])).toEqual([
+      [1, 1],
+      [3, null],
+    ]);
+    const excluido = await prisma.lancamento.findFirstOrThrow({ where: { deletadoEm: { not: null } } });
+    expect([excluido.parcelaInicial, excluido.parcelaFinal]).toEqual([2, 2]);
+  });
+
+  it('recusa excluir esta e as seguintes que alcanca um mes travado', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 3, competenciaManual: '2026-10' });
+    await travarFatura('2026-12');
+
+    const resultado = await excluirLancamento(id, 1, 'ESTA_E_SEGUINTES', 2);
+
+    expect(resultado).toEqual({
+      ok: false,
+      motivo: 'FATURA_TRAVADA',
+      travada: { numero: 3, numeroParcelas: 3, competencia: '2026-12', contaNome: nomeDoC6 },
+    });
+    expect(await prisma.lancamento.count()).toBe(1);
+  });
+
+  it('restaura o pedaco excluido com as linhas que ele levou', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 3, competenciaManual: '2026-10' });
+    expect((await excluirLancamento(id, 1, 'ESTA_E_SEGUINTES', 2)).ok).toBe(true);
+    const pedaco = await prisma.lancamento.findFirstOrThrow({ where: { deletadoEm: { not: null } } });
+
+    expect((await restaurarLancamento(pedaco.id, pedaco.versao)).ok).toBe(true);
+
+    const visiveis = await prisma.parcela.findMany({
+      where: { lancamento: { deletadoEm: null } },
+      orderBy: { numero: 'asc' },
+    });
+    expect(visiveis.map((p) => p.numero)).toEqual([1, 2, 3]);
+  });
+
+  it('so esta no meio passa mesmo com um mes travado nas parcelas de depois, que so mudam de dono', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 4, competenciaManual: '2026-10' });
+    const antes = await linhasDe(id);
+    await travarFatura('2027-01');
+
+    const resultado = await editarLancamento(
+      id,
+      1,
+      { ...entrada(), numeroParcelas: 4, valorCentavos: 2650 },
+      'SO_ESTA',
+      2,
+    );
+
+    expect(resultado).toEqual({ ok: true });
+    const depois = await prisma.lancamento.findFirstOrThrow({ where: { parcelaInicial: 3 } });
+    const linhas = await linhasDe(depois.id);
+    expect(linhas.map((p) => p.id)).toEqual(antes.slice(2).map((p) => p.id));
+    expect(linhas.map((p) => p.valorCentavos)).toEqual([2500, 2500]);
+    expect(linhas.map((p) => p.competencia)).toEqual(['2026-12', '2027-01']);
+  });
+
+  it('so esta na primeira parcela: o original fica com as de depois, sem mudar de id', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 3, competenciaManual: '2026-10' });
+    const antes = await linhasDe(id);
+
+    const resultado = await editarLancamento(
+      id,
+      1,
+      { ...entrada(), numeroParcelas: 3, valorCentavos: 2650 },
+      'SO_ESTA',
+      1,
+    );
+
+    expect(resultado).toEqual({ ok: true });
+    const original = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    expect(original).toMatchObject({ parcelaInicial: 2, parcelaFinal: null });
+    expect((await linhasDe(id)).map((p) => p.id)).toEqual(antes.slice(1).map((p) => p.id));
+    const outro = await prisma.lancamento.findFirstOrThrow({ where: { id: { not: id } } });
+    expect(outro).toMatchObject({ parcelaInicial: 1, parcelaFinal: 1 });
+    const linhas = await linhasDe(outro.id);
+    expect(linhas.map((p) => [p.numero, p.valorCentavos, p.competencia])).toEqual([[1, 2650, '2026-10']]);
+  });
 });
