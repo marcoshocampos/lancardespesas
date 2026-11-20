@@ -183,6 +183,7 @@ export function GradeLancamentos({
                 grupo={grupo}
                 colSpan={CABECALHOS.length}
                 competencia={competencia}
+                travadas={travadas}
                 categorias={categorias}
                 destaque={destaque}
                 onEditar={(linha) => setEstado({ modo: 'editar', linha })}

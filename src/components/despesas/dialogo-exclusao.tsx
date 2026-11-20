@@ -16,38 +16,39 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { avancarCompetencia, formatarCompetencia } from '@/domain/competencia';
+import { alcanceDaFaixa, type Alcance } from '@/domain/divisao';
+import type { Faixa } from '@/domain/parcelamento';
+import { descreverTrava, type FaturaTravada } from '@/domain/trava';
 import { acaoExcluirLancamento } from '@/server/actions/lancamento';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
+import { alcanceInicial, faixaDaLinha, opcoesDeAlcance, temAlcance, travaDoAlcance } from './alcance-da-linha';
+import { ControleAlcance } from './controle-alcance';
 
 /**
- * A grade mostra a PARCELA (`3/12`), mas excluir age no lancamento inteiro — as
- * doze parcelas. A pessoa que ve so a linha "3/12" nao tem como adivinhar isso,
- * entao a confirmacao precisa soletrar quantas parcelas somem e em qual faixa de
- * competencia. `linha.numero` e `linha.numeroParcelas` dizem "sou a 3a de 12"; a
- * `competenciaDaLinha` (a competencia atual da grade, onde esta parcela caiu) mais
- * `avancarCompetencia` bastam para achar a primeira e a ultima sem nova consulta.
- *
- * Movida de `secao-pessoa.tsx` (era ali que o confirm nativo do navegador
- * vivia) para perto do dialogo que agora a mostra — o texto que ela produz
- * nao mudou uma virgula.
+ * A grade mostra a PARCELA (`3/12`), mas excluir age sobre o alcance escolhido
+ * — uma parcela, ela e as seguintes, ou todas. A confirmacao soletra quais
+ * parcelas somem e em qual faixa de meses: a `competencia` da grade e a da
+ * parcela clicada, e `avancarCompetencia` acha as pontas sem nova consulta.
  */
-function mensagemExclusao(linha: LinhaGrade, competenciaDaLinha: string): string {
-  if (linha.numeroParcelas <= 1) {
-    return `Excluir "${linha.descricao}"? Essa ação não pode ser desfeita por aqui.`;
-  }
+function mensagemExclusao(linha: LinhaGrade, competencia: string, alvo: Faixa): string {
+  const fim = 'Essa ação não pode ser desfeita por aqui.';
+  if (linha.numeroParcelas <= 1) return `Excluir "${linha.descricao}"? ${fim}`;
 
-  const primeira = avancarCompetencia(competenciaDaLinha, -(linha.numero - 1));
-  const ultima = avancarCompetencia(competenciaDaLinha, linha.numeroParcelas - linha.numero);
+  const primeira = formatarCompetencia(avancarCompetencia(competencia, alvo.inicial - linha.numero));
+  if (alvo.inicial === alvo.final) {
+    return `Excluir a parcela ${alvo.inicial} de "${linha.descricao}", de ${primeira}. ${fim}`;
+  }
+  const ultima = formatarCompetencia(avancarCompetencia(competencia, alvo.final - linha.numero));
   return (
-    `Excluir "${linha.descricao}" remove as ${linha.numeroParcelas} parcelas, ` +
-    `de ${formatarCompetencia(primeira)} a ${formatarCompetencia(ultima)}. ` +
-    'Essa ação não pode ser desfeita por aqui.'
+    `Excluir "${linha.descricao}" remove as parcelas ${alvo.inicial} a ${alvo.final}, ` +
+    `de ${primeira} a ${ultima}. ${fim}`
   );
 }
 
 type Props = {
   linha: LinhaGrade;
   competencia: string;
+  travadas: readonly FaturaTravada[];
 };
 
 /**
@@ -62,10 +63,17 @@ type Props = {
  * botao de confirmar exclusao e a unica excecao — aqui, e so aqui, e o momento
  * em que a acao destrutiva de fato acontece.
  */
-export function DialogoExclusao({ linha, competencia }: Props) {
+export function DialogoExclusao({ linha, competencia, travadas }: Props) {
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
+
+  const opcoes = opcoesDeAlcance(linha, competencia, travadas);
+  const padrao = (): Alcance => (temAlcance(linha) ? (alcanceInicial(opcoes) ?? 'SO_ESTA') : 'TODAS');
+  const [alcance, setAlcance] = useState<Alcance>(padrao);
+  /** O mes da propria linha esta travado: nenhum alcance sai daqui. */
+  const travaDaLinha = travaDoAlcance(linha, competencia, travadas, 'SO_ESTA');
+  const alvo = alcanceDaFaixa(faixaDaLinha(linha), linha.numero, alcance);
 
   // Mesmo padrao de `painel-lancamento.tsx` (`PainelLancamento`, achado 1 da
   // revisao de bc54df3): Esc e o Cancelar pedem fechar via `onOpenChange`
@@ -76,6 +84,8 @@ export function DialogoExclusao({ linha, competencia }: Props) {
   function aoMudarAberto(novoAberto: boolean) {
     if (!novoAberto && pendente) return;
     setAberto(novoAberto);
+    // O dialogo fica montado com a linha, e as travadas podem ter mudado desde a ultima abertura.
+    if (novoAberto) setAlcance(padrao());
     if (!novoAberto) setErro(null);
   }
 
@@ -87,21 +97,24 @@ export function DialogoExclusao({ linha, competencia }: Props) {
     setErro(null);
     iniciar(async () => {
       try {
-        const resultado = await acaoExcluirLancamento(linha.lancamentoId, linha.versao);
+        const resultado = await acaoExcluirLancamento(linha.lancamentoId, linha.versao, alcance, linha.numero);
         if (!resultado.ok) {
           setErro(
             resultado.motivo === 'FATURA_TRAVADA'
-              ? 'Esse mês já está fechado. Destrave a fatura para excluir.'
+              ? descreverTrava(resultado.travada)
               : 'Alguém alterou esse lançamento antes. Atualize a página e tente de novo.',
           );
           return;
         }
         setAberto(false);
-        const mensagem =
+        const quantas = alvo.final - alvo.inicial + 1;
+        toast.success(
           linha.numeroParcelas <= 1
             ? 'Lançamento excluído'
-            : `${linha.numeroParcelas} parcelas excluídas`;
-        toast.success(mensagem);
+            : quantas === 1
+              ? 'Parcela excluída'
+              : `${quantas} parcelas excluídas`,
+        );
       } catch (e) {
         setErro(e instanceof Error ? e.message : 'Não foi possível excluir.');
       }
@@ -123,8 +136,23 @@ export function DialogoExclusao({ linha, competencia }: Props) {
       >
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
-          <AlertDialogDescription>{mensagemExclusao(linha, competencia)}</AlertDialogDescription>
+          <AlertDialogDescription>{mensagemExclusao(linha, competencia, alvo)}</AlertDialogDescription>
         </AlertDialogHeader>
+        {travaDaLinha ? (
+          <p role="alert" className="rounded-caixa border border-atencao bg-atencao-fundo p-3 text-sm text-atencao">
+            {descreverTrava(travaDaLinha)}
+          </p>
+        ) : (
+          temAlcance(linha) && (
+            <ControleAlcance
+              nome={`alcance-exclusao-${linha.parcelaId}`}
+              valor={alcance}
+              opcoes={opcoes}
+              onMudar={setAlcance}
+              desabilitado={pendente}
+            />
+          )
+        )}
         {erro && (
           <p role="alert" className="text-sm text-negativo">
             {erro}
@@ -134,7 +162,7 @@ export function DialogoExclusao({ linha, competencia }: Props) {
           <AlertDialogCancel disabled={pendente}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            disabled={pendente}
+            disabled={pendente || travaDaLinha !== null}
             onClick={(evento) => {
               evento.preventDefault();
               excluir();
