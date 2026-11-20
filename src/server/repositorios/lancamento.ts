@@ -3,8 +3,10 @@ import {
   colunasDaFaixa,
   faixaDoLancamento,
   faixaEscrita,
+  limitesDeParcelas,
   planejarDivisao,
   type Alcance,
+  type LimitesDeParcelas,
 } from '@/domain/divisao';
 import { gerarParcelas, type Faixa, type ParcelaGerada } from '@/domain/parcelamento';
 import { pesosMeioAMeio } from '@/domain/rateio';
@@ -65,6 +67,15 @@ export type ResultadoGravacao =
   | { ok: true }
   | RecusaTravada
   | { ok: false; motivo: 'CONFLITO'; atual?: unknown };
+
+/**
+ * A recusa de um total de parcelas que o alcance nao comporta, com os limites
+ * aceitos — ver `limitesDeParcelas`. So editar devolve: e a unica gravacao que
+ * muda o total.
+ */
+export type RecusaTotal = { ok: false; motivo: 'TOTAL_INVALIDO' } & LimitesDeParcelas;
+
+export type ResultadoEdicao = ResultadoGravacao | RecusaTotal;
 
 export type ResultadoCriacao = { ok: true; id: string } | RecusaTravada;
 
@@ -385,8 +396,8 @@ export async function editarLancamento(
   entrada: EntradaLancamento,
   alcance: Alcance = 'TODAS',
   numero?: number,
-): Promise<ResultadoGravacao> {
-  return prisma.$transaction(async (tx) => {
+): Promise<ResultadoEdicao> {
+  return prisma.$transaction(async (tx): Promise<ResultadoEdicao> => {
     const original = await lerOriginal(tx, id);
     if (!original || original.deletadoEm !== null || original.versao !== versao) {
       return conflito(tx, id);
@@ -402,12 +413,16 @@ export async function editarLancamento(
     }
 
     const efetiva = alcance === 'SO_ESTA' ? soOValor(original, k, entrada.valorCentavos) : entrada;
+    // Recusa tratavel, e nao throw: um total fora dos limites pode chegar de
+    // uma tela velha, e o throw virava um 500 sem dizer o que estava errado.
+    // Antes de qualquer escrita, entao nao ha o que desfazer.
     const faixaNova = faixaEscrita(plano.alcance, original.numeroParcelas, efetiva.numeroParcelas);
     if (!faixaNova) {
-      throw new Error(
-        `Total de ${efetiva.numeroParcelas} parcelas nao comporta as parcelas ` +
-          `${plano.alcance.inicial} a ${plano.alcance.final}`,
-      );
+      return {
+        ok: false,
+        motivo: 'TOTAL_INVALIDO',
+        ...limitesDeParcelas(plano.alcance, original.numeroParcelas),
+      };
     }
     const competenciaBase = await competenciaBaseDe(tx, efetiva);
     const saem = original.parcelas.filter((p) => dentro(plano.alcance, p.numero));

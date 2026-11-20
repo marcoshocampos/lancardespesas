@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALCANCES,
+  MAXIMO_DE_PARCELAS,
   alcanceDaFaixa,
   colunasDaFaixa,
+  descreverLimitesDeParcelas,
   faixaDoLancamento,
   faixaEscrita,
-  minimoDeParcelas,
+  limitesDeParcelas,
   parcelasDaFaixa,
   planejarDivisao,
   rotuloDaFaixa,
@@ -102,7 +104,7 @@ describe('planejarDivisao', () => {
   });
 });
 
-describe('faixaEscrita e minimoDeParcelas', () => {
+describe('faixaEscrita e limitesDeParcelas', () => {
   it('o alcance que vai ate a ultima acompanha o total novo', () => {
     expect(faixaEscrita({ inicial: 4, final: 12 }, 12, 15)).toEqual({ inicial: 4, final: 15 });
     expect(faixaEscrita({ inicial: 4, final: 12 }, 12, 4)).toEqual({ inicial: 4, final: 4 });
@@ -110,13 +112,48 @@ describe('faixaEscrita e minimoDeParcelas', () => {
 
   it('total novo menor que a parcela editada nao comporta', () => {
     expect(faixaEscrita({ inicial: 4, final: 12 }, 12, 3)).toBeNull();
-    expect(minimoDeParcelas({ inicial: 4, final: 12 }, 12)).toBe(4);
+    expect(limitesDeParcelas({ inicial: 4, final: 12 }, 12)).toEqual({
+      minimo: 4,
+      maximo: MAXIMO_DE_PARCELAS,
+    });
   });
 
-  it('alcance que para antes da ultima nao se mexe, e exige o total ate ele', () => {
+  it('alcance que para antes da ultima nao se mexe, e so aceita o mesmo total', () => {
     expect(faixaEscrita({ inicial: 4, final: 4 }, 12, 12)).toEqual({ inicial: 4, final: 4 });
+    expect(faixaEscrita({ inicial: 1, final: 3 }, 12, 12)).toEqual({ inicial: 1, final: 3 });
     expect(faixaEscrita({ inicial: 1, final: 3 }, 12, 2)).toBeNull();
-    expect(minimoDeParcelas({ inicial: 1, final: 3 }, 12)).toBe(3);
+    expect(limitesDeParcelas({ inicial: 1, final: 3 }, 12)).toEqual({ minimo: 12, maximo: 12 });
+  });
+
+  it('pedaco que nao chega a ultima nao sobe o total, senao passaria a cobrir as do vizinho', () => {
+    // O pedaco [1..3] de 12 com total 13 viraria [1..3] de 13 — e um total
+    // mudado nele faz a faixa parecer chegar ao fim.
+    expect(faixaEscrita({ inicial: 1, final: 3 }, 12, 13)).toBeNull();
+  });
+
+  it('pedaco que nao chega a ultima nao baixa o total ate a propria ponta', () => {
+    // O defeito: [1..2] de 12 com total 2 gravava parcelaFinal nulo, e o
+    // pedaco passava a parecer o ultimo. Subir o total depois regerava 3..12,
+    // que ja eram de outro lancamento.
+    expect(faixaEscrita({ inicial: 1, final: 2 }, 12, 2)).toBeNull();
+  });
+
+  it('nao passa do maximo de parcelas', () => {
+    expect(faixaEscrita({ inicial: 4, final: 12 }, 12, MAXIMO_DE_PARCELAS + 1)).toBeNull();
+  });
+});
+
+describe('descreverLimitesDeParcelas', () => {
+  it('diz que o total fica onde esta quando so um total cabe', () => {
+    expect(descreverLimitesDeParcelas({ minimo: 12, maximo: 12 })).toBe(
+      'Nesta parte da compra, o total tem que continuar em 12 parcelas.',
+    );
+  });
+
+  it('da a faixa aceita quando o total pode mudar', () => {
+    expect(descreverLimitesDeParcelas({ minimo: 4, maximo: 72 })).toBe(
+      'O total de parcelas tem que ficar entre 4 e 72.',
+    );
   });
 });
 

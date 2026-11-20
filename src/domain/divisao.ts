@@ -76,22 +76,52 @@ export function planejarDivisao(faixa: Faixa, numero: number, alcance: Alcance):
   return { tipo: 'NO_LUGAR', alcance: alvo };
 }
 
+/** O maior parcelamento que o sistema aceita: o `max` do campo e o do esquema da action. */
+export const MAXIMO_DE_PARCELAS = 72;
+
+/** Os totais de parcelas que uma edicao pode gravar, inclusive nas duas pontas. */
+export type LimitesDeParcelas = { minimo: number; maximo: number };
+
+/**
+ * Os totais que `faixaEscrita` aceita para este alcance: o `min` e o `max` do
+ * campo Parcelas, e o que a recusa do servidor devolve.
+ *
+ * **So o alcance que chega a ultima parcela da compra muda o total.** Os
+ * pedacos de uma compra nao se sobrepoem, e quem garante isso e esta regra.
+ * Um pedaco que para antes — o de antes de uma divisao, ou o que ficou depois
+ * de excluir as seguintes — tem as parcelas seguintes em outro lancamento,
+ * vivo ou na lixeira. Baixar o total dele ate a propria ponta gravava
+ * `parcelaFinal` nulo, e o pedaco passava a parecer o ultimo: subir o total de
+ * novo regerava parcelas que eram do vizinho. Nenhum indice pega, porque sao
+ * lancamentos diferentes (armadilha 25 de `docs/arquitetura.md`).
+ */
+export function limitesDeParcelas(alcance: Faixa, totalAntigo: number): LimitesDeParcelas {
+  if (alcance.final !== totalAntigo) return { minimo: totalAntigo, maximo: totalAntigo };
+  return { minimo: alcance.inicial, maximo: MAXIMO_DE_PARCELAS };
+}
+
 /**
  * A faixa que o pedaco reescrito ocupa depois da edicao, com o total novo.
  *
  * Se o alcance ia ate a ultima parcela, ele acompanha o total novo — e assim
- * que "esta e as seguintes" renegocia o resto. Se parava antes, a ponta fica
- * onde estava. `null` quando o total novo nao comporta o alcance.
+ * que "esta e as seguintes" renegocia o resto. Se parava antes, nada muda: a
+ * ponta fica onde estava, e o total tambem (ver `limitesDeParcelas`). `null`
+ * quando o total novo esta fora dos limites.
  */
 export function faixaEscrita(alcance: Faixa, totalAntigo: number, totalNovo: number): Faixa | null {
-  const final = alcance.final === totalAntigo ? totalNovo : alcance.final;
-  if (final < alcance.inicial || final > totalNovo) return null;
-  return { inicial: alcance.inicial, final };
+  const { minimo, maximo } = limitesDeParcelas(alcance, totalAntigo);
+  if (!Number.isInteger(totalNovo) || totalNovo < minimo || totalNovo > maximo) return null;
+  return { inicial: alcance.inicial, final: alcance.final === totalAntigo ? totalNovo : alcance.final };
 }
 
-/** O menor total de parcelas que `faixaEscrita` aceita para este alcance: o `min` do campo. */
-export function minimoDeParcelas(alcance: Faixa, totalAntigo: number): number {
-  return alcance.final === totalAntigo ? alcance.inicial : alcance.final;
+/**
+ * A frase da recusa de um total fora dos limites. Com os dois limites iguais
+ * ela nao diz o porque: o caso comum e o pedaco que para antes da ultima, mas
+ * uma compra de `MAXIMO_DE_PARCELAS` editada na ultima parcela da o mesmo par.
+ */
+export function descreverLimitesDeParcelas({ minimo, maximo }: LimitesDeParcelas): string {
+  if (minimo === maximo) return `Nesta parte da compra, o total tem que continuar em ${minimo} parcelas.`;
+  return `O total de parcelas tem que ficar entre ${minimo} e ${maximo}.`;
 }
 
 /** As parcelas de uma faixa e o mes de cada uma, a partir de uma parcela conhecida. */

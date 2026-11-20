@@ -829,6 +829,74 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     expect(novo.parcelas.map((p) => p.numero)).toEqual([3, 4, 5, 6]);
   });
 
+  /** O numero de cada parcela de lancamento vivo, em ordem: repetido e parcela em dois pedacos. */
+  const numerosVivos = async () =>
+    (
+      await prisma.parcela.findMany({
+        where: { lancamento: { deletadoEm: null } },
+        orderBy: { numero: 'asc' },
+        select: { numero: true },
+      })
+    ).map((p) => p.numero);
+
+  const versaoDe = async (id: string) =>
+    (await prisma.lancamento.findUniqueOrThrow({ where: { id } })).versao;
+
+  const doze = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  it('o pedaco de antes nao muda o total, e nenhuma parcela fica em dois lancamentos', async () => {
+    const doze12 = { ...entrada(), numeroParcelas: 12, competenciaManual: '2026-10' };
+    const id = await criarOk(doze12);
+
+    // 1. Esta e as seguintes na 3: o original fica [1..2] de 12, e nasce [3..12].
+    expect((await editarLancamento(id, 1, { ...doze12, valorCentavos: 3000 }, 'ESTA_E_SEGUINTES', 3)).ok).toBe(
+      true,
+    );
+    // 2. Todas no pedaco de antes, baixando o total ate a ponta dele.
+    const baixar = await editarLancamento(id, await versaoDe(id), { ...doze12, numeroParcelas: 2 }, 'TODAS', 1);
+    // 3. Todas de novo, subindo o total de volta. Era aqui que [1..2] regerava
+    //    3..12, que ja eram do outro pedaco.
+    await editarLancamento(id, await versaoDe(id), doze12, 'TODAS', 1);
+
+    expect(await numerosVivos()).toEqual(doze);
+    expect(baixar).toEqual({ ok: false, motivo: 'TOTAL_INVALIDO', minimo: 12, maximo: 12 });
+    expect(await prisma.lancamento.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      parcelaInicial: 1,
+      parcelaFinal: 2,
+      numeroParcelas: 12,
+    });
+  });
+
+  it('depois de excluir da 10 em diante, o pedaco que ficou nao muda o total, e restaurar nao duplica', async () => {
+    const doze12 = { ...entrada(), numeroParcelas: 12, competenciaManual: '2026-10' };
+    const id = await criarOk(doze12);
+    expect((await excluirLancamento(id, 1, 'ESTA_E_SEGUINTES', 10)).ok).toBe(true);
+
+    const baixar = await editarLancamento(id, await versaoDe(id), { ...doze12, numeroParcelas: 9 }, 'TODAS', 1);
+    await editarLancamento(id, await versaoDe(id), doze12, 'TODAS', 1);
+    const pedaco = await prisma.lancamento.findFirstOrThrow({ where: { deletadoEm: { not: null } } });
+    expect((await restaurarLancamento(pedaco.id, pedaco.versao)).ok).toBe(true);
+
+    expect(await numerosVivos()).toEqual(doze);
+    expect(baixar).toEqual({ ok: false, motivo: 'TOTAL_INVALIDO', minimo: 12, maximo: 12 });
+  });
+
+  it('recusa total que o alcance nao comporta sem gravar nada', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 6, competenciaManual: '2026-10' });
+
+    const resultado = await editarLancamento(
+      id,
+      1,
+      { ...entrada(), numeroParcelas: 3, competenciaManual: '2026-10' },
+      'ESTA_E_SEGUINTES',
+      4,
+    );
+
+    expect(resultado).toEqual({ ok: false, motivo: 'TOTAL_INVALIDO', minimo: 4, maximo: 72 });
+    expect(await prisma.lancamento.count()).toBe(1);
+    expect(await versaoDe(id)).toBe(1);
+  });
+
   it('recusa dividir lancamento de valor total', async () => {
     const id = await criarOk({
       ...entrada(),

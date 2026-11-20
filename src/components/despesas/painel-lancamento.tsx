@@ -28,7 +28,14 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { formatarCompetencia, mesesAoRedor } from '@/domain/competencia';
-import { alcanceDaFaixa, minimoDeParcelas, type Alcance } from '@/domain/divisao';
+import {
+  MAXIMO_DE_PARCELAS,
+  alcanceDaFaixa,
+  descreverLimitesDeParcelas,
+  limitesDeParcelas,
+  type Alcance,
+  type LimitesDeParcelas,
+} from '@/domain/divisao';
 import {
   RAIO_DA_FATURA,
   competenciasTravadasDaConta,
@@ -319,12 +326,22 @@ function Formulario({
     ? divergenciaDaData(dataCompra, contaEscolhida, fatura, numeroDaFatura)
     : null;
   const aviso = pelaData && contaEscolhida ? avisoDaData(pelaData, numeroDaFatura, contaEscolhida) : null;
-  const minimoParcelas = editando
-    ? minimoDeParcelas(
-        alcanceDaFaixa(faixaDaLinha(editando.linha), editando.linha.numero, alcance),
-        editando.linha.numeroParcelas,
-      )
-    : 1;
+  // As parcelas que o alcance escolhido reescreve, e os totais que elas
+  // aceitam. Um pedaco que para antes da ultima parcela da compra nao muda o
+  // total: as seguintes estao em outro lancamento (ver `limitesDeParcelas`).
+  const alvo = editando ? alcanceDaFaixa(faixaDaLinha(editando.linha), editando.linha.numero, alcance) : null;
+  const limitesParcelas: LimitesDeParcelas =
+    editando && alvo
+      ? limitesDeParcelas(alvo, editando.linha.numeroParcelas)
+      : { minimo: 1, maximo: MAXIMO_DE_PARCELAS };
+  const totalFixo = limitesParcelas.minimo === limitesParcelas.maximo;
+  /** O campo Parcelas nao muda nada: em "so esta", ou com o total fixo. */
+  const parcelasBloqueadas = soValor || totalFixo;
+  /** Por que o total esta fixo, quando e por haver parcelas em outro lancamento. */
+  const motivoTotalFixo =
+    editando && alvo && !soValor && alvo.final !== editando.linha.numeroParcelas
+      ? `O total fica em ${editando.linha.numeroParcelas}: as parcelas depois da ${alvo.final} estão em outro lançamento.`
+      : null;
 
   // ATENCAO, terceiro caso da mesma familia, hoje inalcancavel: `membros` chega
   // so com os ativos (`where: { ativo: true }` em `despesas/page.tsx`), e
@@ -386,7 +403,12 @@ function Formulario({
             descricao: String(dados.get('descricao') ?? ''),
             valorCentavos,
             dataCompra: String(dados.get('dataCompra') ?? ''),
-            numeroParcelas: Number(dados.get('numeroParcelas') ?? 1),
+            // Campo desabilitado nao vai no FormData: com o total fixo, quem
+            // diz o total e a propria linha, e nao o `?? 1` de baixo.
+            numeroParcelas:
+              totalFixo && editando
+                ? editando.linha.numeroParcelas
+                : Number(dados.get('numeroParcelas') ?? 1),
             escopo: escopo === 'CONJUNTO' ? 'CONJUNTO' : 'PESSOAL',
             contaId: String(dados.get('contaId') ?? ''),
             categoriaId,
@@ -457,6 +479,10 @@ function Formulario({
           // branco (ver o comentario de `enviar`). (comportamento 1)
           if (resultado.motivo === 'FATURA_TRAVADA') {
             setErro(descreverTrava(resultado.travada));
+          } else if (resultado.motivo === 'TOTAL_INVALIDO') {
+            // O campo ja limita o total; chegar aqui e tela velha, com a
+            // faixa do lancamento mudada por outra edicao.
+            setErro(descreverLimitesDeParcelas(resultado));
           } else {
             setErro(
               'Alguém salvou uma mudança nesse lançamento enquanto você editava. ' +
@@ -564,16 +590,26 @@ function Formulario({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="campo-parcelas">Parcelas</Label>
+            {/* O `key` remonta o campo ao bloquear: desabilitado, ele tem que
+                mostrar o total que vai ser gravado, e nao o que foi digitado
+                num alcance anterior. */}
             <Input
+              key={parcelasBloqueadas ? 'parcelas-fixas' : 'parcelas-livres'}
               id="campo-parcelas"
               name="numeroParcelas"
               type="number"
-              min={minimoParcelas}
-              max={72}
+              min={limitesParcelas.minimo}
+              max={limitesParcelas.maximo}
               defaultValue={editando?.linha.numeroParcelas ?? 1}
-              disabled={soValor}
+              disabled={parcelasBloqueadas}
+              aria-describedby={motivoTotalFixo ? 'ajuda-parcelas' : undefined}
               onChange={(evento) => setNumeroParcelas(Number(evento.target.value))}
             />
+            {motivoTotalFixo && (
+              <p id="ajuda-parcelas" className="text-xs text-tinta-fraca">
+                {motivoTotalFixo}
+              </p>
+            )}
           </div>
         </div>
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { competenciaBaseDaFatura } from '@/domain/competencia';
+import { MAXIMO_DE_PARCELAS } from '@/domain/divisao';
 import { auth } from '../auth';
 import {
   type EntradaLancamento,
@@ -19,7 +20,7 @@ const esquema = z
     valorCentavos: z.number().int('Valor deve ser inteiro em centavos'),
     origemValor: z.enum(['POR_PARCELA', 'TOTAL']),
     dataCompra: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data deve ser AAAA-MM-DD'),
-    numeroParcelas: z.number().int().min(1).max(72),
+    numeroParcelas: z.number().int().min(1).max(MAXIMO_DE_PARCELAS),
     escopo: z.enum(['PESSOAL', 'CONJUNTO']),
     contaId: z.string().min(1),
     categoriaId: z.string().min(1),
@@ -32,7 +33,7 @@ const esquema = z
      * ve a Fatura. Sem ela, a competencia sai da data, como sempre.
      */
     fatura: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-    parcelaInicial: z.number().int().min(1).max(72).optional(),
+    parcelaInicial: z.number().int().min(1).max(MAXIMO_DE_PARCELAS).optional(),
   })
   .refine((d) => (d.parcelaInicial ?? 1) <= d.numeroParcelas, {
     message: 'A parcela inicial passa do número de parcelas',
@@ -40,7 +41,7 @@ const esquema = z
   });
 
 const esquemaAlcance = z.enum(['SO_ESTA', 'ESTA_E_SEGUINTES', 'TODAS']);
-const esquemaNumero = z.number().int().min(1).max(72);
+const esquemaNumero = z.number().int().min(1).max(MAXIMO_DE_PARCELAS);
 
 /** Troca a Fatura da parcela `numero` pela competencia base que o repositorio grava. */
 function paraEntrada(dados: z.infer<typeof esquema>, numero: number): EntradaLancamento {
