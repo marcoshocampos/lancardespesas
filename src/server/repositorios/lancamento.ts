@@ -1,6 +1,16 @@
-import { competenciaDeCartao, competenciaDeContaExterna } from '@/domain/competencia';
-import { gerarParcelas } from '@/domain/parcelamento';
+import { avancarCompetencia, competenciaDeCartao, competenciaDeContaExterna } from '@/domain/competencia';
+import {
+  colunasDaFaixa,
+  faixaDoLancamento,
+  faixaEscrita,
+  limitesDeParcelas,
+  planejarDivisao,
+  type Alcance,
+  type LimitesDeParcelas,
+} from '@/domain/divisao';
+import { gerarParcelas, type Faixa, type ParcelaGerada } from '@/domain/parcelamento';
 import { pesosMeioAMeio } from '@/domain/rateio';
+import { acharTrava, type ParcelaAlvo, type Trava } from '@/domain/trava';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../db';
 
@@ -9,8 +19,9 @@ import { prisma } from '../db';
  * uma transacao. Todo helper daqui recebe um, em vez de fechar sobre o
  * `prisma` global: e o que permite as gravacoes rodarem como uma coisa so.
  *
- * Sem isto, uma falha no meio de `gravarFilhos` deixava lancamento sem parcela
- * nenhuma — ele desaparecia da grade e continuava existindo no banco.
+ * Sem isto, uma falha no meio da transacao de edicao (`gravarParcelas` e
+ * `gravarRateio`) deixava lancamento sem parcela nenhuma — ele desaparecia da
+ * grade e continuava existindo no banco.
  */
 type ClienteBanco = Prisma.TransactionClient;
 
@@ -25,6 +36,13 @@ export type EntradaLancamento = {
   categoriaId: string;
   membroId?: string | undefined;
   competenciaManual?: string | undefined;
+  /**
+   * A primeira parcela que o lancamento grava; padrao 1. E para lancar a
+   * compra antiga que so agora apareceu: com 3 de 6, grava as parcelas 3 a 6,
+   * e a 1 e a 2 nao existem. So `criarLancamento` le — na edicao, a faixa vem
+   * do proprio lancamento.
+   */
+  parcelaInicial?: number | undefined;
   /** Alguem de fora vai devolver: fica na fatura, sai do gasto do casal. */
   ehReembolso?: boolean | undefined;
   /** Quem vai devolver. So faz sentido com `ehReembolso`. */
@@ -42,11 +60,24 @@ export type EntradaLancamento = {
   competenciaRecorrente?: string | undefined;
 };
 
+/** A recusa da trava diz qual parcela, em que mes e de que conta — ver `descreverTrava`. */
+export type RecusaTravada = { ok: false; motivo: 'FATURA_TRAVADA'; travada: Trava };
+
 export type ResultadoGravacao =
   | { ok: true }
-  | { ok: false; motivo: 'CONFLITO' | 'FATURA_TRAVADA'; atual?: unknown };
+  | RecusaTravada
+  | { ok: false; motivo: 'CONFLITO'; atual?: unknown };
 
-export type ResultadoCriacao = { ok: true; id: string } | { ok: false; motivo: 'FATURA_TRAVADA' };
+/**
+ * A recusa de um total de parcelas que o alcance nao comporta, com os limites
+ * aceitos — ver `limitesDeParcelas`. So editar devolve: e a unica gravacao que
+ * muda o total.
+ */
+export type RecusaTotal = { ok: false; motivo: 'TOTAL_INVALIDO' } & LimitesDeParcelas;
+
+export type ResultadoEdicao = ResultadoGravacao | RecusaTotal;
+
+export type ResultadoCriacao = { ok: true; id: string } | RecusaTravada;
 
 /**
  * Os campos de reembolso, prontos para o Prisma.
@@ -58,8 +89,8 @@ export type ResultadoCriacao = { ok: true; id: string } | { ok: false; motivo: '
  * se alguem religasse a marca.
  *
  * Sempre PENDENTE, nunca RECEBIDO: se ja devolveram e por parcela
- * (`Parcela.reembolsoRecebido`), e quem preserva isso na edicao e
- * `gravarFilhos`.
+ * (`Parcela.reembolsoRecebido`), e quem preserva isso na edicao sao
+ * as marcas que `marcasDe` carrega para `gravarParcelas`.
  */
 function camposDeReembolso(entrada: EntradaLancamento): {
   statusReembolso: 'PENDENTE' | null;
@@ -84,159 +115,294 @@ async function competenciaBaseDe(db: ClienteBanco, entrada: EntradaLancamento): 
   return competenciaDeContaExterna(entrada.dataCompra);
 }
 
-/**
- * As competencias que as parcelas DESTA entrada vao ocupar, se gravada.
- *
- * Recebe a `competenciaBase` em vez de busca-la: `competenciaBaseDe` le a conta
- * no banco, e esta funcao era chamada no mesmo fluxo que `gravarFilhos`, que
- * lia a conta DE NOVO. Duas idas ao Neon para a mesma pergunta, dentro da mesma
- * transacao. Com o parametro, a funcao virou pura de quebra.
- */
-function competenciasDe(entrada: EntradaLancamento, competenciaBase: string): string[] {
-  return gerarParcelas({
+/** Os campos do lancamento que a tela escreve, prontos para o Prisma. */
+function camposGravaveis(entrada: EntradaLancamento) {
+  return {
+    descricao: entrada.descricao,
+    valorCentavos: entrada.valorCentavos,
+    origemValor: entrada.origemValor,
+    dataCompra: entrada.dataCompra,
+    numeroParcelas: entrada.numeroParcelas,
+    escopo: entrada.escopo,
+    contaId: entrada.contaId,
+    categoriaId: entrada.categoriaId,
+    membroId: entrada.escopo === 'PESSOAL' ? (entrada.membroId ?? null) : null,
+    ...camposDeReembolso(entrada),
+  };
+}
+
+function paraParcelamento(entrada: EntradaLancamento, competenciaBase: string) {
+  return {
     valorCentavos: entrada.valorCentavos,
     origem: entrada.origemValor,
     numeroParcelas: entrada.numeroParcelas,
     competenciaBase,
-  }).map((p) => p.competencia);
+  };
 }
 
-/** Ha fatura TRAVADA entre as competencias informadas, nesta conta? */
-async function temFaturaTravada(
+/**
+ * A primeira parcela, entre as informadas, que cai numa fatura TRAVADA desta
+ * conta — com o nome da conta, para a recusa dizer onde esta o problema.
+ *
+ * **Recebe so as parcelas que a operacao apaga ou grava.** A trava congela
+ * parcela, nao lancamento: quando esta barreira olhava o lancamento inteiro,
+ * travar novembro impedia editar dezembro de todo parcelado que passasse por
+ * novembro, e a recusa dizia "esse mes" sem dizer qual.
+ *
+ * Fica dentro da transacao da gravacao, como antes: conferir fora deixava uma
+ * janela em que a outra pessoa travava a fatura entre a verificacao e a escrita.
+ */
+async function travaEntre(
   db: ClienteBanco,
   contaId: string,
-  competencias: string[],
-): Promise<boolean> {
-  if (competencias.length === 0) return false;
-  const travada = await db.fatura.findFirst({
-    where: { status: 'TRAVADA', contaId, competencia: { in: competencias } },
-  });
-  return travada !== null;
-}
+  numeroParcelas: number,
+  parcelas: readonly ParcelaAlvo[],
+): Promise<Trava | null> {
+  if (parcelas.length === 0) return null;
 
-/** Ha fatura TRAVADA nas competencias ONDE AS PARCELAS JA ESTAO GRAVADAS. */
-async function competenciasTravadas(db: ClienteBanco, lancamentoId: string): Promise<boolean> {
-  const parcelas = await db.parcela.findMany({
-    where: { lancamentoId },
-    select: { competencia: true, lancamento: { select: { contaId: true } } },
-  });
-  if (parcelas.length === 0) return false;
-
-  const travada = await db.fatura.findFirst({
+  const travadas = await db.fatura.findMany({
     where: {
       status: 'TRAVADA',
-      OR: parcelas.map((p) => ({
-        contaId: p.lancamento.contaId,
-        competencia: p.competencia,
-      })),
+      contaId,
+      competencia: { in: [...new Set(parcelas.map((p) => p.competencia))] },
     },
+    select: { competencia: true, conta: { select: { nome: true } } },
   });
-  return travada !== null;
+  const achada = acharTrava(parcelas, new Set(travadas.map((f) => f.competencia)));
+  if (!achada) return null;
+
+  // So os quatro campos: `achada` pode ser uma linha inteira do Prisma, e o
+  // resultado viaja ate a tela.
+  return {
+    numero: achada.numero,
+    competencia: achada.competencia,
+    numeroParcelas,
+    contaNome: travadas.find((f) => f.competencia === achada.competencia)?.conta.nome ?? contaId,
+  };
+}
+
+function recusa(travada: Trava): RecusaTravada {
+  return { ok: false, motivo: 'FATURA_TRAVADA', travada };
+}
+
+/** A recusa por versao: devolve o registro como esta agora, para a tela mostrar. */
+async function conflito(db: ClienteBanco, id: string): Promise<ResultadoGravacao> {
+  const atual = await db.lancamento.findUnique({ where: { id } });
+  return { ok: false, motivo: 'CONFLITO', atual };
+}
+
+/** O lancamento com as linhas e o rateio: tudo o que editar, excluir e restaurar leem dele. */
+function lerOriginal(db: ClienteBanco, id: string) {
+  return db.lancamento.findUnique({
+    where: { id },
+    include: { parcelas: { orderBy: { numero: 'asc' } }, rateios: true },
+  });
 }
 
 /**
- * Regrava parcelas e rateios de um lancamento.
- *
- * `recemCriado` existe por custo medido, nao por elegancia. Cada ida ao Neon
- * custa ~45 ms, e um lancamento que acabou de nascer na linha de cima **nao tem
- * filho nenhum**: procurar parcela cancelada para preservar, apagar parcela e
- * apagar rateio sao tres consultas que nao encontram nada. Com a conta lida uma
- * vez so (`competenciaBase` vem pronta), a criacao caiu de 10 consultas para 6,
- * de ~420 ms para ~250 ms.
- *
- * Na EDICAO as tres continuam indispensaveis: ha parcelas velhas para apagar, e
- * o cancelamento precisa sobreviver a regeracao.
- *
- * **Passar `recemCriado: true` para um lancamento que ja existe duplica parcela**
- * — o `createMany` roda sem o `deleteMany` antes. So `criarLancamento` pode
- * passar true, e so porque criou o registro na transacao corrente.
+ * As marcas que uma parcela carrega e que nao podem se perder quando ela e
+ * regerada: cancelada (quitacao antecipada) nao pode "ressuscitar", e parcela
+ * de reembolso ja devolvida nao pode voltar a ser devida. A chave estavel
+ * entre a linha velha e a nova e o numero.
  */
-async function gravarFilhos(
+type Marcas = { cancelados: ReadonlySet<number>; recebidos: ReadonlySet<number> };
+
+const SEM_MARCAS: Marcas = { cancelados: new Set(), recebidos: new Set() };
+
+function marcasDe(
+  linhas: readonly { numero: number; cancelada: boolean; reembolsoRecebido: boolean }[],
+): Marcas {
+  return {
+    cancelados: new Set(linhas.filter((l) => l.cancelada).map((l) => l.numero)),
+    recebidos: new Set(linhas.filter((l) => l.reembolsoRecebido).map((l) => l.numero)),
+  };
+}
+
+/**
+ * Grava parcelas ja geradas. Criar passa `SEM_MARCAS` e nao le nem apaga
+ * nada: um lancamento que acabou de nascer nao tem filho nenhum (cada ida ao
+ * Neon custa ~45 ms, e foi isso que cortou a criacao de 10 consultas para 6).
+ */
+async function gravarParcelas(
   db: ClienteBanco,
   lancamentoId: string,
-  entrada: EntradaLancamento,
-  competenciaBase: string,
-  recemCriado: boolean,
+  parcelas: readonly ParcelaGerada[],
+  ehReembolso: boolean,
+  marcas: Marcas,
 ): Promise<void> {
-  const parcelas = gerarParcelas({
-    valorCentavos: entrada.valorCentavos,
-    origem: entrada.origemValor,
-    numeroParcelas: entrada.numeroParcelas,
-    competenciaBase,
-  });
-
-  // Parcela cancelada (quitacao antecipada) nao pode "ressuscitar", nem
-  // parcela de reembolso ja devolvida voltar a ser devida, so porque o
-  // lancamento foi editado e as parcelas foram recriadas do zero. Preservamos
-  // as duas marcas pelo numero, a chave estavel entre a versao antiga e a nova
-  // (unique com o lancamentoId).
-  const numerosCancelados = new Set<number>();
-  const numerosRecebidos = new Set<number>();
-  if (!recemCriado) {
-    const marcadas = await db.parcela.findMany({
-      where: { lancamentoId, OR: [{ cancelada: true }, { reembolsoRecebido: true }] },
-      select: { numero: true, cancelada: true, reembolsoRecebido: true },
-    });
-    for (const p of marcadas) {
-      if (p.cancelada) numerosCancelados.add(p.numero);
-      if (p.reembolsoRecebido) numerosRecebidos.add(p.numero);
-    }
-
-    await db.parcela.deleteMany({ where: { lancamentoId } });
-  }
-
   await db.parcela.createMany({
     data: parcelas.map((p) => ({
       ...p,
       lancamentoId,
-      cancelada: numerosCancelados.has(p.numero),
+      cancelada: marcas.cancelados.has(p.numero),
       // Desligar a marca de reembolso apaga o recebido, como apaga o devedor:
       // religa-la depois nao pode trazer de volta o estado de outra epoca.
-      reembolsoRecebido: entrada.ehReembolso === true && numerosRecebidos.has(p.numero),
+      reembolsoRecebido: ehReembolso && marcas.recebidos.has(p.numero),
     })),
   });
+}
 
-  if (!recemCriado) await db.rateio.deleteMany({ where: { lancamentoId } });
-  if (entrada.escopo === 'CONJUNTO') {
-    const membros = await db.membro.findMany({
-      where: { ativo: true },
-      orderBy: { criadoEm: 'asc' },
-      select: { id: true },
-    });
-    // Gravamos apenas os percentuais. O valor de cada cota e calculado por
-    // ratear() na leitura, sobre o valor DA PARCELA — ver Tarefa 10.
-    const pesos = pesosMeioAMeio(membros.map((m) => m.id));
+/**
+ * Grava so os percentuais. O valor de cada cota e calculado por `ratear()` na
+ * leitura, sobre o valor DA PARCELA — ver Tarefa 10 da Fase 1.
+ */
+async function gravarRateio(
+  db: ClienteBanco,
+  lancamentoId: string,
+  escopo: 'PESSOAL' | 'CONJUNTO',
+): Promise<void> {
+  if (escopo !== 'CONJUNTO') return;
+  const membros = await db.membro.findMany({
+    where: { ativo: true },
+    orderBy: { criadoEm: 'asc' },
+    select: { id: true },
+  });
+  const pesos = pesosMeioAMeio(membros.map((m) => m.id));
+  await db.rateio.createMany({
+    data: pesos.map((p) => ({ lancamentoId, membroId: p.membroId, percentual: p.percentual })),
+  });
+}
+
+type Original = NonNullable<Awaited<ReturnType<typeof lerOriginal>>>;
+
+function dentro(faixa: Faixa, numero: number): boolean {
+  return numero >= faixa.inicial && numero <= faixa.final;
+}
+
+/**
+ * Tira do original as linhas de `faixa` e as poe num lancamento novo com os
+ * MESMOS campos — mesmo valor, conta, pessoa, categoria e rateio. As linhas so
+ * trocam de `lancamentoId`: id, numero, valor e competencia ficam, e por isso
+ * nao passam pela barreira — nada do que a fatura mostra muda.
+ *
+ * `deletadoEm` preenchido e a exclusao de um pedaco: ele nasce na lixeira, e
+ * a lixeira o restaura como qualquer outro lancamento.
+ *
+ * A marca de recorrente fica com o original: o par (recorrenteId,
+ * competenciaRecorrente) e unico no banco, e copia-la derrubaria a transacao.
+ */
+async function separar(
+  db: ClienteBanco,
+  original: Original,
+  faixa: Faixa,
+  deletadoEm: Date | null,
+): Promise<string> {
+  const pedaco = await db.lancamento.create({
+    data: {
+      descricao: original.descricao,
+      valorCentavos: original.valorCentavos,
+      origemValor: original.origemValor,
+      dataCompra: original.dataCompra,
+      numeroParcelas: original.numeroParcelas,
+      escopo: original.escopo,
+      meioPagamento: original.meioPagamento,
+      devedorNome: original.devedorNome,
+      statusReembolso: original.statusReembolso,
+      contaId: original.contaId,
+      categoriaId: original.categoriaId,
+      membroId: original.membroId,
+      deletadoEm,
+      ...colunasDaFaixa(faixa, original.numeroParcelas),
+    },
+  });
+  await db.parcela.updateMany({
+    where: { lancamentoId: original.id, numero: { gte: faixa.inicial, lte: faixa.final } },
+    data: { lancamentoId: pedaco.id },
+  });
+  if (original.rateios.length > 0) {
     await db.rateio.createMany({
-      data: pesos.map((p) => ({ lancamentoId, membroId: p.membroId, percentual: p.percentual })),
+      data: original.rateios.map((r) => ({
+        lancamentoId: pedaco.id,
+        membroId: r.membroId,
+        percentual: r.percentual,
+      })),
     });
   }
+  return pedaco.id;
+}
+
+type LinhaComparavel = { numero: number; valorCentavos: number; competencia: string };
+
+/**
+ * A edicao de parte de um parcelado nao muda nada: os campos que gravaria sao
+ * os do original, a faixa reescrita e o proprio alcance, e as linhas que
+ * entrariam sao as que sairiam, numero a numero, no valor e no mes.
+ *
+ * Existe porque dividir nao tem volta — nao ha como juntar os pedacos. Sem
+ * isto, abrir uma parcela do meio e clicar Salvar deixava tres lancamentos, e
+ * "esta e as seguintes", dois, com os mesmos dados de antes.
+ *
+ * Compara todo campo que `camposGravaveis` escreve, e nao uma lista a parte:
+ * campo novo ali entra na comparacao sem ninguem lembrar. Em "so esta" tudo
+ * vem do original, e a conta se reduz ao valor.
+ */
+function semMudanca(
+  original: Original,
+  efetiva: EntradaLancamento,
+  alcance: Faixa,
+  faixaNova: Faixa,
+  saem: readonly LinhaComparavel[],
+  entram: readonly LinhaComparavel[],
+): boolean {
+  if (faixaNova.inicial !== alcance.inicial || faixaNova.final !== alcance.final) return false;
+
+  const campos = camposGravaveis(efetiva);
+  const chaves = Object.keys(campos) as (keyof typeof campos)[];
+  if (!chaves.every((chave) => campos[chave] === original[chave])) return false;
+
+  return (
+    saem.length === entram.length &&
+    saem.every((linha, i) => {
+      const nova = entram[i];
+      return (
+        nova !== undefined &&
+        nova.numero === linha.numero &&
+        nova.valorCentavos === linha.valorCentavos &&
+        nova.competencia === linha.competencia
+      );
+    })
+  );
+}
+
+/**
+ * "So esta": a tela so pode mudar o valor. Todo o resto vem do original — a
+ * Fatura tambem, recalculada da propria linha —, entao a tela nao consegue
+ * forjar outra mudanca mandando campos a mais.
+ */
+function soOValor(original: Original, numero: number, valorCentavos: number): EntradaLancamento {
+  const linha = original.parcelas.find((p) => p.numero === numero);
+  if (!linha) throw new Error(`Lancamento ${original.id} nao tem parcela ${numero}`);
+  return {
+    descricao: original.descricao,
+    valorCentavos,
+    origemValor: original.origemValor,
+    dataCompra: original.dataCompra,
+    numeroParcelas: original.numeroParcelas,
+    escopo: original.escopo,
+    contaId: original.contaId,
+    categoriaId: original.categoriaId,
+    membroId: original.membroId ?? undefined,
+    ehReembolso: original.statusReembolso !== null,
+    devedorNome: original.devedorNome ?? undefined,
+    competenciaManual: avancarCompetencia(linha.competencia, -(numero - 1)),
+  };
 }
 
 export async function criarLancamento(entrada: EntradaLancamento): Promise<ResultadoCriacao> {
-  // A trava fica DENTRO da transacao junto com a gravacao: conferir fora
-  // deixava uma janela em que a outra pessoa travava a fatura entre a
-  // verificacao e a escrita, e a parcela entrava num mes fechado.
   return prisma.$transaction(async (tx) => {
-    // Lida UMA vez e levada ate `gravarFilhos`: antes, a conta era consultada
-    // aqui e de novo la dentro, duas idas ao Neon pela mesma resposta.
     const competenciaBase = await competenciaBaseDe(tx, entrada);
+    // A faixa que este lancamento grava: da parcela inicial ate o fim. As de
+    // antes nao existem, e por isso nao passam pela barreira.
+    const faixa: Faixa = { inicial: entrada.parcelaInicial ?? 1, final: entrada.numeroParcelas };
+    const parcelas = gerarParcelas(paraParcelamento(entrada, competenciaBase), faixa);
 
-    if (await temFaturaTravada(tx, entrada.contaId, competenciasDe(entrada, competenciaBase))) {
-      return { ok: false, motivo: 'FATURA_TRAVADA' };
-    }
+    const travada = await travaEntre(tx, entrada.contaId, entrada.numeroParcelas, parcelas);
+    if (travada) return recusa(travada);
 
     const lancamento = await tx.lancamento.create({
       data: {
-        descricao: entrada.descricao,
-        valorCentavos: entrada.valorCentavos,
-        origemValor: entrada.origemValor,
-        dataCompra: entrada.dataCompra,
-        numeroParcelas: entrada.numeroParcelas,
-        escopo: entrada.escopo,
-        contaId: entrada.contaId,
-        categoriaId: entrada.categoriaId,
-        membroId: entrada.escopo === 'PESSOAL' ? (entrada.membroId ?? null) : null,
-        ...camposDeReembolso(entrada),
+        ...camposGravaveis(entrada),
+        ...colunasDaFaixa(faixa, entrada.numeroParcelas),
         // So entram juntos: marca pela metade nao identifica nada, e o indice
         // unico e sobre o par.
         ...(entrada.recorrenteId && entrada.competenciaRecorrente
@@ -248,68 +414,156 @@ export async function criarLancamento(entrada: EntradaLancamento): Promise<Resul
       },
     });
 
-    await gravarFilhos(tx, lancamento.id, entrada, competenciaBase, true);
+    await gravarParcelas(tx, lancamento.id, parcelas, entrada.ehReembolso === true, SEM_MARCAS);
+    await gravarRateio(tx, lancamento.id, entrada.escopo);
     return { ok: true, id: lancamento.id };
   });
 }
 
+/**
+ * Edita um lancamento — inteiro, ou so parte de um parcelado.
+ *
+ * `alcance` e `numero` dizem o que a pessoa escolheu a partir da parcela que
+ * clicou (ver `planejarDivisao`). Editar so parte DIVIDE o lancamento: o
+ * original fica com as parcelas de antes, sem que nenhuma linha dele seja
+ * lida pela barreira ou reescrita, e o alcance vira um lancamento novo. E
+ * isso que deixa editar dezembro com novembro travado.
+ *
+ * A barreira olha as linhas que saem (as do alcance, onde estao hoje) e as que
+ * entram (para onde a edicao as leva). Linha movida para o pedaco de depois
+ * nao muda nada que a fatura mostre, e nao passa por ela.
+ */
 export async function editarLancamento(
   id: string,
   versao: number,
   entrada: EntradaLancamento,
-): Promise<ResultadoGravacao> {
-  return prisma.$transaction(async (tx) => {
-    // Origem: onde as parcelas ja gravadas estao hoje.
-    if (await competenciasTravadas(tx, id)) return { ok: false, motivo: 'FATURA_TRAVADA' };
-    // Destino: para onde a edicao levaria as parcelas (contaId, dataCompra ou
-    // competenciaManual podem mudar a competencia).
-    const competenciaBase = await competenciaBaseDe(tx, entrada);
-    if (await temFaturaTravada(tx, entrada.contaId, competenciasDe(entrada, competenciaBase))) {
-      return { ok: false, motivo: 'FATURA_TRAVADA' };
+  alcance: Alcance = 'TODAS',
+  numero?: number,
+): Promise<ResultadoEdicao> {
+  return prisma.$transaction(async (tx): Promise<ResultadoEdicao> => {
+    const original = await lerOriginal(tx, id);
+    if (!original || original.deletadoEm !== null || original.versao !== versao) {
+      return conflito(tx, id);
     }
 
+    const faixa = faixaDoLancamento(original);
+    const k = numero ?? faixa.inicial;
+    const plano = planejarDivisao(faixa, k, alcance);
+    // Com valor TOTAL, o campo da tela mostra o total da compra: "o valor desta
+    // parcela" nao tem leitura honesta. A tela nao oferece; aqui e a defesa.
+    if (plano.tipo === 'DIVIDIR' && original.origemValor === 'TOTAL') {
+      throw new Error('Lancamento com valor total so se edita inteiro');
+    }
+
+    const efetiva = alcance === 'SO_ESTA' ? soOValor(original, k, entrada.valorCentavos) : entrada;
+    // Recusa tratavel, e nao throw: um total fora dos limites pode chegar de
+    // uma tela velha, e o throw virava um 500 sem dizer o que estava errado.
+    // Antes de qualquer escrita, entao nao ha o que desfazer.
+    const faixaNova = faixaEscrita(plano.alcance, original.numeroParcelas, efetiva.numeroParcelas);
+    if (!faixaNova) {
+      return {
+        ok: false,
+        motivo: 'TOTAL_INVALIDO',
+        ...limitesDeParcelas(plano.alcance, original.numeroParcelas),
+      };
+    }
+    const competenciaBase = await competenciaBaseDe(tx, efetiva);
+    const saem = original.parcelas.filter((p) => dentro(plano.alcance, p.numero));
+    const entram = gerarParcelas(paraParcelamento(efetiva, competenciaBase), faixaNova);
+
+    // Salvar sem mudar nada nao divide: nao escreve, nao gasta a versao. Vem
+    // antes da barreira porque a trava recusa o que apaga, grava ou muda
+    // parcela travada, e isto nao faz nenhum dos tres. No lugar continua
+    // regravando, como sempre: ali nao ha pedaco que nasca.
+    if (plano.tipo === 'DIVIDIR' && semMudanca(original, efetiva, plano.alcance, faixaNova, saem, entram)) {
+      return { ok: true };
+    }
+
+    const travada =
+      (await travaEntre(tx, original.contaId, original.numeroParcelas, saem)) ??
+      (await travaEntre(tx, efetiva.contaId, efetiva.numeroParcelas, entram));
+    if (travada) return recusa(travada);
+
+    // O lock otimista de verdade, nos dois caminhos: a leitura de cima pode
+    // ter envelhecido. Dividindo, o original so perde a ponta da faixa.
     const alteradas = await tx.lancamento.updateMany({
       where: { id, versao, deletadoEm: null },
-      data: {
-        descricao: entrada.descricao,
-        valorCentavos: entrada.valorCentavos,
-        origemValor: entrada.origemValor,
-        dataCompra: entrada.dataCompra,
-        numeroParcelas: entrada.numeroParcelas,
-        escopo: entrada.escopo,
-        contaId: entrada.contaId,
-        categoriaId: entrada.categoriaId,
-        membroId: entrada.escopo === 'PESSOAL' ? (entrada.membroId ?? null) : null,
-        ...camposDeReembolso(entrada),
-        versao: { increment: 1 },
-      },
+      data:
+        plano.tipo === 'NO_LUGAR'
+          ? {
+              ...camposGravaveis(efetiva),
+              ...colunasDaFaixa(faixaNova, efetiva.numeroParcelas),
+              versao: { increment: 1 },
+            }
+          : {
+              ...colunasDaFaixa(plano.original, original.numeroParcelas),
+              versao: { increment: 1 },
+            },
+    });
+    if (alteradas.count === 0) return conflito(tx, id);
+
+    const marcas = marcasDe(saem);
+    await tx.parcela.deleteMany({
+      where: { lancamentoId: id, numero: { gte: plano.alcance.inicial, lte: plano.alcance.final } },
     });
 
-    if (alteradas.count === 0) {
-      const atual = await tx.lancamento.findUnique({ where: { id } });
-      return { ok: false, motivo: 'CONFLITO', atual };
+    if (plano.tipo === 'NO_LUGAR') {
+      await gravarParcelas(tx, id, entram, efetiva.ehReembolso === true, marcas);
+      await tx.rateio.deleteMany({ where: { lancamentoId: id } });
+      await gravarRateio(tx, id, efetiva.escopo);
+      return { ok: true };
     }
 
-    // Versao incrementada e filhos regravados na mesma transacao. Separados,
-    // uma falha aqui deixava o lancamento com os valores novos, as parcelas
-    // velhas, e a versao ja gasta — a retentativa caia em CONFLITO.
-    await gravarFilhos(tx, id, entrada, competenciaBase, false);
+    if (plano.depois) await separar(tx, original, plano.depois, null);
+
+    const novo = await tx.lancamento.create({
+      data: { ...camposGravaveis(efetiva), ...colunasDaFaixa(faixaNova, efetiva.numeroParcelas) },
+    });
+    await gravarParcelas(tx, novo.id, entram, efetiva.ehReembolso === true, marcas);
+    await gravarRateio(tx, novo.id, efetiva.escopo);
     return { ok: true };
   });
 }
 
-export async function excluirLancamento(id: string, versao: number): Promise<ResultadoGravacao> {
+/**
+ * Manda para a lixeira um lancamento inteiro, ou so parte de um parcelado.
+ *
+ * Excluir parte e dividir: o pedaco do alcance vira um lancamento proprio,
+ * com as linhas que ja tinha, e nasce excluido — a lixeira o restaura como
+ * qualquer outro. A barreira olha so as linhas que saem dos meses.
+ */
+export async function excluirLancamento(
+  id: string,
+  versao: number,
+  alcance: Alcance = 'TODAS',
+  numero?: number,
+): Promise<ResultadoGravacao> {
   return prisma.$transaction(async (tx) => {
-    if (await competenciasTravadas(tx, id)) return { ok: false, motivo: 'FATURA_TRAVADA' };
+    const original = await lerOriginal(tx, id);
+    if (!original || original.deletadoEm !== null || original.versao !== versao) {
+      return conflito(tx, id);
+    }
 
+    const faixa = faixaDoLancamento(original);
+    const plano = planejarDivisao(faixa, numero ?? faixa.inicial, alcance);
+    const saem = original.parcelas.filter((p) => dentro(plano.alcance, p.numero));
+
+    const travada = await travaEntre(tx, original.contaId, original.numeroParcelas, saem);
+    if (travada) return recusa(travada);
+
+    const agora = new Date();
     const alteradas = await tx.lancamento.updateMany({
       where: { id, versao, deletadoEm: null },
-      data: { deletadoEm: new Date(), versao: { increment: 1 } },
+      data:
+        plano.tipo === 'NO_LUGAR'
+          ? { deletadoEm: agora, versao: { increment: 1 } }
+          : { ...colunasDaFaixa(plano.original, original.numeroParcelas), versao: { increment: 1 } },
     });
+    if (alteradas.count === 0) return conflito(tx, id);
 
-    if (alteradas.count === 0) {
-      const atual = await tx.lancamento.findUnique({ where: { id } });
-      return { ok: false, motivo: 'CONFLITO', atual };
+    if (plano.tipo === 'DIVIDIR') {
+      if (plano.depois) await separar(tx, original, plano.depois, null);
+      await separar(tx, original, plano.alcance, agora);
     }
     return { ok: true };
   });
@@ -321,7 +575,7 @@ export async function excluirLancamento(id: string, versao: number): Promise<Res
  * **Por parcela, nao por lancamento.** Um parcelado se devolve mes a mes:
  * quando a marca era do lancamento, receber outubro marcava novembro junto.
  * `numero` e a chave estavel da parcela — o id muda a cada edicao, porque
- * `gravarFilhos` recria as parcelas.
+ * `gravarParcelas` recria as parcelas ao reescreve-las.
  *
  * **Nao altera valor nenhum.** O lancamento ja esta fora do gasto do casal e
  * dentro do Somado nos dois estados: ou alguem ainda vai devolver, ou ja
@@ -394,7 +648,11 @@ export async function restaurarLancamento(
   versao: number,
 ): Promise<ResultadoGravacao> {
   return prisma.$transaction(async (tx) => {
-    if (await competenciasTravadas(tx, id)) return { ok: false, motivo: 'FATURA_TRAVADA' };
+    const original = await lerOriginal(tx, id);
+    if (original) {
+      const travada = await travaEntre(tx, original.contaId, original.numeroParcelas, original.parcelas);
+      if (travada) return recusa(travada);
+    }
 
     const alteradas = await tx.lancamento.updateMany({
       // `deletadoEm: { not: null }` em vez do `deletadoEm: null` das outras
@@ -403,10 +661,7 @@ export async function restaurarLancamento(
       data: { deletadoEm: null, versao: { increment: 1 } },
     });
 
-    if (alteradas.count === 0) {
-      const atual = await tx.lancamento.findUnique({ where: { id } });
-      return { ok: false, motivo: 'CONFLITO', atual };
-    }
+    if (alteradas.count === 0) return conflito(tx, id);
     return { ok: true };
   });
 }

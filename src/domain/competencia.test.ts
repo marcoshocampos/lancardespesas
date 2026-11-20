@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   avancarCompetencia,
   compararCompetencias,
+  competenciaBaseDaFatura,
   competenciaDeCartao,
   competenciaDeContaExterna,
   competenciaDeDataISO,
   formatarCompetencia,
+  mesesAoRedor,
 } from './competencia';
 
 // C6: fecha dia 4, vence dia 10. A competencia e o mes do vencimento.
@@ -123,5 +125,30 @@ describe('compararCompetencias', () => {
     expect(compararCompetencias('2026-08', '2026-09')).toBeLessThan(0);
     expect(compararCompetencias('2027-01', '2026-12')).toBeGreaterThan(0);
     expect(compararCompetencias('2026-08', '2026-08')).toBe(0);
+  });
+});
+
+describe('competenciaBaseDaFatura', () => {
+  it('a parcela 1 cai na propria fatura', () => {
+    expect(competenciaBaseDaFatura('2026-12', 1)).toBe('2026-12');
+  });
+
+  it('recua numero - 1 meses, virando o ano', () => {
+    expect(competenciaBaseDaFatura('2027-01', 3)).toBe('2026-11');
+  });
+
+  it('recusa numero de parcela invalido', () => {
+    expect(() => competenciaBaseDaFatura('2026-12', 0)).toThrow('Numero de parcela invalido');
+    expect(() => competenciaBaseDaFatura('2026-12', 1.5)).toThrow('Numero de parcela invalido');
+  });
+});
+
+describe('mesesAoRedor', () => {
+  it('vai de raio antes a raio depois, com o centro no meio', () => {
+    expect(mesesAoRedor('2026-12', 2)).toEqual(['2026-10', '2026-11', '2026-12', '2027-01', '2027-02']);
+  });
+
+  it('com raio 12 cobre 25 meses', () => {
+    expect(mesesAoRedor('2026-12', 12)).toHaveLength(25);
   });
 });

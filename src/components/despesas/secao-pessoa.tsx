@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { Grupo } from '@/domain/agrupamento';
 import { formatarBRL } from '@/domain/money';
+import type { FaturaTravada } from '@/domain/trava';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
 import { DialogoExclusao } from './dialogo-exclusao';
 import { idBotaoEditar } from './painel-lancamento';
@@ -24,6 +25,8 @@ type Props = {
   /** Quantas colunas a linha de cabecalho ocupa — mesmo numero de `CABECALHOS`. */
   colSpan: number;
   competencia: string;
+  /** Faturas travadas: o dialogo de exclusao decide o alcance por elas. */
+  travadas: readonly FaturaTravada[];
   categorias: Categoria[];
   /** Lancamento que a busca mandou mostrar (`?destaque=`): a linha dele realca e rola ate a vista. */
   destaque?: string | undefined;
@@ -34,6 +37,7 @@ type Props = {
 type AcoesLinhaProps = {
   linha: LinhaGrade;
   competencia: string;
+  travadas: readonly FaturaTravada[];
   onEditar: () => void;
 };
 
@@ -48,7 +52,7 @@ type AcoesLinhaProps = {
  * dialogo agora, entao nao depende mais do mouse ou do foco continuarem
  * nesta linha para seguir visivel.
  */
-function AcoesLinha({ linha, competencia, onEditar }: AcoesLinhaProps) {
+function AcoesLinha({ linha, competencia, travadas, onEditar }: AcoesLinhaProps) {
   return (
     <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
       <Button
@@ -61,7 +65,7 @@ function AcoesLinha({ linha, competencia, onEditar }: AcoesLinhaProps) {
         <Pencil aria-hidden="true" />
         <span className="sr-only">Editar</span>
       </Button>
-      <DialogoExclusao linha={linha} competencia={competencia} />
+      <DialogoExclusao linha={linha} competencia={competencia} travadas={travadas} />
     </div>
   );
 }
@@ -88,12 +92,21 @@ type LinhaProps = {
   esmaecida: boolean;
   categoriaCor: string | undefined;
   competencia: string;
+  travadas: readonly FaturaTravada[];
   /** E o lancamento que a busca mandou mostrar. */
   destacada: boolean;
   onEditar: (linha: LinhaGrade) => void;
 };
 
-function LinhaDaSecao({ linha, esmaecida, categoriaCor, competencia, destacada, onEditar }: LinhaProps) {
+function LinhaDaSecao({
+  linha,
+  esmaecida,
+  categoriaCor,
+  competencia,
+  travadas,
+  destacada,
+  onEditar,
+}: LinhaProps) {
   const ref = useRef<HTMLTableRowElement>(null);
 
   // Uma vez, ao abrir: quem chega da busca precisa achar a linha sem procurar
@@ -142,7 +155,7 @@ function LinhaDaSecao({ linha, esmaecida, categoriaCor, competencia, destacada, 
         {formatarBRL(linha.valorCentavos)}
       </td>
       <td className="px-3 py-2 text-right align-top">
-        <AcoesLinha linha={linha} competencia={competencia} onEditar={() => onEditar(linha)} />
+        <AcoesLinha linha={linha} competencia={competencia} travadas={travadas} onEditar={() => onEditar(linha)} />
       </td>
     </tr>
   );
@@ -161,6 +174,7 @@ export function SecaoPessoa({
   grupo,
   colSpan,
   competencia,
+  travadas,
   categorias,
   destaque,
   onEditar,
@@ -197,6 +211,7 @@ export function SecaoPessoa({
             esmaecida={esmaecida}
             categoriaCor={categoriaCor}
             competencia={competencia}
+            travadas={travadas}
             destacada={item.linha.lancamentoId === destaque}
             onEditar={onEditar}
           />

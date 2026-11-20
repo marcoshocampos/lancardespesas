@@ -19,6 +19,7 @@ onde paramos, o que já funciona e qual é a próxima tarefa.
 | [`docs/specs/2026-08-08-sistema-despesas-casal-design.md`](docs/specs/2026-08-08-sistema-despesas-casal-design.md) | Design: modelo, arquitetura, fases, e o histórico de revisão |
 | [`docs/specs/2026-09-07-redesenho-visual-e-navegacao-design.md`](docs/specs/2026-09-07-redesenho-visual-e-navegacao-design.md) | Design da camada visual: navegação, telas, tokens, e o que ficou de fora |
 | [`docs/specs/2026-11-17-busca-design.md`](docs/specs/2026-11-17-busca-design.md) | Design da busca: onde mora, o que casa, e por que em memória |
+| [`docs/specs/2026-11-19-trava-por-parcela-design.md`](docs/specs/2026-11-19-trava-por-parcela-design.md) | Design da trava por parcela: a faixa de cada lançamento, os alcances de editar e excluir, e o campo Fatura |
 | [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md) | Comportamento detalhado e casos de borda |
 | [`docs/arquitetura.md`](docs/arquitetura.md) | Onde cada coisa mora no código, camada por camada, e as armadilhas já conhecidas |
 | [`docs/verificacao-visual.md`](docs/verificacao-visual.md) | O roteiro da conferência tela a tela, que só o usuário consegue fazer |
@@ -59,9 +60,9 @@ Quebrar qualquer um destes é bug, não escolha de estilo.
 3. **As regras de cálculo moram em `src/domain/`, como funções puras sem I/O.** Nada de
    Prisma, `fetch` ou `Date.now()` ali dentro. É o que torna cada caso de borda testável em
    milissegundos.
-4. **A soma das parcelas é igual ao valor do lançamento**, e a soma das cotas de rateio é
-   igual ao valor da parcela. O resto de centavos tem destino definido, nunca é descartado.
-5. **Fatura travada é somente-leitura.** Destravar é ação explícita e auditada.
+4. **Cada lançamento grava exatamente as parcelas da sua faixa**, a soma das cotas de rateio é
+   igual ao valor da parcela, e o resto de centavos tem destino definido, nunca é descartado.
+5. **Fatura travada é somente-leitura**, e congela as parcelas daquele mês, só elas. Destravar é ação explícita e auditada.
 6. **Nada é apagado de verdade** — `deletadoEm`, com restauração pela lixeira.
 7. **Toda gravação de lançamento passa por lock otimista** (`WHERE versao = ?`). São duas
    pessoas mexendo no mesmo mês; sobrescrita silenciosa é o pior bug possível aqui.
@@ -80,7 +81,7 @@ Quebrar qualquer um destes é bug, não escolha de estilo.
 - **Commits** em português, no imperativo, explicando o porquê e não o quê.
 - **Testes** com Vitest no domínio, cobrindo os casos de borda de
   [`docs/regras-de-negocio.md`](docs/regras-de-negocio.md). Playwright só nos fluxos críticos.
-  `npm test` roda 165 sem banco nem rede; `npm run test:banco` roda os 205, contra a branch de
+  `npm test` roda 207 sem banco nem rede; `npm run test:banco` roda os 278, contra a branch de
   teste do Neon em `DATABASE_URL_TESTE`. **Nunca ligue `TESTE_DESTRUTIVO=1` à mão** — a suíte
   apaga todo lançamento que encontra, e o runner existe para que apontá-la para produção não
   seja possível.

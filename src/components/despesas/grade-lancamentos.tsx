@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { agrupar } from '@/domain/agrupamento';
 import { formatarCompetencia } from '@/domain/competencia';
+import type { FaturaTravada } from '@/domain/trava';
 import type { LinhaGrade } from '@/server/repositorios/resumo';
 import { BotaoFlutuanteNovo, ID_BOTAO_FLUTUANTE } from './botao-flutuante-novo';
 import { ChipsConta } from './chips-conta';
@@ -41,6 +42,8 @@ type Props = {
    * `painel-lancamento.tsx`). */
   categorias: Categoria[];
   membros: Membro[];
+  /** Faturas travadas perto do mes da tela: o painel desabilita o que esbarraria nelas. */
+  travadas: FaturaTravada[];
   /** Id da conta filtrada na URL, se houver — decide qual estado vazio mostrar. */
   contaSelecionada?: string | undefined;
   /** Lancamento que a busca mandou mostrar (`?destaque=`). Desce ate a linha. */
@@ -106,6 +109,7 @@ export function GradeLancamentos({
   contasAtivas,
   categorias,
   membros,
+  travadas,
   contaSelecionada,
   destaque,
 }: Props) {
@@ -179,6 +183,7 @@ export function GradeLancamentos({
                 grupo={grupo}
                 colSpan={CABECALHOS.length}
                 competencia={competencia}
+                travadas={travadas}
                 categorias={categorias}
                 destaque={destaque}
                 onEditar={(linha) => setEstado({ modo: 'editar', linha })}
@@ -226,6 +231,8 @@ export function GradeLancamentos({
         contasDoMes={contasDoMes}
         categorias={categorias}
         membros={membros}
+        competencia={competencia}
+        travadas={travadas}
         onFechar={() => setEstado(null)}
       />
     </>

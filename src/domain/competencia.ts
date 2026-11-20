@@ -70,6 +70,29 @@ export function avancarCompetencia(c: Competencia, meses: number): Competencia {
 }
 
 /**
+ * A competencia da parcela 1, sabendo em qual Fatura cai a parcela `numero`.
+ *
+ * E a conversao entre o que a tela mostra — a Fatura da parcela que a pessoa
+ * esta vendo — e o que o repositorio grava, a base da compra. A base pode cair
+ * num mes travado ou no passado sem consequencia: e coordenada, nao parcela.
+ */
+export function competenciaBaseDaFatura(fatura: Competencia, numero: number): Competencia {
+  if (!Number.isInteger(numero) || numero < 1) {
+    throw new Error(`Numero de parcela invalido: ${numero}`);
+  }
+  return avancarCompetencia(fatura, -(numero - 1));
+}
+
+/** Os meses de `raio` antes a `raio` depois de `centro`, em ordem: o seletor de Fatura. */
+export function mesesAoRedor(centro: Competencia, raio: number): Competencia[] {
+  const meses: Competencia[] = [];
+  for (let deslocamento = -raio; deslocamento <= raio; deslocamento += 1) {
+    meses.push(avancarCompetencia(centro, deslocamento));
+  }
+  return meses;
+}
+
+/**
  * Competencia em texto legivel para humanos: "2026-08" vira "agosto de 2026".
  *
  * Fica ao lado de `formatarBRL` em `money.ts` — formatacao de dominio para exibicao

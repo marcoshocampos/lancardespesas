@@ -1,9 +1,57 @@
 # Estado do projeto
 
-Atualizado em 2026-10-04. Este arquivo responde "onde paramos" para quem chega agora —
+Atualizado em 2026-11-20. Este arquivo responde "onde paramos" para quem chega agora —
 inclusive uma sessão nova de agente, que não tem memória da conversa anterior.
 
 ## Onde estamos
+
+**Em 2026-11-20 a trava por parcela entrou na `main` e foi publicada.** A migration
+`20261119120000_faixa_de_parcelas` (`Lancamento.parcelaInicial`, padrão 1, e `parcelaFinal`,
+nulo) foi aplicada em produção antes do push, como manda a armadilha 23 de
+[`arquitetura.md`](arquitetura.md). Os lançamentos que já existiam ficaram com a faixa inteira,
+da parcela 1 até o total. A seção *Trava por parcela* diz o que mudou.
+
+**Não use o *instant rollback* da Vercel para voltar a um deploy anterior a esse merge.**
+Assim que existir em produção um lançamento dividido, o código antigo não lê a faixa: o
+`editarLancamento` de antes regera a compra inteira dentro do pedaço e duplica as parcelas dos
+irmãos, sem índice que reclame. Voltar atrás é um commit novo por cima. Se o rollback já tiver
+acontecido, ninguém edita parcelado até o código novo voltar ao ar. Ver as armadilhas 23 e 25
+de [`arquitetura.md`](arquitetura.md).
+
+### Trava por parcela
+
+**O defeito.** Em 19/11, com dezembro aberto, lançar e editar respondiam *"Esse mês já está
+fechado"*. Dezembro não estava fechado: as faturas travadas eram as do C6 de setembro e de
+novembro. **A causa:** editar regerava todas as parcelas do lançamento, e a barreira recusava se
+**qualquer** uma caísse em fatura travada. Dezesseis dos vinte lançamentos com parcela em
+dezembro eram parcelados do C6 que também passavam por novembro ou setembro — travar um mês
+congelava todo parcelado que o atravessasse, por até um ano. Lançar sofria do mesmo jeito: a
+data da compra mandava para novembro, travado, mesmo quando a compra só aparecera na fatura de
+dezembro.
+
+**O que passou a existir:**
+
+- **A regra nova:** a trava congela as parcelas do mês travado, e só elas. A barreira
+  (`travaEntre`) recebe só as parcelas que a operação toca
+- **Campo Fatura** no painel, começando no mês da tela, com 12 meses para cada lado e os meses
+  travados da conta desabilitados; a data só gera aviso
+- **Começa na parcela X de N**, para lançar compra antiga que só agora apareceu
+- **Alcance em editar e em excluir:** *só esta*, *esta e as seguintes*, *todas*. Dividir o
+  lançamento em pedaços com `parcelaInicial` e `parcelaFinal`; a busca e a lixeira mostram
+  *"parcelas 4 a 12 de 12"*
+- **A frase da trava** nomeia parcela, mês e conta, e diz onde destravar. Linha de mês travado
+  abre com a frase no topo e o Salvar desabilitado; o Salvar também fica desabilitado quando
+  nenhum alcance pode ser escolhido (um lançamento `TOTAL` com parcela travada, por exemplo)
+- **Só o pedaço que chega à última parcela muda o total.** Nos outros o campo Parcelas fica
+  fixo, com a razão abaixo, e o servidor recusa com `TOTAL_INVALIDO`. Sem isso, baixar e subir
+  o total de um pedaço de antes duplicava as parcelas do vizinho — achado da revisão final
+- **Salvar sem mudar nada não divide** a compra, nem gasta a versão — também da revisão final:
+  abrir uma parcela do meio e clicar Salvar deixava três lançamentos
+
+**A conferência dessa tela é do usuário**, pelo passo *Trava por parcela* de
+[`verificacao-visual.md`](verificacao-visual.md). Regras em
+[`regras-de-negocio.md`](regras-de-negocio.md), escolhas em [`decisoes.md`](decisoes.md) e o
+desenho em [`specs/2026-11-19-trava-por-parcela-design.md`](specs/2026-11-19-trava-por-parcela-design.md).
 
 **Fase 1 e o redesenho visual estão os dois em `main`, enviados ao GitHub, e o sistema está
 publicado em https://lancardespesas.vercel.app.** O merge do redesenho é o `39bb8e4`, com 61
@@ -56,17 +104,17 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 165 passando e 40 pulados.** Com banco, `npm run test:banco`, são **205
+**`npm test` hoje: 207 passando e 71 pulados.** Com banco, `npm run test:banco`, são **278
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
- Test Files  13 passed | 5 skipped (18)        Test Files  18 passed (18)
-      Tests  165 passed | 40 skipped (205)          Tests  205 passed (205)
+ Test Files  15 passed | 5 skipped (20)        Test Files  20 passed (20)
+      Tests  207 passed | 71 skipped (278)          Tests  278 passed (278)
 ```
 
-Os 40 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
+Os 71 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
 arquivos: `repositorios/busca.test.ts` (4), `repositorios/configuracao.test.ts` (8),
-`repositorios/lancamento.test.ts` (20), `repositorios/recorrente.test.ts` (7) e
+`repositorios/lancamento.test.ts` (51), `repositorios/recorrente.test.ts` (7) e
 `repositorios/resumo.test.ts` (1). Eles rodam com
 `npm run test:banco`; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
 propósito, para que a suíte rápida continue sem rede e sem banco.
@@ -116,8 +164,9 @@ O que a branch `navegacao` acrescentou — **camada visual, sem tocar em nenhum 
 - **Grade em seções por pessoa**, com cabeçalho, subtotal por seção e dois estados vazios
   distintos (mês sem lançamento × filtro que não bateu)
 - **Painel único de lançamento:** criar e editar no mesmo lugar, com a dica dizendo em qual
-  fatura a compra vai cair, aviso antes de regerar parcelas, e exclusão numa caixa desenhada
-  em vez do `window.confirm` do navegador
+  fatura a compra vai cair, e exclusão numa caixa desenhada em vez do `window.confirm` do
+  navegador. O aviso antes de regerar parcelas, que também nasceu aqui, deu lugar ao alcance
+  em 2026-11-19, e a dica de fatura virou o campo Fatura com o aviso da data
 - **Resumo com cartões no topo**, matriz em bandas e o selo de conferência nas quatro situações
 - **Tela de Configurações** (`/configuracoes`), nova: criar, editar e arquivar categoria;
   editar conta, inclusive os dias de cartão e o `ativa`; editar nome e cor de pessoa e escolher
@@ -349,9 +398,10 @@ As que saíram desta lista por terem sido resolvidas:
   devolvia **307 para o login** em produção. O `matcher` passou a excluir caminho terminado em
   `.extensão`, e o par foi verificado: arquivo estático serve com 200, rota privada continua
   redirecionando
-- *`regras-de-negocio.md` divergia do código sobre editar uma parcela* — resolvido a favor do
-  código. A operação **não existe**, e o documento passou a dizer isso em vez de descrever
-  comportamento que ninguém construiu
+- *`regras-de-negocio.md` divergia do código sobre editar uma parcela* — resolvido em duas
+  etapas. Primeiro a favor do código (a operação não existia); depois, em 2026-11-19, a operação
+  passou a existir pelos alcances *só esta* e *esta e as seguintes*, e o documento descreve o
+  que foi construído
 - *`gravarFilhos` sem transação* — as três gravações de lançamento rodam em
   `prisma.$transaction` desde `28f83e7`
 - *A mensagem de recusa em `linha-nova.tsx` ignorava o `motivo`* — saiu de pauta com o

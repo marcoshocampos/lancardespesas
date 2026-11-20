@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { formatarCompetencia } from '@/domain/competencia';
+import { rotuloDaFaixa } from '@/domain/divisao';
 import { formatarBRL } from '@/domain/money';
 import type { ItemDaBusca, ResultadoDaBusca } from '@/server/repositorios/busca';
 
@@ -77,9 +78,12 @@ function ItemResultado({ item }: { item: ItemDaBusca }) {
       </div>
       <p className="text-sm text-tinta tabular-nums">
         {formatarBRL(item.totalCentavos)}
-        {item.numeroParcelas > 1 && (
-          <span className="ml-1 text-xs text-tinta-fraca">em {item.numeroParcelas}x</span>
-        )}
+        {(() => {
+          const rotulo =
+            rotuloDaFaixa(item.faixa, item.numeroParcelas) ??
+            (item.numeroParcelas > 1 ? `em ${item.numeroParcelas}x` : null);
+          return rotulo && <span className="ml-1 text-xs text-tinta-fraca">{rotulo}</span>;
+        })()}
       </p>
     </div>
   );

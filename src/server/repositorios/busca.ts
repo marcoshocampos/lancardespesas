@@ -1,4 +1,6 @@
 import { competenciaDeDestino, correspondeABusca, interpretarBusca } from '@/domain/busca';
+import { faixaDoLancamento } from '@/domain/divisao';
+import type { Faixa } from '@/domain/parcelamento';
 import { prisma } from '../db';
 
 /** Quantos resultados a tela mostra. Acima disso, ela pede um termo mais especifico. */
@@ -8,9 +10,11 @@ export type ItemDaBusca = {
   lancamentoId: string;
   descricao: string;
   dataCompra: string;
-  /** O valor da COMPRA: a soma de todas as parcelas, canceladas inclusive. */
+  /** O valor do LANCAMENTO: a soma das parcelas dele, canceladas inclusive. De um pedaco, o do pedaco. */
   totalCentavos: number;
   numeroParcelas: number;
+  /** As parcelas que este lancamento tem: um pedaco de parcelado nao tem a compra inteira. */
+  faixa: Faixa;
   contaNome: string;
   categoriaNome: string;
   /** Quem gastou. `null` em lancamento de conjunto. */
@@ -59,6 +63,8 @@ export async function buscarLancamentos(
       descricao: true,
       dataCompra: true,
       numeroParcelas: true,
+      parcelaInicial: true,
+      parcelaFinal: true,
       escopo: true,
       devedorNome: true,
       statusReembolso: true,
@@ -86,6 +92,7 @@ export async function buscarLancamentos(
         dataCompra: l.dataCompra,
         totalCentavos: l.parcelas.reduce((soma, p) => soma + p.valorCentavos, 0),
         numeroParcelas: l.numeroParcelas,
+        faixa: faixaDoLancamento(l),
         contaNome: l.conta.nome,
         categoriaNome: l.categoria.nome,
         membroNome: l.membro?.nome ?? null,

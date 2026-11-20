@@ -51,12 +51,18 @@ Abra `http://localhost:3000`. Deve cair em `/despesas` sozinho.
 
 ## Passo 3 — Painel de lançamento
 
-- [ ] Lance uma compra com data **depois do dia de fechamento** do cartão. A dica tem que
-      anunciar o mês seguinte, e a linha **não** pode aparecer no mês atual.
-- [ ] Abra um lançamento parcelado, salve **sem mudar nada**, e confira o valor. Ele não pode
-      encolher. (Já quebrou assim uma vez: o valor da parcela era gravado como se fosse o total,
-      e cada salvamento dividia de novo.)
-- [ ] Editar um parcelado avisa antes de enviar.
+- [ ] Lance uma compra com data **depois do dia de fechamento** do cartão, deixando a Fatura
+      no mês da tela. O aviso abaixo do campo tem que dizer *"Pela data, cairia em …"*, o mês
+      seguinte, e o envio **não** pode ser impedido: a linha aparece no mês da Fatura.
+- [ ] Abra uma parcela do meio de um lançamento parcelado e salve **sem mudar nada** em cada
+      alcance: **Só esta**, **Esta e as seguintes** e **Todas**. O valor não pode encolher, e a
+      compra **não pode se dividir**: buscada, ela continua sendo um resultado só, sem
+      *"parcelas … a … de …"*. (O valor já quebrou assim uma vez: o valor da parcela era gravado
+      como se fosse o total, e cada salvamento o dividia de novo pelo número de parcelas. A
+      divisão também: salvar sem mudar deixava três lançamentos em *só esta*, e dividir não tem
+      volta.)
+- [ ] Abrir um parcelado para editar mostra o **alcance** no topo, e não uma confirmação
+      antes de enviar. O passo 13 percorre cada alcance.
 - [ ] Abra a mesma tela em duas abas, edite o mesmo lançamento nas duas e salve nas duas. A
       segunda tem que **recusar**, mostrar o que ficou gravado, e **não apagar o que você
       digitou**.
@@ -75,9 +81,10 @@ Abra `http://localhost:3000`. Deve cair em `/despesas` sozinho.
 - [ ] **Fechar o mês** pede confirmação, e a confirmação diz o que vai acontecer. Depois de
       fechar: o campo do extrato e o botão Conferir ficam desabilitados, e o botão vira
       *Reabrir*.
-- [ ] Com a fatura fechada, vá ao Despesas e tente lançar nesse mês. Tem que recusar com
-      *"Esse mês já está fechado. Destrave a fatura para lançar."* — **e agora existe como
-      destravar**, que era a mensagem apontando para o nada.
+- [ ] Com a fatura fechada, vá ao Despesas e abra uma linha desse mês. O topo do painel tem que
+      mostrar *"A parcela N cai em … de …, e a fatura do … desse mês está travada. Destrave-a no
+      Resumo de … para mudá-la."*, com o mês e o cartão certos, e o Salvar desabilitado. **Existe
+      onde destravar**, que era a mensagem apontando para o nada. O passo 13 cobre lançar.
 - [ ] **Reabrir** pede confirmação. Depois: se o extrato batia, o estado volta a *Fatura
       conferida* — e não a *aberta*. Lançar volta a funcionar.
 - [ ] **Num mês sem reembolso, a seção "A receber de terceiros" não existe.** Em mês com, ela
@@ -210,3 +217,41 @@ escuro**.
 - [ ] Exclua um lançamento e busque por ele: não aparece.
 - [ ] Busque algo que não existe: a mensagem diz que não achou e que a lixeira fica de fora.
 - [ ] Com uma busca aberta, troque de mês pelas setas: a busca termina e o mês aparece.
+
+## Passo 13 — Trava por parcela
+
+Prepare com a fatura de **novembro travada** e a de dezembro aberta, e um parcelado do cartão
+que tenha parcela em novembro e em dezembro, ao menos duas parcelas depois de dezembro.
+
+- [ ] Abra dezembro e edite a **parcela de dezembro** desse parcelado. O alcance aparece no
+      topo. **Todas** vem desabilitado, com a frase da trava escrita abaixo
+      (*"A parcela … cai em novembro de …, e a fatura do … desse mês está travada. Destrave-a no
+      Resumo de novembro para mudá-la."*). **Só esta** vem escolhido e salva.
+- [ ] Em **Só esta**, só o campo de valor está habilitado; descrição, categoria, pessoa, cartão e
+      Fatura estão desabilitados. Mude o valor e salve: só dezembro muda, novembro e as parcelas
+      seguintes continuam como estavam.
+- [ ] Em **Esta e as seguintes**, mude a **descrição** e salve. Dezembro e as seguintes mostram a
+      descrição nova; **novembro continua com a antiga**. Na grade do mês cada um continua sendo
+      uma linha só.
+- [ ] Lance uma compra nova em dezembro: a **Fatura** começa em dezembro, e novembro aparece
+      desabilitado, marcado *travada*. Troque para uma conta externa: nada fica desabilitado.
+      Volte ao cartão.
+- [ ] Com Fatura em dezembro, ponha a data da compra em **3/11**: aparece o aviso da data
+      (*"Pela data, cairia em novembro de …"*), o envio não é impedido, e a compra é salva em
+      **dezembro**.
+- [ ] Lance um parcelado em 6x com **Começa na parcela 3 de 6**: a linha nova mostra **3/6** em
+      dezembro, e as parcelas 4 a 6 caem nos três meses seguintes. As parcelas 1 e 2 não
+      existem.
+- [ ] Exclua **Esta e as seguintes** de uma parcela de dezembro: a caixa diz o que sai
+      (*"Excluir "…" remove as parcelas … a …, de dezembro de … a …. Essa ação não pode ser
+      desfeita por aqui."*). Depois, a compra some de dezembro em diante, as
+      parcelas de novembro ficam, e a **lixeira** mostra o pedaço excluído como *"parcelas 3 a 6
+      de 6"*. Restaure: ele volta, nos mesmos meses.
+- [ ] Abra uma **linha de novembro**, o mês travado: aviso no topo com a frase da trava, e o
+      Salvar desabilitado.
+- [ ] Destrave novembro no Resumo e abra a mesma linha: o aviso some e **Todas** passa a ficar
+      habilitado.
+- [ ] Nessa mesma linha, em **Todas**, o campo **Parcelas** fica desabilitado no total da compra,
+      com *"O total fica em …: as parcelas depois da … estão em outro lançamento."* abaixo dele —
+      dezembro em diante virou outro lançamento no passo da descrição. Salve mudando só a
+      descrição: novembro muda, e dezembro em diante continua uma linha só em cada mês.

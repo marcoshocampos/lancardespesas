@@ -1,3 +1,5 @@
+import { faixaDoLancamento } from '@/domain/divisao';
+import type { Faixa } from '@/domain/parcelamento';
 import { prisma } from '../db';
 
 export type ItemDaLixeira = {
@@ -8,6 +10,8 @@ export type ItemDaLixeira = {
   valorCentavos: number;
   origemValor: 'POR_PARCELA' | 'TOTAL';
   numeroParcelas: number;
+  /** As parcelas que este lancamento tem: um pedaco de parcelado nao tem a compra inteira. */
+  faixa: Faixa;
   dataCompra: string;
   contaNome: string;
   categoriaNome: string;
@@ -50,6 +54,8 @@ export async function carregarLixeira(): Promise<ItemDaLixeira[]> {
       valorCentavos: true,
       origemValor: true,
       numeroParcelas: true,
+      parcelaInicial: true,
+      parcelaFinal: true,
       dataCompra: true,
       escopo: true,
       deletadoEm: true,
@@ -72,6 +78,7 @@ export async function carregarLixeira(): Promise<ItemDaLixeira[]> {
       valorCentavos: l.valorCentavos,
       origemValor: l.origemValor,
       numeroParcelas: l.numeroParcelas,
+      faixa: faixaDoLancamento(l),
       dataCompra: l.dataCompra,
       contaNome: l.conta.nome,
       categoriaNome: l.categoria.nome,

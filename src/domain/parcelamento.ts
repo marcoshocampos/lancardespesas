@@ -18,12 +18,24 @@ export type ParcelaGerada = {
 };
 
 /**
+ * Um trecho contiguo das parcelas de uma compra, pelos numeros, `inicial` e
+ * `final` inclusive. Um lancamento grava exatamente a faixa dele: dividir um
+ * parcelado (editar so uma parcela, ou dela em diante) parte a faixa em
+ * pedacos, cada um um lancamento.
+ */
+export type Faixa = { inicial: number; final: number };
+
+/**
  * Gera as parcelas de um lancamento.
  *
  * Com origem TOTAL, a divisao e em centavos e a diferenca de arredondamento vai
  * na ULTIMA parcela, de modo que a soma seja sempre exatamente o total.
+ *
+ * Com `faixa`, devolve so as parcelas dela — as mesmas, centavo por centavo, que
+ * a compra inteira teria naqueles numeros. E o que garante que dividir um
+ * parcelado sem mudar o valor nao mexe em nenhuma parcela.
  */
-export function gerarParcelas(entrada: EntradaParcelamento): ParcelaGerada[] {
+export function gerarParcelas(entrada: EntradaParcelamento, faixa?: Faixa): ParcelaGerada[] {
   const { valorCentavos, origem, numeroParcelas, competenciaBase } = entrada;
 
   if (!Number.isInteger(numeroParcelas) || numeroParcelas < 1) {
@@ -42,9 +54,21 @@ export function gerarParcelas(entrada: EntradaParcelamento): ParcelaGerada[] {
     valores.push(valorCentavos - base * (numeroParcelas - 1));
   }
 
-  return valores.map((valor, indice) => ({
+  const todas = valores.map((valor, indice) => ({
     numero: indice + 1,
     valorCentavos: valor,
     competencia: avancarCompetencia(competenciaBase, indice),
   }));
+  if (!faixa) return todas;
+
+  if (
+    !Number.isInteger(faixa.inicial) ||
+    !Number.isInteger(faixa.final) ||
+    faixa.inicial < 1 ||
+    faixa.final < faixa.inicial ||
+    faixa.final > numeroParcelas
+  ) {
+    throw new Error(`Faixa invalida: ${faixa.inicial} a ${faixa.final} de ${numeroParcelas}`);
+  }
+  return todas.filter((p) => p.numero >= faixa.inicial && p.numero <= faixa.final);
 }
