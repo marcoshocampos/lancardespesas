@@ -5,6 +5,8 @@ import { Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { formatarCompetencia } from '@/domain/competencia';
+import { rotuloDaFaixa } from '@/domain/divisao';
+import { descreverTrava } from '@/domain/trava';
 import { formatarBRL } from '@/domain/money';
 import { acaoRestaurarLancamento } from '@/server/actions/lancamento';
 import type { ItemDaLixeira } from '@/server/repositorios/lixeira';
@@ -59,6 +61,9 @@ function ItemLixeira({ item }: { item: ItemDaLixeira }) {
 
   const meses = faixaDeMeses(item);
   const dono = item.escopo === 'CONJUNTO' ? 'Conjunto' : (item.membroNome ?? 'sem pessoa');
+  const parcelas =
+    rotuloDaFaixa(item.faixa, item.numeroParcelas) ??
+    (item.numeroParcelas > 1 ? `${item.numeroParcelas}x` : null);
 
   function restaurar() {
     setErro(null);
@@ -68,8 +73,8 @@ function ItemLixeira({ item }: { item: ItemDaLixeira }) {
         if (!resultado.ok) {
           setErro(
             resultado.motivo === 'FATURA_TRAVADA'
-              ? 'Uma das faturas deste lançamento foi fechada depois da exclusão. Destrave para restaurar.'
-              : 'Alguém mexeu neste lançamento. Recarregue a página.',
+              ? descreverTrava(resultado.travada)
+              :'Alguém mexeu neste lançamento. Recarregue a página.',
           );
           return;
         }
@@ -86,10 +91,8 @@ function ItemLixeira({ item }: { item: ItemDaLixeira }) {
         <div className="min-w-0">
           <p className="truncate text-sm text-tinta">
             {item.descricao}
-            {item.numeroParcelas > 1 && (
-              <span className="ml-1.5 text-xs text-tinta-fraca tabular-nums">
-                {item.numeroParcelas}x
-              </span>
+            {parcelas && (
+              <span className="ml-1.5 text-xs text-tinta-fraca tabular-nums">{parcelas}</span>
             )}
           </p>
           <p className="mt-0.5 text-xs text-tinta-fraca">

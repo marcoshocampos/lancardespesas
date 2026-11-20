@@ -21,6 +21,12 @@ export type LinhaGrade = {
   categoriaNome: string;
   numero: number;
   numeroParcelas: number;
+  /**
+   * A faixa que o lancamento desta linha grava. `parcelaFinal` ja vem resolvido
+   * (nulo no banco e `numeroParcelas`): a tela calcula alcance e trava com ela.
+   */
+  parcelaInicial: number;
+  parcelaFinal: number;
   valorCentavos: number;
   contaId: string;
   contaNome: string;
@@ -127,6 +133,8 @@ export async function carregarLinhasDaGrade(
     categoriaNome: p.lancamento.categoria.nome,
     numero: p.numero,
     numeroParcelas: p.lancamento.numeroParcelas,
+    parcelaInicial: p.lancamento.parcelaInicial,
+    parcelaFinal: p.lancamento.parcelaFinal ?? p.lancamento.numeroParcelas,
     valorCentavos: p.valorCentavos,
     contaId: p.lancamento.contaId,
     contaNome: p.lancamento.conta.nome,

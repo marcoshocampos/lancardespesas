@@ -1,6 +1,8 @@
 import type { Prisma, StatusFatura } from '@prisma/client';
 import { conferir } from '@/domain/conferencia';
+import { avancarCompetencia } from '@/domain/competencia';
 import { diaClampeado } from '@/domain/data';
+import { RAIO_DA_FATURA, type FaturaTravada } from '@/domain/trava';
 import { prisma } from '../db';
 
 type ClienteBanco = Prisma.TransactionClient;
@@ -221,5 +223,30 @@ export async function carregarFatura(
   return prisma.fatura.findUnique({
     where: { contaId_competencia: { contaId, competencia } },
     select: { valorRealCentavos: true, status: true },
+  });
+}
+
+/**
+ * As faturas travadas, de todas as contas, a `raio` meses do mes da tela.
+ *
+ * E o que o painel precisa para desabilitar os meses travados do seletor de
+ * Fatura e o alcance que esbarraria numa trava. Poucas linhas por ano. Quem
+ * decide de verdade continua sendo a barreira do repositorio: uma travada fora
+ * da janela aparece como recusa ao salvar.
+ */
+export async function carregarTravadasAoRedor(
+  competencia: string,
+  raio: number = RAIO_DA_FATURA,
+): Promise<FaturaTravada[]> {
+  return prisma.fatura.findMany({
+    where: {
+      status: 'TRAVADA',
+      // AAAA-MM compara como texto na mesma ordem do calendario.
+      competencia: {
+        gte: avancarCompetencia(competencia, -raio),
+        lte: avancarCompetencia(competencia, raio),
+      },
+    },
+    select: { contaId: true, competencia: true },
   });
 }
