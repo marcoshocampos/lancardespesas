@@ -5,15 +5,14 @@ inclusive uma sessão nova de agente, que não tem memória da conversa anterior
 
 ## Onde estamos
 
-**Em 2026-11-19 há trabalho na branch `trava-por-parcela`, ainda sem merge.** A migration
+**Em 2026-11-20 a trava por parcela entrou na `main` e foi publicada.** A migration
 `20261119120000_faixa_de_parcelas` (`Lancamento.parcelaInicial`, padrão 1, e `parcelaFinal`,
-nulo) **não foi aplicada em produção**: isso acontece depois da revisão, com a palavra do
-usuário, antes do push (armadilha 23 de [`arquitetura.md`](arquitetura.md)). Ela só adiciona
-coluna, e o código de hoje continua funcionando com o banco novo. O que está abaixo, sobre
-`main`, vale até o merge; a seção *Trava por parcela* diz o que muda.
+nulo) foi aplicada em produção antes do push, como manda a armadilha 23 de
+[`arquitetura.md`](arquitetura.md). Os lançamentos que já existiam ficaram com a faixa inteira,
+da parcela 1 até o total. A seção *Trava por parcela* diz o que mudou.
 
-**Depois do merge, não use o *instant rollback* da Vercel para voltar a um deploy anterior a
-ele.** Assim que existir em produção um lançamento dividido, o código antigo não lê a faixa: o
+**Não use o *instant rollback* da Vercel para voltar a um deploy anterior a esse merge.**
+Assim que existir em produção um lançamento dividido, o código antigo não lê a faixa: o
 `editarLancamento` de antes regera a compra inteira dentro do pedaço e duplica as parcelas dos
 irmãos, sem índice que reclame. Voltar atrás é um commit novo por cima. Se o rollback já tiver
 acontecido, ninguém edita parcelado até o código novo voltar ao ar. Ver as armadilhas 23 e 25
