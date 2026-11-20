@@ -96,3 +96,41 @@ describe('gerarParcelas', () => {
     ).toThrow('Estorno nao pode ser parcelado');
   });
 });
+
+describe('gerarParcelas com faixa', () => {
+  const compra = {
+    valorCentavos: 43210,
+    origem: 'POR_PARCELA' as const,
+    numeroParcelas: 12,
+    competenciaBase: '2026-07',
+  };
+
+  it('grava so as parcelas da faixa, com o numero e o mes da compra inteira', () => {
+    expect(gerarParcelas(compra, { inicial: 4, final: 6 })).toEqual([
+      { numero: 4, valorCentavos: 43210, competencia: '2026-10' },
+      { numero: 5, valorCentavos: 43210, competencia: '2026-11' },
+      { numero: 6, valorCentavos: 43210, competencia: '2026-12' },
+    ]);
+  });
+
+  it('com valor total, os pedacos juntos sao a compra inteira, centavo por centavo', () => {
+    const total = {
+      valorCentavos: 10000,
+      origem: 'TOTAL' as const,
+      numeroParcelas: 3,
+      competenciaBase: '2026-08',
+    };
+    const pedacos = [
+      ...gerarParcelas(total, { inicial: 1, final: 2 }),
+      ...gerarParcelas(total, { inicial: 3, final: 3 }),
+    ];
+    expect(pedacos).toEqual(gerarParcelas(total));
+    expect(pedacos[2]?.valorCentavos).toBe(3334);
+  });
+
+  it('recusa faixa fora da compra', () => {
+    expect(() => gerarParcelas(compra, { inicial: 0, final: 3 })).toThrow('Faixa invalida');
+    expect(() => gerarParcelas(compra, { inicial: 5, final: 4 })).toThrow('Faixa invalida');
+    expect(() => gerarParcelas(compra, { inicial: 10, final: 13 })).toThrow('Faixa invalida');
+  });
+});
