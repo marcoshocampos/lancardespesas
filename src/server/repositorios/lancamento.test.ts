@@ -897,6 +897,86 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     expect(await versaoDe(id)).toBe(1);
   });
 
+  /** Tudo o que uma edicao sem mudanca nao pode tocar: os lancamentos e cada linha deles. */
+  const fotografia = async () =>
+    prisma.lancamento.findMany({
+      orderBy: { criadoEm: 'asc' },
+      select: {
+        id: true,
+        versao: true,
+        parcelaInicial: true,
+        parcelaFinal: true,
+        numeroParcelas: true,
+        parcelas: {
+          orderBy: { numero: 'asc' },
+          select: { id: true, numero: true, valorCentavos: true, competencia: true },
+        },
+      },
+    });
+
+  it('salvar so esta sem mudar nada nao divide a compra', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 4, competenciaManual: '2026-10' });
+    const antes = await fotografia();
+
+    const resultado = await editarLancamento(id, 1, { ...entrada(), numeroParcelas: 4 }, 'SO_ESTA', 2);
+
+    expect(resultado).toEqual({ ok: true });
+    // Dividir sem mudar nada nao tem volta: nao ha como juntar os pedacos.
+    expect(await fotografia()).toEqual(antes);
+  });
+
+  it('salvar esta e as seguintes sem mudar nada nao divide a compra', async () => {
+    const conjunto = {
+      ...entrada(),
+      numeroParcelas: 4,
+      competenciaManual: '2026-10',
+      escopo: 'CONJUNTO' as const,
+      ehReembolso: true,
+      devedorNome: 'Tia Cida',
+    };
+    const id = await criarOk(conjunto);
+    const antes = await fotografia();
+
+    // A tela manda a pessoa mesmo em conjunto; o que vale e o membro gravado, nulo.
+    const resultado = await editarLancamento(id, 1, conjunto, 'ESTA_E_SEGUINTES', 3);
+
+    expect(resultado).toEqual({ ok: true });
+    expect(await fotografia()).toEqual(antes);
+  });
+
+  it('salvar sem mudar nada passa mesmo com um mes travado no alcance, porque nao escreve', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 4, competenciaManual: '2026-10' });
+    await travarFatura('2026-12');
+    const antes = await fotografia();
+
+    const resultado = await editarLancamento(
+      id,
+      1,
+      { ...entrada(), numeroParcelas: 4, competenciaManual: '2026-10' },
+      'ESTA_E_SEGUINTES',
+      2,
+    );
+
+    expect(resultado).toEqual({ ok: true });
+    expect(await fotografia()).toEqual(antes);
+  });
+
+  it('mudar so a Fatura em esta e as seguintes ainda divide', async () => {
+    const id = await criarOk({ ...entrada(), numeroParcelas: 4, competenciaManual: '2026-10' });
+
+    const resultado = await editarLancamento(
+      id,
+      1,
+      { ...entrada(), numeroParcelas: 4, competenciaManual: '2026-11' },
+      'ESTA_E_SEGUINTES',
+      3,
+    );
+
+    expect(resultado).toEqual({ ok: true });
+    expect(await prisma.lancamento.count()).toBe(2);
+    expect(await versaoDe(id)).toBe(2);
+  });
+
   it('recusa dividir lancamento de valor total', async () => {
     const id = await criarOk({
       ...entrada(),

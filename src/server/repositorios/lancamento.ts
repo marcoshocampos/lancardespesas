@@ -321,6 +321,49 @@ async function separar(
   return pedaco.id;
 }
 
+type LinhaComparavel = { numero: number; valorCentavos: number; competencia: string };
+
+/**
+ * A edicao de parte de um parcelado nao muda nada: os campos que gravaria sao
+ * os do original, a faixa reescrita e o proprio alcance, e as linhas que
+ * entrariam sao as que sairiam, numero a numero, no valor e no mes.
+ *
+ * Existe porque dividir nao tem volta — nao ha como juntar os pedacos. Sem
+ * isto, abrir uma parcela do meio e clicar Salvar deixava tres lancamentos, e
+ * "esta e as seguintes", dois, com os mesmos dados de antes.
+ *
+ * Compara todo campo que `camposGravaveis` escreve, e nao uma lista a parte:
+ * campo novo ali entra na comparacao sem ninguem lembrar. Em "so esta" tudo
+ * vem do original, e a conta se reduz ao valor.
+ */
+function semMudanca(
+  original: Original,
+  efetiva: EntradaLancamento,
+  alcance: Faixa,
+  faixaNova: Faixa,
+  saem: readonly LinhaComparavel[],
+  entram: readonly LinhaComparavel[],
+): boolean {
+  if (faixaNova.inicial !== alcance.inicial || faixaNova.final !== alcance.final) return false;
+
+  const campos = camposGravaveis(efetiva);
+  const chaves = Object.keys(campos) as (keyof typeof campos)[];
+  if (!chaves.every((chave) => campos[chave] === original[chave])) return false;
+
+  return (
+    saem.length === entram.length &&
+    saem.every((linha, i) => {
+      const nova = entram[i];
+      return (
+        nova !== undefined &&
+        nova.numero === linha.numero &&
+        nova.valorCentavos === linha.valorCentavos &&
+        nova.competencia === linha.competencia
+      );
+    })
+  );
+}
+
 /**
  * "So esta": a tela so pode mudar o valor. Todo o resto vem do original — a
  * Fatura tambem, recalculada da propria linha —, entao a tela nao consegue
@@ -427,6 +470,14 @@ export async function editarLancamento(
     const competenciaBase = await competenciaBaseDe(tx, efetiva);
     const saem = original.parcelas.filter((p) => dentro(plano.alcance, p.numero));
     const entram = gerarParcelas(paraParcelamento(efetiva, competenciaBase), faixaNova);
+
+    // Salvar sem mudar nada nao divide: nao escreve, nao gasta a versao. Vem
+    // antes da barreira porque a trava recusa o que apaga, grava ou muda
+    // parcela travada, e isto nao faz nenhum dos tres. No lugar continua
+    // regravando, como sempre: ali nao ha pedaco que nasca.
+    if (plano.tipo === 'DIVIDIR' && semMudanca(original, efetiva, plano.alcance, faixaNova, saem, entram)) {
+      return { ok: true };
+    }
 
     const travada =
       (await travaEntre(tx, original.contaId, original.numeroParcelas, saem)) ??

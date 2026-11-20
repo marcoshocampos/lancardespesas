@@ -54,9 +54,13 @@ Abra `http://localhost:3000`. Deve cair em `/despesas` sozinho.
 - [ ] Lance uma compra com data **depois do dia de fechamento** do cartão, deixando a Fatura
       no mês da tela. O aviso abaixo do campo tem que dizer *"Pela data, cairia em …"*, o mês
       seguinte, e o envio **não** pode ser impedido: a linha aparece no mês da Fatura.
-- [ ] Abra um lançamento parcelado, salve **sem mudar nada**, e confira o valor. Ele não pode
-      encolher. (Já quebrou assim uma vez: o valor da parcela era gravado como se fosse o total,
-      e cada salvamento dividia de novo.)
+- [ ] Abra uma parcela do meio de um lançamento parcelado e salve **sem mudar nada** em cada
+      alcance: **Só esta**, **Esta e as seguintes** e **Todas**. O valor não pode encolher, e a
+      compra **não pode se dividir**: buscada, ela continua sendo um resultado só, sem
+      *"parcelas … a … de …"*. (O valor já quebrou assim uma vez: o valor da parcela era gravado
+      como se fosse o total, e cada salvamento o dividia de novo pelo número de parcelas. A
+      divisão também: salvar sem mudar deixava três lançamentos em *só esta*, e dividir não tem
+      volta.)
 - [ ] Abrir um parcelado para editar mostra o **alcance** no topo, e não uma confirmação
       antes de enviar. O passo 13 percorre cada alcance.
 - [ ] Abra a mesma tela em duas abas, edite o mesmo lançamento nas duas e salve nas duas. A
