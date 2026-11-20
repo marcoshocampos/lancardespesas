@@ -729,3 +729,62 @@ lista de centenas.
 ler, o que é certo no campo de valor do painel. Na busca seria errado: `uber 89` viraria
 R$ 89,00. Por isso o termo só é lido como valor se tiver forma de valor, e nada mais. Não
 "simplifique" chamando o parser direto.
+
+## Dividir o lançamento, e não guardar atributo por parcela
+
+**Onde:** `Lancamento.parcelaInicial` e `parcelaFinal`, `src/domain/divisao.ts` e `separar`, em
+`repositorios/lancamento.ts`. Spec: [`2026-11-19-trava-por-parcela-design.md`](specs/2026-11-19-trava-por-parcela-design.md).
+
+Mudar a categoria só de dezembro, com novembro intacto, pede que os dois meses de um mesmo
+parcelado tenham campos diferentes. Descrição, categoria, pessoa, conta e rateio moram no
+**lançamento**. Havia dois caminhos: descer esses campos para a parcela, ou dividir o lançamento
+em pedaços.
+
+**Descer para a parcela muda toda leitura.** Resumo, fatura, gráficos, recorrentes e a
+projeção leem a parcela e juntam o lançamento por cima; cada uma passaria a ler o campo de outro
+lugar, e o rateio — que é do lançamento por decisão — teria de ser refeito por parcela.
+**Dividir não muda nenhuma leitura:** os pedaços são lançamentos comuns, as parcelas continuam
+as mesmas linhas, e tudo o que somava parcela continua somando igual.
+
+**O custo aceito é a fragmentação.** Uma compra pode virar dois ou três lançamentos. No mês
+continua uma linha só, porque as faixas não se sobrepõem; **a busca e a lixeira mostram os
+pedaços**, cada um com *"parcelas 4 a 12 de 12"*. Não há `compraId` ligando os pedaços, e fica
+assim: se incomodar, a ligação é uma coluna a mais, sem mudar o resto.
+
+**Não desfaça isso para "juntar de volta".** Os pedaços têm campos diferentes de propósito —
+esse foi o pedido.
+
+## A Fatura começa no mês da tela, e não pela data
+
+**Onde:** o campo Fatura de `painel-lancamento.tsx` e `competenciaBaseDaFatura`.
+
+A competência de um lançamento novo saía da data da compra. Quem lança está **conferindo a
+fatura daquele mês**, e a compra de 3/11 que só apareceu na fatura de dezembro é o caso típico:
+pela data ela cai em novembro, que está travado, e o sistema recusava o lançamento de quem tinha
+a fatura de dezembro aberta na frente. Com o campo, o mês da tela é o padrão, e quem lança em
+dezembro lança em dezembro.
+
+**A data continua útil, como aviso.** Se pela data a compra cairia em outro mês, o painel diz
+*"Pela data, cairia em janeiro de 2027"* e deixa enviar. A comparação é entre competências
+**base** (`Fatura − (k − 1)`), para que a parcela 9 de uma compra de abril, lançada em dezembro,
+não acuse uma diferença que não existe.
+
+**Recorrentes e importador não ganharam o campo.** Eles não têm uma tela de fatura aberta; a data
+continua sendo a única fonte, e `dataDaRecorrente` a confere contra a regra de competência.
+
+## Linha movida não passa pela barreira
+
+**Onde:** `separar`, em `repositorios/lancamento.ts`.
+
+Em *só esta* no meio da faixa, as parcelas de depois vão para um lançamento novo. **Mover troca só
+o `lancamentoId`:** valor, número, competência e todo campo que a tela exibe ficam como estavam.
+Nada do que a fatura mostra muda.
+
+Passá-las pela barreira de trava seria barrar uma operação que não toca o que a trava protege —
+e impediria justamente o caso comum, *só esta* num mês aberto entre dois meses travados, sem
+proteger coisa alguma. A barreira confere as linhas **apagadas e gravadas**: as do alcance, antes
+e depois, e na exclusão as que saem dos meses. Linha movida e linha do pedaço *antes* não entram.
+
+**Se um dia a linha movida passar a mudar algo que a fatura mostra** — o valor, a competência, a
+conta —, ela deixa de ser só movida e precisa passar pela barreira. Os testes de banco que
+conferem `id` e valor das linhas de *depois* são o aviso.

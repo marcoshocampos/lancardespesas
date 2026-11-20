@@ -1,9 +1,46 @@
 # Estado do projeto
 
-Atualizado em 2026-10-04. Este arquivo responde "onde paramos" para quem chega agora —
+Atualizado em 2026-11-19. Este arquivo responde "onde paramos" para quem chega agora —
 inclusive uma sessão nova de agente, que não tem memória da conversa anterior.
 
 ## Onde estamos
+
+**Em 2026-11-19 há trabalho na branch `trava-por-parcela`, ainda sem merge.** A migration
+`20261119120000_faixa_de_parcelas` (`Lancamento.parcelaInicial`, padrão 1, e `parcelaFinal`,
+nulo) **não foi aplicada em produção**: isso acontece depois da revisão, com a palavra do
+usuário, antes do push (armadilha 23 de [`arquitetura.md`](arquitetura.md)). Ela só adiciona
+coluna, e o código de hoje continua funcionando com o banco novo. O que está abaixo, sobre
+`main`, vale até o merge; a seção *Trava por parcela* diz o que muda.
+
+### Trava por parcela
+
+**O defeito.** Em 19/11, com dezembro aberto, lançar e editar respondiam *"Esse mês já está
+fechado"*. Dezembro não estava fechado: as faturas travadas eram as do C6 de setembro e de
+novembro. **A causa:** editar regerava todas as parcelas do lançamento, e a barreira recusava se
+**qualquer** uma caísse em fatura travada. Dezesseis dos vinte lançamentos com parcela em
+dezembro eram parcelados do C6 que também passavam por novembro ou setembro — travar um mês
+congelava todo parcelado que o atravessasse, por até um ano. Lançar sofria do mesmo jeito: a
+data da compra mandava para novembro, travado, mesmo quando a compra só aparecera na fatura de
+dezembro.
+
+**O que passou a existir:**
+
+- **A regra nova:** a trava congela as parcelas do mês travado, e só elas. A barreira
+  (`travaEntre`) recebe só as parcelas que a operação toca
+- **Campo Fatura** no painel, começando no mês da tela, com 12 meses para cada lado e os meses
+  travados da conta desabilitados; a data só gera aviso
+- **Começa na parcela X de N**, para lançar compra antiga que só agora apareceu
+- **Alcance em editar e em excluir:** *só esta*, *esta e as seguintes*, *todas*. Dividir o
+  lançamento em pedaços com `parcelaInicial` e `parcelaFinal`; a busca e a lixeira mostram
+  *"parcelas 4 a 12 de 12"*
+- **A frase da trava** nomeia parcela, mês e conta, e diz onde destravar. Linha de mês travado
+  abre com a frase no topo e o Salvar desabilitado; o Salvar também fica desabilitado quando
+  nenhum alcance pode ser escolhido (um lançamento `TOTAL` com parcela travada, por exemplo)
+
+**A conferência dessa tela é do usuário**, pelo passo *Trava por parcela* de
+[`verificacao-visual.md`](verificacao-visual.md). Regras em
+[`regras-de-negocio.md`](regras-de-negocio.md), escolhas em [`decisoes.md`](decisoes.md) e o
+desenho em [`specs/2026-11-19-trava-por-parcela-design.md`](specs/2026-11-19-trava-por-parcela-design.md).
 
 **Fase 1 e o redesenho visual estão os dois em `main`, enviados ao GitHub, e o sistema está
 publicado em https://lancardespesas.vercel.app.** O merge do redesenho é o `39bb8e4`, com 61
@@ -56,17 +93,17 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 165 passando e 40 pulados.** Com banco, `npm run test:banco`, são **205
+**`npm test` hoje: 202 passando e 64 pulados.** Com banco, `npm run test:banco`, são **266
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
- Test Files  13 passed | 5 skipped (18)        Test Files  18 passed (18)
-      Tests  165 passed | 40 skipped (205)          Tests  205 passed (205)
+ Test Files  15 passed | 5 skipped (20)        Test Files  20 passed (20)
+      Tests  202 passed | 64 skipped (266)          Tests  266 passed (266)
 ```
 
-Os 40 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
+Os 64 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
 arquivos: `repositorios/busca.test.ts` (4), `repositorios/configuracao.test.ts` (8),
-`repositorios/lancamento.test.ts` (20), `repositorios/recorrente.test.ts` (7) e
+`repositorios/lancamento.test.ts` (44), `repositorios/recorrente.test.ts` (7) e
 `repositorios/resumo.test.ts` (1). Eles rodam com
 `npm run test:banco`; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
 propósito, para que a suíte rápida continue sem rede e sem banco.
@@ -349,9 +386,10 @@ As que saíram desta lista por terem sido resolvidas:
   devolvia **307 para o login** em produção. O `matcher` passou a excluir caminho terminado em
   `.extensão`, e o par foi verificado: arquivo estático serve com 200, rota privada continua
   redirecionando
-- *`regras-de-negocio.md` divergia do código sobre editar uma parcela* — resolvido a favor do
-  código. A operação **não existe**, e o documento passou a dizer isso em vez de descrever
-  comportamento que ninguém construiu
+- *`regras-de-negocio.md` divergia do código sobre editar uma parcela* — resolvido em duas
+  etapas. Primeiro a favor do código (a operação não existia); depois, em 2026-11-19, a operação
+  passou a existir pelos alcances *só esta* e *esta e as seguintes*, e o documento descreve o
+  que foi construído
 - *`gravarFilhos` sem transação* — as três gravações de lançamento rodam em
   `prisma.$transaction` desde `28f83e7`
 - *A mensagem de recusa em `linha-nova.tsx` ignorava o `motivo`* — saiu de pauta com o

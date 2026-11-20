@@ -40,8 +40,10 @@ Funções puras. Argumentos entram, valor sai. **Nada de Prisma, `fetch`, `Date.
 |---|---|---|
 | `money.ts` | Dinheiro é inteiro em centavos, e entrada ambígua é recusada | `Centavos`, `reaisParaCentavos`, `formatarBRL` |
 | `data.ts` | Data sem fuso, como string `AAAA-MM-DD` | `DataISO`, `partesDaData`, `ultimoDiaDoMes`, `diaClampeado` |
-| `competencia.ts` | Em qual fatura um lançamento cai | `Competencia`, `competenciaDeCartao`, `competenciaDeContaExterna`, `competenciaDeDataISO`, `avancarCompetencia`, `compararCompetencias`, `formatarCompetencia` |
-| `parcelamento.ts` | A soma das parcelas é exatamente o total | `OrigemValor`, `EntradaParcelamento`, `ParcelaGerada`, `gerarParcelas` |
+| `competencia.ts` | Em qual fatura um lançamento cai | `Competencia`, `competenciaDeCartao`, `competenciaDeContaExterna`, `competenciaDeDataISO`, `avancarCompetencia`, `competenciaBaseDaFatura`, `compararCompetencias`, `formatarCompetencia` |
+| `parcelamento.ts` | A soma das parcelas é exatamente o total; com faixa, gera só as parcelas dela | `OrigemValor`, `EntradaParcelamento`, `ParcelaGerada`, `gerarParcelas(entrada, faixa?)` |
+| `divisao.ts` | Como um lançamento se divide em pedaços por alcance, e quem fica com o id original | `Alcance`, `Faixa`, `PlanoDeDivisao`, `faixaDoLancamento`, `colunasDaFaixa`, `alcanceDaFaixa`, `planejarDivisao`, `faixaEscrita`, `minimoDeParcelas`, `parcelasDaFaixa`, `rotuloDaFaixa` |
+| `trava.ts` | Qual parcela bate numa fatura travada, e a frase que diz isso | `RAIO_DA_FATURA`, `Trava`, `ParcelaAlvo`, `competenciasTravadasDaConta`, `acharTrava`, `descreverTrava`, `divergenciaDaData` |
 | `rateio.ts` | A soma das cotas é exatamente o valor rateado | `PesoRateio`, `Cota`, `pesosMeioAMeio`, `ratear` |
 | `recorrencia.ts` | A data da recorrente e a triagem do que falta lançar, puras | `dataDaRecorrente`, `recorrentesPendentes` |
 | `busca.ts` | A busca por texto ou valor, sem acento, e o mês para onde o clique leva | `Busca`, `CandidatoDaBusca`, `normalizarTexto`, `interpretarBusca`, `correspondeABusca`, `competenciaDeDestino` |
@@ -82,9 +84,9 @@ A ponte com o banco e a sessão. Aqui pode haver I/O; aqui **não** pode haver r
 
 | Arquivo | Interface |
 |---|---|
-| `repositorios/lancamento.ts` | `EntradaLancamento`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento`, `excluirLancamento`, `marcarReembolso`, `restaurarLancamento` |
+| `repositorios/lancamento.ts` | `EntradaLancamento`, `RecusaTravada`, `ResultadoCriacao`, `ResultadoGravacao`, `criarLancamento`, `editarLancamento(id, versao, entrada, alcance = 'TODAS', numero?)`, `excluirLancamento(id, versao, alcance = 'TODAS', numero?)`, `marcarReembolso`, `restaurarLancamento` |
 | `repositorios/resumo.ts` | `LinhaGrade`, `LinhaAReceber`, `carregarParcelasDaCompetencia`, `carregarLinhasDaGrade`, `carregarReembolsosDaCompetencia` |
-| `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura` |
+| `repositorios/fatura.ts` | `ResultadoRegistroValorReal`, `ResultadoTrava`, `registrarValorReal`, `travarFatura`, `destravarFatura`, `carregarFatura`, `carregarTravadasAoRedor` |
 | `repositorios/recorrente.ts` | `carregarRecorrentes`, `criarRecorrente`, `editarRecorrente`, `carregarRecorrentesPendentes`, `lancarRecorrentes` |
 | `repositorios/graficos.ts` | `carregarParcelasParaGraficos` — lê parcelas de todas as competências, como a lixeira e a busca leem lançamentos |
 | `repositorios/lixeira.ts` | `ItemDaLixeira`, `carregarLixeira` |
@@ -98,6 +100,26 @@ o `tx` adiante**; usar o `prisma` global dentro da transação escreve por fora 
 rollback não alcança o que foi escrito assim. A verificação da fatura travada também ficou
 dentro: conferir fora deixava uma janela entre a conferência e a escrita em que a outra pessoa
 travava a fatura.
+
+**A barreira olha parcelas, não lançamentos.** `travaEntre(db, contaId, numeroParcelas, parcelas)`
+recebe só as parcelas que a operação apaga, grava ou muda, e devolve a primeira que cai em fatura
+`TRAVADA` da conta, já com o nome dela, ou `null`. Ela **substituiu** `temFaturaTravada` e
+`competenciasTravadas`, que olhavam o lançamento inteiro — o defeito de 19/11. A recusa é
+`{ ok: false, motivo: 'FATURA_TRAVADA', travada }`, e a frase sai de `descreverTrava`.
+
+Editar e excluir com alcance dividem o lançamento, e quatro helpers fazem o trabalho:
+
+- `lerOriginal` — o lançamento com as parcelas e o rateio, de que editar, excluir e restaurar
+  leem tudo
+- `separar(db, original, faixa, deletadoEm)` — cria o lançamento do pedaço com os mesmos campos e
+  **move** as linhas da faixa, trocando só o `lancamentoId`. Por isso não passa pela barreira.
+  Com `deletadoEm` preenchido, é a exclusão de um pedaço
+- `soOValor` — monta a entrada de *só esta*: tudo vem do original, e só o valor vem da tela
+- `planejarDivisao`, do domínio, que decide as faixas; o repositório só as materializa
+
+Tudo numa transação só, com o lock otimista no original, que ganha `versao + 1` em toda divisão.
+`carregarTravadasAoRedor`, em `fatura.ts`, lê as faturas travadas da janela de ±12 meses
+(`RAIO_DA_FATURA`) para o painel desabilitar os meses e o alcance *Todas*.
 
 
 `carregarFatura` devolve **valor e status na mesma consulta** (`{ valorRealCentavos, status }`,
@@ -160,8 +182,10 @@ de um componente de servidor viver dentro de um de cliente sem virar prop serial
 | `chips-conta.tsx` | não | Filtro por conta, no topo da grade |
 | `grade-lancamentos.tsx` | **sim** | A grade do mês, uma linha por **parcela**; abre o painel e guarda os dois estados vazios |
 | `secao-pessoa.tsx` | **sim** | Um grupo da grade: cabeçalho com a cor do membro, as linhas, e o subtotal |
-| `painel-lancamento.tsx` | **sim** | Criar **e** editar no mesmo painel, com a dica de em qual fatura a compra cai |
-| `dialogo-exclusao.tsx` | **sim** | A confirmação de exclusão, desenhada — não o `window.confirm` do navegador |
+| `painel-lancamento.tsx` | **sim** | Criar **e** editar no mesmo painel, com o campo **Fatura**, o aviso da data, *Começa na parcela*, o alcance e a frase da trava |
+| `controle-alcance.tsx` | **sim** | O controle segmentado *só esta / esta e as seguintes / todas*, com a razão escrita quando um alcance está desabilitado; serve ao painel e à exclusão |
+| `alcance-da-linha.ts` | não | Quais alcances uma linha admite e por quê, a partir das travadas da janela; puro, sem estado |
+| `dialogo-exclusao.tsx` | **sim** | A confirmação de exclusão, desenhada — não o `window.confirm` do navegador — com o alcance e o texto do que sai |
 | `barra-busca.tsx` | não | A busca: um formulário GET para o próprio Despesas, com `q` |
 | `resultados-busca.tsx` | não | Os resultados de todos os meses, um por **lançamento**, no lugar da grade |
 
@@ -332,7 +356,8 @@ conta e totais. O casco não faz isso por ela, e não é esquecimento — armadi
 entre carregamentos da mesma página.
 
 **Uma gravação nova:** lock otimista com `WHERE versao = ?`, barreira de fatura travada nos
-**dois sentidos** (de onde sai e para onde vai), e resultado tratável em vez de exceção.
+**dois sentidos** (de onde sai e para onde vai) sobre as **parcelas que a operação toca**, e
+resultado tratável em vez de exceção.
 
 ---
 
@@ -607,3 +632,20 @@ trazem o **fato medido** junto, porque conselho sem evidência é a primeira coi
     A falha cai do lado seguro: build quebrado não publica, e o deploy anterior segue no ar.
     Com o banco já migrado, é o código antigo sobre o banco novo — exatamente o caso que a
     armadilha 23 garante ser compatível.
+
+25. **Regerar parcelas sem filtrar pela faixa grava parcelas de outro pedaço.** Um lançamento é
+    uma faixa `[parcelaInicial .. parcelaFinal]` de uma compra de `numeroParcelas` parcelas, e
+    `gerarParcelas` sem faixa devolve a compra **inteira**. Chamá-la assim para um pedaço grava
+    as parcelas que pertencem ao vizinho. O `@@unique([lancamentoId, numero])` **não pega**,
+    porque os pedaços são lançamentos diferentes e o par `(lancamentoId, numero)` nunca se
+    repete; o resultado são duas linhas com o mesmo número em meses somados na mesma fatura.
+
+    Toda chamada de `gerarParcelas` no repositório passa a faixa: `faixaEscrita` na edição, a de
+    `parcelaInicial` na criação. Chamada sem faixa só vale para o lançamento de faixa inteira, e
+    mesmo ali é a faixa que se passa.
+
+    **A barreira de trava recebe só as parcelas tocadas.** Passar o lançamento inteiro, ou as
+    parcelas que `gerarParcelas` daria para a compra inteira, era o defeito de 19/11: com
+    dezembro aberto, editar um parcelado que também tinha parcela em novembro travado respondia
+    *"Esse mês já está fechado"*. Parcela que a operação não alcança não é lida nem escrita, e
+    por isso não pode barrar nada.

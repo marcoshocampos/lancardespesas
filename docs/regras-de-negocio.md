@@ -37,10 +37,28 @@ dia do mês. **[a confirmar]**
 
 A competência é o mês da data do pagamento. Não há fechamento nem vencimento.
 
-### Sobrescrita
+### O campo Fatura
 
-O sistema calcula, o usuário pode corrigir. Uma competência sobrescrita manualmente fica
-marcada como tal e **não é recalculada** se a data da compra for editada depois. **[a confirmar]**
+O painel de lançamento tem o campo **Fatura**: o mês em que a parcela cai, e, para cartão, o mês
+do vencimento da fatura — a competência de sempre. **Ele começa no mês que está na tela**, e não
+no mês que a data da compra daria. Quem está em dezembro conferindo a fatura de dezembro lança
+nela sem pensar em data de fechamento; a compra de 3/11 que só apareceu na fatura de dezembro é
+o caso típico.
+
+- É um seletor de **12 meses para trás a 12 para frente** do mês da tela. Os meses com fatura
+  `TRAVADA` **na conta escolhida** aparecem desabilitados, marcados *travada*; trocar de conta
+  recalcula quais ficam assim. Conta externa não tem fatura, e nada fica desabilitado
+- **A data não decide mais o mês.** Se pela data a compra cairia em outro mês, um aviso aparece
+  abaixo do campo — *"Pela data, cairia em janeiro de 2027"* — e não impede o envio. A
+  comparação é entre **competências base**: a que a data dá para a parcela 1, e
+  `Fatura − (k − 1)`, em que `k` é o número da parcela que a Fatura descreve. Assim a parcela 9
+  de uma compra de abril, aberta em dezembro, não acusa diferença nenhuma
+- **Recorrentes e o importador continuam calculando a competência pela data.** O campo Fatura é
+  do painel
+
+Em compra parcelada, a parcela 1 cai na Fatura escolhida e as seguintes nos meses seguintes. Para
+lançar uma compra antiga que só agora apareceu, o campo **Começa na parcela X de N** grava só as
+parcelas `X` a `N`, e a Fatura escolhida recebe a parcela `X`. Ver a seção 2.
 
 ### Mudança no dia de fechamento
 
@@ -68,22 +86,44 @@ digitando. A planilha sempre usou o valor da parcela, então esse é o padrão.
 Quando o valor informado é o total, a divisão é em centavos e **a diferença vai na última
 parcela**. R$ 100,00 em 3x vira 33,33 + 33,33 + 33,34.
 
-### Editar uma parcela — **não existe**
+### Editar parte de um parcelado
 
-Esta seção descrevia alterar o valor de **uma** parcela sem redistribuir as outras, deixando o
-total do lançamento virar a soma das suas parcelas. É o comportamento certo para renegociação
-e para juros que aparecem no meio do parcelamento, e **nada disso foi construído**.
+Ao abrir a edição de uma linha que é parcela de um parcelado, o topo do painel mostra o
+**alcance**, um controle segmentado:
 
-O que o sistema faz hoje: `editarLancamento` regenera **todas** as parcelas a partir do valor
-do lançamento, a cada edição. Não há operação que alcance uma parcela sozinha, nem na tela nem
-no repositório. Editar um parcelado de 12x para corrigir a descrição recalcula as doze.
+| Alcance | O que muda | O que fica |
+|---|---|---|
+| **Só esta parcela** (padrão) | O valor desta parcela; os outros campos ficam desabilitados | Todas as outras parcelas, em tudo |
+| **Esta e as seguintes** | Qualquer campo, inclusive a Fatura e o número total de parcelas | As parcelas anteriores, em tudo — descrição, categoria, pessoa e cartão, não só o valor |
+| **Todas** | Qualquer campo, em todas as parcelas do lançamento | — |
 
-Consequência prática: **não há como registrar juros que apareceram na parcela 7.** O jeito de
-representar isso hoje é um lançamento à vista separado, na competência em que o juro caiu.
+- **Só esta** é o jeito de registrar os juros que aparecem na parcela 7, ou qualquer ajuste de
+  uma fatura só. A Fatura fica fixa: não move a parcela de mês
+- **Esta e as seguintes** serve para reajuste, correção que vale dali em diante e renegociação
+- **Todas** é o comportamento antigo, e fica **desabilitado quando alguma parcela do lançamento
+  está em fatura travada**, com a frase da trava escrita abaixo dele. A tela só enxerga as
+  travadas da janela de ±12 meses; uma travada mais distante, num parcelado longo, aparece como
+  recusa do servidor ao salvar. Quem decide é sempre o servidor
+- **Num lançamento de valor `TOTAL`, *só esta* e *esta e as seguintes* ficam bloqueadas**, com o
+  motivo na tela: ali o campo de valor mostra o total da compra, e "o valor desta parcela" não
+  tem leitura honesta. Os lançamentos de hoje são todos `POR_PARCELA`, e o painel só grava esse;
+  o bloqueio protege um caminho que a tela não alcança
+- O alcance substitui a confirmação *"Editar regera as N parcelas"*: quem escolheu o alcance já
+  disse o que quer regerar
+- Um lançamento de uma parcela só — à vista, ou um pedaço de uma parcela só — abre sem o controle
 
-Fica registrado como divergência resolvida a favor do código, e não some daqui porque a
-intenção continua válida — quando a operação existir, é este o comportamento esperado. A única
-edição por parcela que o sistema tem é **cancelar**, abaixo.
+A Fatura, na edição, começa no mês da parcela que foi clicada. Em *esta e as seguintes* e em
+*todas*, mudá-la desloca as parcelas alcançadas.
+
+**Dividir cria lançamentos com faixa.** Descrição, categoria, pessoa, conta e rateio moram no
+lançamento, e não na parcela. Para dezembro mudar de categoria com novembro intacto, o
+lançamento se divide em pedaços, e cada um é a faixa `[parcelaInicial .. parcelaFinal]` de uma
+compra de `numeroParcelas` parcelas. O pedaço de antes, quando existe, fica com o id original e
+as linhas onde estão; o do alcance é regerado com os campos novos; em *só esta* no meio da
+faixa, o que vem depois recebe as linhas movidas, sem mudar valor nem número. Pedaço novo não
+herda a marca de recorrente, e o rateio do pedaço do alcance segue o escopo novo. No mês
+continua uma linha só, porque os pedaços não se sobrepõem. A busca e a lixeira mostram os
+pedaços, cada um com *"parcelas 4 a 12 de 12"*. Ver [`decisoes.md`](decisoes.md).
 
 ### Cancelar uma parcela
 
@@ -93,15 +133,22 @@ futuras. **[a confirmar]**
 
 ### Alterar o número de parcelas
 
-Regenera as parcelas **futuras e não travadas**, preservando as já passadas. Se o novo número
-for menor que a quantidade de parcelas já travadas, a operação é recusada com essa
-explicação. **[a confirmar]**
+Só em *esta e as seguintes* ou em *todas*. Em *esta e as seguintes*, **o total novo vale para o
+pedaço novo** e precisa ser pelo menos o número da parcela clicada; **o pedaço de antes guarda o
+total antigo**, e as parcelas dele não são lidas nem escritas. Em *todas*, o total novo vale para
+a compra inteira, e a barreira de trava confere as parcelas que a operação apaga e grava.
 
 ### Excluir o lançamento
 
-Vai para a lixeira junto com todas as suas parcelas. **Se qualquer parcela estiver numa fatura
-travada, a exclusão é recusada** — é preciso destravar a fatura primeiro. Sem isso, um mês
-fechado e conferido mudaria de valor sozinho. **[a confirmar]**
+A caixa de exclusão tem os mesmos três alcances de editar, com o texto do que sai: *"Exclui as
+parcelas 4 a 12, de dezembro de 2026 a agosto de 2027"*. *Esta e as seguintes* é a quitação do
+restante, *só esta* tira uma parcela, *todas* é o comportamento antigo.
+
+**O pedaço excluído vai para a lixeira como um lançamento**, com as linhas movidas e os campos
+do original, e a lixeira o restaura como qualquer outro. **Se alguma parcela que a exclusão
+alcança estiver numa fatura travada, ela é recusada** — é preciso destravar a fatura primeiro.
+*Todas* fica desabilitado quando há parcela travada; as que ficam fora do alcance não barram.
+Sem isso, um mês fechado e conferido mudaria de valor sozinho.
 
 ---
 
@@ -198,6 +245,24 @@ está conferindo.
 Fatura `TRAVADA` é somente-leitura: não aceita novo lançamento na competência, nem edição ou
 exclusão de parcela existente, nem correção do valor do extrato. Destravar é uma ação
 explícita, registrada na auditoria com quem destravou e quando.
+
+**A trava congela as parcelas do mês travado, e só elas.** Uma operação é recusada se, e somente
+se, apagar, gravar ou mudar uma parcela que está numa fatura `TRAVADA`. Parcela que a operação
+não alcança não é lida nem escrita, e por isso não pode barrar nada. Olhar o lançamento inteiro
+era o defeito de 19/11: com dezembro aberto, lançar e editar respondiam *"Esse mês já está
+fechado"* só porque o parcelado também tinha parcela em novembro ou setembro, travados. Linha
+que é apenas movida de um pedaço para outro não passa pela barreira, porque não muda valor,
+número, competência nem campo exibido.
+
+**A recusa nomeia a parcela, o mês e a conta**, e diz onde destravar. A frase sai de
+`descreverTrava`, no domínio, e não é montada na tela:
+
+> A parcela 3 cai em novembro de 2026, e a fatura do C6 desse mês está travada. Destrave-a no
+> Resumo de novembro para mudá-la.
+
+Quando várias parcelas batem em meses travados, a frase nomeia a primeira. Abrir a edição de
+uma linha cujo mês está travado mostra a frase no topo do painel e desabilita o Salvar, em vez
+de deixar digitar e recusar no fim.
 
 **Travar exige o valor do extrato preenchido — e não exige que ele bata.** Decidido; o
 `[a confirmar]` que havia aqui propunha não exigir `CONFERIDA`, com o argumento de que exigir
