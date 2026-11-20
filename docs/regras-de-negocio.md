@@ -138,11 +138,30 @@ pedaço novo** e precisa ser pelo menos o número da parcela clicada; **o pedaç
 total antigo**, e as parcelas dele não são lidas nem escritas. Em *todas*, o total novo vale para
 a compra inteira, e a barreira de trava confere as parcelas que a operação apaga e grava.
 
+**Só o pedaço que chega à última parcela da compra muda o total.** Um pedaço que para antes — o
+de antes de uma divisão, ou o que ficou depois de excluir as seguintes — tem as parcelas
+seguintes em outro lançamento, vivo ou na lixeira. Nele o campo Parcelas fica fixo, com a razão
+escrita abaixo (*"O total fica em 12: as parcelas depois da 2 estão em outro lançamento."*), e o
+servidor recusa outro total com *"Nesta parte da compra, o total tem que continuar em 12
+parcelas."* Sem a regra, `[1 .. 2]` de 12 com o total baixado para 2 passava a parecer o último
+pedaço, e subir o total de novo regerava as parcelas 3 a 12, que já eram do vizinho: a mesma
+parcela duas vezes no mês, e a fatura somando as duas.
+
+### Salvar sem mudar nada
+
+**Não divide.** Quando a edição de parte de um parcelado gravaria os mesmos campos, a mesma
+faixa e as mesmas parcelas — número, valor e mês — que já estão lá, nada é escrito e a versão
+não muda. Dividir não tem volta, e abrir uma parcela do meio só para conferir e clicar Salvar
+deixava três lançamentos. Como nada é escrito, a trava não recusa. Em *todas* a edição continua
+regravando no lugar, como sempre, porque ali não nasce pedaço.
+
 ### Excluir o lançamento
 
-A caixa de exclusão tem os mesmos três alcances de editar, com o texto do que sai: *"Exclui as
-parcelas 4 a 12, de dezembro de 2026 a agosto de 2027"*. *Esta e as seguintes* é a quitação do
-restante, *só esta* tira uma parcela, *todas* é o comportamento antigo.
+A caixa de exclusão tem os mesmos três alcances de editar, com o texto do que sai: *"Excluir
+"tênis" remove as parcelas 4 a 12, de dezembro de 2026 a agosto de 2027. Essa ação não pode ser
+desfeita por aqui."* — ou, com uma parcela só, *"Excluir a parcela 4 de "tênis", de dezembro de
+2026."*, com o mesmo fim. *Esta e as seguintes* é a quitação do restante, *só esta* tira uma
+parcela, *todas* é o comportamento antigo.
 
 **O pedaço excluído vai para a lixeira como um lançamento**, com as linhas movidas e os campos
 do original, e a lixeira o restaura como qualquer outro. **Se alguma parcela que a exclusão

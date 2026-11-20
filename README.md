@@ -69,7 +69,7 @@ npm install
 npm test
 ```
 
-São 202 testes em cerca de um segundo, **sem banco e sem rede**.
+São 207 testes em cerca de um segundo, **sem banco e sem rede**.
 
 Para subir a aplicação é preciso um `.env` na raiz, a partir do
 [`.env.example`](.env.example), com a conexão do Postgres e as credenciais do Google.
@@ -82,7 +82,7 @@ npm run dev
 npm run test:banco
 ```
 
-Roda os 266, incluindo os que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma base
+Roda os 278, incluindo os que tocam banco. Exige `DATABASE_URL_TESTE` apontando para uma base
 criada só para isso — **a suíte apaga todo lançamento que encontra**. O runner se recusa a
 rodar se essa variável faltar ou se apontar para o mesmo endpoint da `DATABASE_URL`.
 

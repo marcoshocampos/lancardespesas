@@ -242,11 +242,16 @@ que tenha parcela em novembro e em dezembro, ao menos duas parcelas depois de de
 - [ ] Lance um parcelado em 6x com **Começa na parcela 3 de 6**: a linha nova mostra **3/6** em
       dezembro, e as parcelas 4 a 6 caem nos três meses seguintes. As parcelas 1 e 2 não
       existem.
-- [ ] Exclua **Esta e as seguintes** de uma parcela de dezembro: a caixa diz o que sai (*"Exclui
-      as parcelas … a …, de dezembro de … a …"*). Depois, a compra some de dezembro em diante, as
+- [ ] Exclua **Esta e as seguintes** de uma parcela de dezembro: a caixa diz o que sai
+      (*"Excluir "…" remove as parcelas … a …, de dezembro de … a …. Essa ação não pode ser
+      desfeita por aqui."*). Depois, a compra some de dezembro em diante, as
       parcelas de novembro ficam, e a **lixeira** mostra o pedaço excluído como *"parcelas 3 a 6
       de 6"*. Restaure: ele volta, nos mesmos meses.
 - [ ] Abra uma **linha de novembro**, o mês travado: aviso no topo com a frase da trava, e o
       Salvar desabilitado.
 - [ ] Destrave novembro no Resumo e abra a mesma linha: o aviso some e **Todas** passa a ficar
       habilitado.
+- [ ] Nessa mesma linha, em **Todas**, o campo **Parcelas** fica desabilitado no total da compra,
+      com *"O total fica em …: as parcelas depois da … estão em outro lançamento."* abaixo dele —
+      dezembro em diante virou outro lançamento no passo da descrição. Salve mudando só a
+      descrição: novembro muda, e dezembro em diante continua uma linha só em cada mês.

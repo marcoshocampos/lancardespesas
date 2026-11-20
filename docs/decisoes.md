@@ -788,3 +788,38 @@ e depois, e na exclusão as que saem dos meses. Linha movida e linha do pedaço 
 **Se um dia a linha movida passar a mudar algo que a fatura mostra** — o valor, a competência, a
 conta —, ela deixa de ser só movida e precisa passar pela barreira. Os testes de banco que
 conferem `id` e valor das linhas de *depois* são o aviso.
+
+## Só o pedaço que chega à última parcela muda o total
+
+**Onde:** `limitesDeParcelas` e `faixaEscrita`, em `src/domain/divisao.ts`; o campo Parcelas de
+`painel-lancamento.tsx`; a recusa `TOTAL_INVALIDO` de `editarLancamento`.
+
+Parece restrição demais: por que não deixar baixar o total de `[1 .. 9]` de 12 depois de
+excluir da 10 em diante? Porque as parcelas 10 a 12 **continuam existindo**, num lançamento na
+lixeira, e o mesmo vale para o pedaço de antes de uma divisão, cujas seguintes estão num
+lançamento vivo. Não há `compraId` ligando os pedaços; o que diz onde cada um termina é a
+faixa, e `parcelaFinal` nulo quer dizer "até a última". Baixar o total até a ponta gravava esse
+nulo, o pedaço passava a parecer o último, e subir o total de novo regerava parcelas do vizinho
+— a mesma parcela em dois lançamentos, somada duas vezes na fatura, sem índice que pegue.
+
+**Não afrouxe para "o total pode ir até a ponta deste pedaço".** Era exatamente essa a regra
+de antes, e foi ela que deixou a sobreposição passar. Quem quer outro total muda pelo pedaço
+que chega ao fim.
+
+## Salvar sem mudar nada não divide
+
+**Onde:** `semMudanca`, em `repositorios/lancamento.ts`.
+
+Dividir não tem volta: não existe juntar pedaços (ver *Dividir o lançamento*, acima). Abrir
+uma parcela do meio só para conferir e clicar Salvar deixava três lançamentos com os dados de
+antes. Quando os campos que `camposGravaveis` escreveria, a faixa e as linhas são os de hoje, a
+edição devolve `{ ok: true }` sem escrever e sem gastar a versão.
+
+**A comparação vem antes da barreira de trava**, e isso foi escolhido: a trava recusa o que
+apaga, grava ou muda parcela travada, e uma edição que não escreve não faz nenhum dos três.
+**Em *todas* nada mudou:** ali não nasce pedaço, e regravar no lugar, com a versão subindo,
+continua sendo o comportamento de sempre.
+
+**A comparação percorre as chaves de `camposGravaveis`**, e não uma lista escrita à mão. Campo
+novo que a tela passe a gravar entra nela sem ninguém lembrar; com a lista, um campo esquecido
+faria a edição dele virar "nada mudou" e ser descartada em silêncio.

@@ -1,6 +1,6 @@
 # Estado do projeto
 
-Atualizado em 2026-11-19. Este arquivo responde "onde paramos" para quem chega agora —
+Atualizado em 2026-11-20. Este arquivo responde "onde paramos" para quem chega agora —
 inclusive uma sessão nova de agente, que não tem memória da conversa anterior.
 
 ## Onde estamos
@@ -11,6 +11,13 @@ nulo) **não foi aplicada em produção**: isso acontece depois da revisão, com
 usuário, antes do push (armadilha 23 de [`arquitetura.md`](arquitetura.md)). Ela só adiciona
 coluna, e o código de hoje continua funcionando com o banco novo. O que está abaixo, sobre
 `main`, vale até o merge; a seção *Trava por parcela* diz o que muda.
+
+**Depois do merge, não use o *instant rollback* da Vercel para voltar a um deploy anterior a
+ele.** Assim que existir em produção um lançamento dividido, o código antigo não lê a faixa: o
+`editarLancamento` de antes regera a compra inteira dentro do pedaço e duplica as parcelas dos
+irmãos, sem índice que reclame. Voltar atrás é um commit novo por cima. Se o rollback já tiver
+acontecido, ninguém edita parcelado até o código novo voltar ao ar. Ver as armadilhas 23 e 25
+de [`arquitetura.md`](arquitetura.md).
 
 ### Trava por parcela
 
@@ -36,6 +43,11 @@ dezembro.
 - **A frase da trava** nomeia parcela, mês e conta, e diz onde destravar. Linha de mês travado
   abre com a frase no topo e o Salvar desabilitado; o Salvar também fica desabilitado quando
   nenhum alcance pode ser escolhido (um lançamento `TOTAL` com parcela travada, por exemplo)
+- **Só o pedaço que chega à última parcela muda o total.** Nos outros o campo Parcelas fica
+  fixo, com a razão abaixo, e o servidor recusa com `TOTAL_INVALIDO`. Sem isso, baixar e subir
+  o total de um pedaço de antes duplicava as parcelas do vizinho — achado da revisão final
+- **Salvar sem mudar nada não divide** a compra, nem gasta a versão — também da revisão final:
+  abrir uma parcela do meio e clicar Salvar deixava três lançamentos
 
 **A conferência dessa tela é do usuário**, pelo passo *Trava por parcela* de
 [`verificacao-visual.md`](verificacao-visual.md). Regras em
@@ -93,17 +105,17 @@ três viraram armadilha registrada em [`arquitetura.md`](arquitetura.md).
 
 ## O que já funciona
 
-**`npm test` hoje: 202 passando e 64 pulados.** Com banco, `npm run test:banco`, são **266
+**`npm test` hoje: 207 passando e 71 pulados.** Com banco, `npm run test:banco`, são **278
 passando e nenhum pulado**. Saída literal dos dois:
 
 ```
  Test Files  15 passed | 5 skipped (20)        Test Files  20 passed (20)
-      Tests  202 passed | 64 skipped (266)          Tests  266 passed (266)
+      Tests  207 passed | 71 skipped (278)          Tests  278 passed (278)
 ```
 
-Os 64 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
+Os 71 pulados são **todos** os testes de banco, atrás de `TESTE_DESTRUTIVO=1`, em cinco
 arquivos: `repositorios/busca.test.ts` (4), `repositorios/configuracao.test.ts` (8),
-`repositorios/lancamento.test.ts` (44), `repositorios/recorrente.test.ts` (7) e
+`repositorios/lancamento.test.ts` (51), `repositorios/recorrente.test.ts` (7) e
 `repositorios/resumo.test.ts` (1). Eles rodam com
 `npm run test:banco`; a seção sobre isso está mais abaixo. Ficam fora do `npm test` de
 propósito, para que a suíte rápida continue sem rede e sem banco.
@@ -153,8 +165,9 @@ O que a branch `navegacao` acrescentou — **camada visual, sem tocar em nenhum 
 - **Grade em seções por pessoa**, com cabeçalho, subtotal por seção e dois estados vazios
   distintos (mês sem lançamento × filtro que não bateu)
 - **Painel único de lançamento:** criar e editar no mesmo lugar, com a dica dizendo em qual
-  fatura a compra vai cair, aviso antes de regerar parcelas, e exclusão numa caixa desenhada
-  em vez do `window.confirm` do navegador
+  fatura a compra vai cair, e exclusão numa caixa desenhada em vez do `window.confirm` do
+  navegador. O aviso antes de regerar parcelas, que também nasceu aqui, deu lugar ao alcance
+  em 2026-11-19, e a dica de fatura virou o campo Fatura com o aviso da data
 - **Resumo com cartões no topo**, matriz em bandas e o selo de conferência nas quatro situações
 - **Tela de Configurações** (`/configuracoes`), nova: criar, editar e arquivar categoria;
   editar conta, inclusive os dias de cartão e o `ativa`; editar nome e cor de pessoa e escolher

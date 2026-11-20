@@ -74,7 +74,7 @@ function ItemLixeira({ item }: { item: ItemDaLixeira }) {
           setErro(
             resultado.motivo === 'FATURA_TRAVADA'
               ? descreverTrava(resultado.travada)
-              :'Alguém mexeu neste lançamento. Recarregue a página.',
+              : 'Alguém mexeu neste lançamento. Recarregue a página.',
           );
           return;
         }

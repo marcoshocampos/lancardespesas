@@ -86,6 +86,15 @@ Ao abrir a edição de uma linha que é parcela de um parcelado, o topo do paine
 - **Só esta** serve para juros ou ajuste que apareceu numa fatura só.
 - **Esta e as seguintes** serve para reajuste, correção que vale dali em diante, renegociação.
   Mudar o total de parcelas exige que o novo total seja pelo menos o número desta parcela.
+- **Só o alcance que chega à última parcela da compra muda o total.** Num pedaço que para antes
+  — o de antes de uma divisão, ou o que ficou depois de excluir as seguintes —, as parcelas
+  seguintes estão em outro lançamento, vivo ou na lixeira, e o campo Parcelas fica fixo no total
+  de hoje, com a razão escrita abaixo. Sem isso os pedaços se sobreporiam: baixar o total de
+  `[1 .. 2]` de 12 para 2 fazia o pedaço parecer o último, e subir de novo regerava as parcelas
+  3 a 12, que já eram do vizinho. O servidor recusa um total fora dos limites com
+  `TOTAL_INVALIDO`.
+- **Salvar sem mudar nada não divide.** Se os campos, a faixa e as parcelas que a edição
+  gravaria são os de hoje, nada é escrito e a versão não muda. Dividir não tem volta.
 - **Todas** é o comportamento de hoje. Fica **desabilitado quando alguma parcela do
   lançamento está em fatura travada**, com a razão escrita abaixo dele. A tela só enxerga as
   travadas da janela de ±12 meses; uma travada mais distante, num parcelado longo, aparece
@@ -220,6 +229,11 @@ ganha `versao + 1` em toda divisão.
   *antes* não é lida.
 - **A recusa** passa a ser
   `{ ok: false, motivo: 'FATURA_TRAVADA', travada: { numero, competencia, contaNome } }`.
+- **Editar recusa também o total que o alcance não comporta**, com
+  `{ ok: false, motivo: 'TOTAL_INVALIDO', minimo, maximo }`, antes de escrever qualquer coisa. Os
+  limites saem de `limitesDeParcelas`, a mesma função que dá o `min` e o `max` do campo.
+- **Editar sem mudar nada devolve `{ ok: true }` sem escrever**, quando o plano é dividir. Vem
+  antes da barreira: não apaga, não grava e não muda parcela nenhuma.
 
 ### Action
 
@@ -231,7 +245,8 @@ faixa do lançamento. `competenciaManual` continua existindo para o importador.
 ### O que lê a faixa
 
 - **Busca** e **lixeira** mostram *"parcelas 4 a 12 de 12"* quando o lançamento não tem a
-  compra inteira. O valor exibido é a soma das parcelas do pedaço.
+  compra inteira. Na busca, o valor exibido é a soma das parcelas do pedaço; na lixeira, o valor
+  do lançamento, como ela sempre mostrou.
 - **Grade, resumo, fatura, gráficos, recorrentes** leem parcela e não mudam.
 - **Restaurar** um pedaço passa pela barreira de sempre, contra as linhas dele.
 
@@ -243,8 +258,9 @@ faixa do lançamento. `competenciaManual` continua existindo para o importador.
 - **Fatura**, **aviso da data**, **"começa na parcela"** e **alcance** como descritos na seção
   3. Em *só esta*, os campos fora o valor ficam desabilitados.
 - [`dialogo-exclusao.tsx`](../../src/components/despesas/dialogo-exclusao.tsx) ganha o controle de
-  alcance, com o texto do que sai: *"Exclui as parcelas 4 a 12, de dezembro de 2026 a agosto de
-  2027"*.
+  alcance, com o texto do que sai: *"Excluir "tênis" remove as parcelas 4 a 12, de dezembro de
+  2026 a agosto de 2027. Essa ação não pode ser desfeita por aqui."* Com uma parcela só, *"Excluir
+  a parcela 4 de "tênis", de dezembro de 2026."*, com o mesmo fim.
 - Linha de mês travado: aviso no topo e Salvar desabilitado.
 - O formulário continua sem resetar na recusa (ver `decisoes.md`), e a mensagem vem da recusa
   do servidor, montada por `descreverTrava`.
@@ -277,6 +293,9 @@ novembro travado**.
   e cartão; e aceita a mesma edição quando a travada fica antes de k.
 - Excluir *esta e as seguintes*, e restaurar o pedaço pela lixeira.
 - Criar com Fatura diferente do mês da data, e com parcela inicial maior que 1.
+- O pedaço que não chega à última parcela não muda o total — nem depois de dividir, nem depois
+  de excluir as seguintes e restaurá-las —, e nenhuma parcela fica em dois lançamentos vivos.
+- Salvar sem mudar nada em *só esta* e em *esta e as seguintes* não divide nem gasta a versão.
 
 ## 9. Documentação
 
