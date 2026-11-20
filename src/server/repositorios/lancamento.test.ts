@@ -18,6 +18,7 @@ const podeDestruir = process.env.TESTE_DESTRUTIVO === '1';
 describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
   let categoriaId: string;
   let membroId: string;
+  let nomeDoC6: string;
 
   // Conferir e limpar sao duas coisas, e mante-las na mesma funcao era o
   // defeito. "Este banco tem dado que nao e meu?" so faz sentido UMA vez,
@@ -76,6 +77,9 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     // findFirstOrThrow sem orderBy devolveria na proxima chamada.
     categoriaId = (await prisma.categoria.findFirstOrThrow()).id;
     membroId = (await prisma.membro.findFirstOrThrow()).id;
+    // A recusa de trava traz o nome da conta; o seed chama a conta-c6 de algum
+    // nome, e o teste nao deve adivinhar qual.
+    nomeDoC6 = (await prisma.conta.findUniqueOrThrow({ where: { id: 'conta-c6' } })).nome;
   });
 
   beforeEach(async () => {
@@ -124,6 +128,9 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     return resultado.id;
   }
 
+  const linhasDe = (lancamentoId: string) =>
+    prisma.parcela.findMany({ where: { lancamentoId }, orderBy: { numero: 'asc' } });
+
   it('grava e gera as parcelas na competencia certa', async () => {
     const id = await criarOk();
     const parcelas = await prisma.parcela.findMany({ where: { lancamentoId: id } });
@@ -154,8 +161,11 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
 
     const resultado = await editarLancamento(id, 1, { ...entrada(), descricao: 'outro' });
 
-    expect(resultado.ok).toBe(false);
-    if (!resultado.ok) expect(resultado.motivo).toBe('FATURA_TRAVADA');
+    expect(resultado).toEqual({
+      ok: false,
+      motivo: 'FATURA_TRAVADA',
+      travada: { numero: 1, numeroParcelas: 1, competencia: '2026-08', contaNome: nomeDoC6 },
+    });
   });
 
   it('recusa criar lancamento numa competencia com fatura travada, sem gravar nada', async () => {
@@ -164,8 +174,11 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
 
     const resultado = await criarLancamento(entrada());
 
-    expect(resultado.ok).toBe(false);
-    if (!resultado.ok) expect(resultado.motivo).toBe('FATURA_TRAVADA');
+    expect(resultado).toEqual({
+      ok: false,
+      motivo: 'FATURA_TRAVADA',
+      travada: { numero: 1, numeroParcelas: 1, competencia: '2026-08', contaNome: nomeDoC6 },
+    });
     const depois = await prisma.lancamento.count();
     expect(depois).toBe(antes);
   });
@@ -369,8 +382,11 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
 
     const resultado = await restaurarLancamento(id, 2);
 
-    expect(resultado.ok).toBe(false);
-    if (!resultado.ok) expect(resultado.motivo).toBe('FATURA_TRAVADA');
+    expect(resultado).toEqual({
+      ok: false,
+      motivo: 'FATURA_TRAVADA',
+      travada: { numero: 1, numeroParcelas: 1, competencia: '2026-08', contaNome: nomeDoC6 },
+    });
     expect((await prisma.lancamento.findUniqueOrThrow({ where: { id } })).deletadoEm).not.toBeNull();
   });
 
@@ -408,5 +424,74 @@ describe.skipIf(!podeDestruir)('gravacao com lock otimista', () => {
     expect(parcelas[0]?.cancelada).toBe(false);
     expect(parcelas[1]?.cancelada).toBe(false);
     expect(parcelas[2]?.cancelada).toBe(true);
+  });
+
+  it('cria a partir da parcela 3, gravando so as parcelas 3 a 6', async () => {
+    // A Fatura de dezembro para a parcela 3 pos a base, a parcela 1, em outubro.
+    const id = await criarOk({
+      ...entrada(),
+      numeroParcelas: 6,
+      parcelaInicial: 3,
+      competenciaManual: '2026-10',
+    });
+
+    const salvo = await prisma.lancamento.findUniqueOrThrow({ where: { id } });
+    expect(salvo).toMatchObject({ parcelaInicial: 3, parcelaFinal: null });
+    expect((await linhasDe(id)).map((p) => [p.numero, p.competencia])).toEqual([
+      [3, '2026-12'],
+      [4, '2027-01'],
+      [5, '2027-02'],
+      [6, '2027-03'],
+    ]);
+  });
+
+  it('cria a partir da parcela 3 mesmo com a base num mes travado', async () => {
+    // A parcela 1 nao e gravada: o mes dela estar travado nao barra nada.
+    await travarFatura('2026-10');
+
+    const resultado = await criarLancamento({
+      ...entrada(),
+      numeroParcelas: 6,
+      parcelaInicial: 3,
+      competenciaManual: '2026-10',
+    });
+
+    expect(resultado.ok).toBe(true);
+  });
+
+  it('recusa criar parcelado quando uma parcela do meio cai em mes travado, nomeando-a', async () => {
+    await travarFatura('2026-11');
+
+    const resultado = await criarLancamento({
+      ...entrada(),
+      numeroParcelas: 3,
+      competenciaManual: '2026-10',
+    });
+
+    expect(resultado).toEqual({
+      ok: false,
+      motivo: 'FATURA_TRAVADA',
+      travada: { numero: 2, numeroParcelas: 3, competencia: '2026-11', contaNome: nomeDoC6 },
+    });
+    expect(await prisma.lancamento.count()).toBe(0);
+  });
+
+  it('edita no lugar um lancamento que comeca na parcela 3 sem recriar as de antes', async () => {
+    const id = await criarOk({
+      ...entrada(),
+      numeroParcelas: 6,
+      parcelaInicial: 3,
+      competenciaManual: '2026-10',
+    });
+
+    const resultado = await editarLancamento(id, 1, {
+      ...entrada(),
+      numeroParcelas: 6,
+      descricao: 'corrigida',
+      competenciaManual: '2026-10',
+    });
+
+    expect(resultado.ok).toBe(true);
+    expect((await linhasDe(id)).map((p) => p.numero)).toEqual([3, 4, 5, 6]);
   });
 });

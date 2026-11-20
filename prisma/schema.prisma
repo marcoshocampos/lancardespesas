@@ -95,6 +95,13 @@ model Lancamento {
   origemValor     OrigemValor      @default(POR_PARCELA)
   dataCompra      String // AAAA-MM-DD, sem fuso
   numeroParcelas  Int              @default(1)
+  // A faixa da compra que ESTE lancamento grava: as parcelas `parcelaInicial`
+  // a `parcelaFinal`, inclusive; `parcelaFinal` nulo e ate `numeroParcelas`,
+  // que continua sendo o total da compra (o 12 de "4/12"). Editar ou excluir
+  // parte de um parcelado divide a faixa em pedacos, cada um um lancamento —
+  // ver docs/specs/2026-11-19-trava-por-parcela-design.md.
+  parcelaInicial  Int              @default(1)
+  parcelaFinal    Int?
   escopo          EscopoLancamento
   meioPagamento   MeioPagamento?
   devedorNome     String?
